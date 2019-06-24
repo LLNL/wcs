@@ -1,0 +1,75 @@
+# This will create IMPORTED targets for WCS. The executables will be
+# WCS::<exe-name>-bin (e.g., WCS::wcs-bin) and the library will
+# be WCS::wcs.
+
+include("${CMAKE_CURRENT_LIST_DIR}/WCSConfigVersion.cmake")
+
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}")
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/modules")
+list(APPEND CMAKE_MODULE_PATH "@EXTRA_CMAKE_MODULE_DIR@")
+
+set(WCS_VERSION ${PACKAGE_VERSION})
+
+# Record compiler information
+set(WCS_CXX_COMPILER "@CMAKE_CXX_COMPILER@")
+
+set(WCS_CXX_FLAGS "@CMAKE_CXX_FLAGS@")
+
+set(WCS_CXX_STANDARD "@CMAKE_CXX_STANDARD@")
+
+# Fix the CXX and CUDA standards
+if (CMAKE_CXX_STANDARD LESS WCS_CXX_STANDARD)
+  set(CMAKE_CXX_STANDARD "${WCS_CXX_STANDARD}")
+endif ()
+set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
+
+# Record the various flags and switches accumlated in WCS
+set(WCS_VERTEX_LIST_TYPE @WCS_VERTEX_LIST_TYPE@)
+set(WCS_OUT_EDGE_LIST_TYPE @WCS_OUT_EDGE_LIST_TYPE@)
+set(WCS_GNU_LINUX @WCS_GNU_LINUX@)
+set(WCS_HAS_SBML @WCS_HAS_SBML@)
+set(WCS_HAS_EXPRTK @WCS_HAS_EXPRTK@)
+set(WCS_HAS_DOXYGEN @WCS_HAS_DOXYGEN@)
+set(WCS_HAS_VTUNE @WCS_HAS_VTUNE@)
+
+# Setup dependencies
+
+if (WCS_HAS_SBML)
+  if (NOT SBML_DIR)
+    set(SBML_DIR "@SBML_DIR@")
+  endif ()
+
+  find_package(SBML REQUIRED)
+endif (WCS_HAS_SBML)
+
+if (WCS_HAS_EXPRTK)
+  if (NOT EXPRTK_DIR)
+    set(EXPRTK_DIR "@EXPRTK_DIR@")
+  endif ()
+
+  find_package(EXPRTK REQUIRED)
+endif (WCS_HAS_EXPRTK)
+
+
+@PACKAGE_INIT@
+
+# Now actually import the WCS target
+set(_TMP_INCLUDE_DIRS "@PACKAGE_INCLUDE_INSTALL_DIRS@")
+foreach (_DIR ${_TMP_INCLUDE_DIRS})
+  set_and_check(_INCLUDE_DIR "${_DIR}")
+  list(APPEND WCS_INCLUDE_DIRS "${_INCLUDE_DIR}")
+endforeach (_DIR "${_TMP_INCLUDE_DIRS}")
+
+set(_TMP_LIBRARY_DIRS "@PACKAGE_LIB_INSTALL_DIR@")
+foreach (_DIR ${_TMP_LIBRARY_DIRS})
+  set_and_check(_LIBRARY_DIR "${_DIR}")
+  list(APPEND WCS_LIBRARY_DIRS "${_LIBRARY_DIR}")
+endforeach (_DIR ${_TMP_LIBRARY_DIRS})
+
+if (NOT TARGET WCS::wcs)
+  include(${CMAKE_CURRENT_LIST_DIR}/WCSTargets.cmake)
+endif (NOT TARGET WCS::wcs)
+
+check_required_components(WCS)
+
+set(WCS_LIBRARIES WCS::wcs)

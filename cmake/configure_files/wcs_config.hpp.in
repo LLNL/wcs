@@ -1,0 +1,25 @@
+#ifndef WCS_CONFIG_HPP__
+#define WCS_CONFIG_HPP__
+
+/* Version string for WCS */
+#define WCS_VERSION @WCS_VERSION@
+#cmakedefine WCS_GIT_VERSION @WCS_GIT_VERSION@
+
+/* Defined if WCS is in debug mode */
+#cmakedefine WCS_DEBUG
+
+#cmakedefine WCS_GNU_LINUX
+
+#cmakedefine WCS_HAS_SBML
+#cmakedefine WCS_HAS_EXPRTK
+#cmakedefine WCS_HAS_VTUNE
+#cmakedefine WCS_VTUNE
+
+// Define the WCS datatype
+namespace wcs
+{
+  using wcs_vertex_list_t = @WCS_VERTEX_LIST_TYPE@;
+  using wcs_out_edge_list_t = @WCS_OUT_EDGE_LIST_TYPE@;
+}// namespace wcs
+
+#endif /* WCS_CONFIG_H__ */

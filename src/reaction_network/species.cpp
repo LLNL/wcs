@@ -1,8 +1,11 @@
 #include "reaction_network/species.hpp"
+#include <limits>
 
 namespace wcs {
 /** \addtogroup wcs_reaction_network
  *  *  @{ */
+
+species_cnt_t Species::m_max_count = std::numeric_limits<species_cnt_t>::max();
 
 Species::Species()
 : VertexPropertyBase(),
@@ -62,6 +65,9 @@ void Species::reset(Species& obj)
 
 bool Species::inc_count()
 {
+  if (m_count >= m_max_count) {
+    return false;
+  }
   m_count ++;
   return true;
 }
@@ -75,9 +81,27 @@ bool Species::dec_count()
   return true;
 }
 
-bool Species::set_count(species_cnt_t c)
+bool Species::inc_count(const species_cnt_t c)
 {
-  if (m_count < 0) {
+  if ((m_max_count -  m_count) < c) {
+    return false;
+  }
+  m_count += c;
+  return true;
+}
+
+bool Species::dec_count(const species_cnt_t c)
+{
+  if (m_count < c) {
+    return false;
+  }
+  m_count -= c;
+  return true;
+}
+
+bool Species::set_count(const species_cnt_t c)
+{
+  if ((m_count < 0) || (m_count > m_max_count)) {
     return false;
   }
   m_count = c;

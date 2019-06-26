@@ -1,12 +1,13 @@
-BASE_DIR = ../../..
+BASE_DIR = ../..
 CUR_DIR := $(BASE_DIR)/utils/unit_tests
-include $(CUR_DIR)/../config.mk
-CPPFLAGS += -I..
+include $(BASE_DIR)/config.mk
+CPPFLAGS += -I$(BASE_DIR)
 LIBS += -lboost_filesystem -lboost_system
 
 .PHONY: all target_dep target_rule test clean
 
 TARGET = t_graph_factory
+#TARGET = t_rngen
 SRCS = $(TARGET).cpp
 
 WCM_OBJS = $(BASE_DIR)/reaction_network/*.o $(BASE_DIR)/utils/graph_factory.o $(BASE_DIR)/utils/exception.o

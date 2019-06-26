@@ -2,10 +2,13 @@
 #include "utils/graph_factory.hpp"
 #include <type_traits> // is_same<>
 #include <algorithm> // lexicographical_compare(), sort()
+#include <limits> // numeric_limits
 
 namespace wcs {
 /** \addtogroup wcs_reaction_network
  *  *  @{ */
+
+etime_t Network::m_etime_ulimit = std::numeric_limits<etime_t>::infinity();
 
 void Network::load(const std::string graphml_filename)
 {
@@ -36,7 +39,7 @@ void Network::init()
       m_species.emplace_back(*vi);
     } else {
       using directed_category = boost::graph_traits<graph_t>::directed_category;
-      constexpr bool is_bidirectional 
+      constexpr bool is_bidirectional
         = std::is_same<directed_category, boost::bidirectional_tag>::value;
 
       const v_desc_t reaction = *vi;
@@ -67,7 +70,7 @@ void Network::init()
   sort_species();
 }
 
-void Network::set_reaction_rate(const Network::v_desc_t r) const
+reaction_rate_t Network::set_reaction_rate(const Network::v_desc_t r) const
 {
   auto & rprop = m_graph[r].checked_property< Reaction<v_desc_t> >();
   const auto& ri = rprop.get_rate_inputs();
@@ -77,7 +80,7 @@ void Network::set_reaction_rate(const Network::v_desc_t r) const
     const auto& s = m_graph[vd].checked_property<Species>();
     params.push_back(static_cast<reaction_rate_t>(s.get_count()));
   }
-  rprop.calc_rate(params);
+  return rprop.calc_rate(params);
 }
 
 void Network::sort_species()
@@ -144,6 +147,16 @@ const Network::reaction_list_t& Network::reaction_list() const
 const Network::species_list_t& Network::species_list() const
 {
   return m_species;
+}
+
+void Network::set_etime_ulimit(const etime_t t)
+{
+  m_etime_ulimit = t;
+}
+
+etime_t Network::get_etime_ulimit()
+{
+  return m_etime_ulimit;
 }
 
 /**@}*/

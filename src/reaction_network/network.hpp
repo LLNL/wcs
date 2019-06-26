@@ -77,7 +77,7 @@ class Network {
   /// Load an input Graph ML file
   void load(const std::string graphml_filename);
   void init();
-  void set_reaction_rate(const v_desc_t r) const;
+  reaction_rate_t set_reaction_rate(const v_desc_t r) const;
 
   size_t get_num_vertices() const;
   size_t get_num_species() const;
@@ -92,6 +92,10 @@ class Network {
   const species_list_t& species_list() const;
   /// Find the species by the label and return the BGL vertex descriptor
   v_desc_t find_species(const std::string& label);
+  /// Set the largest delay period for an active reaction to fire
+  static void set_etime_ulimit(const etime_t t);
+  /// Return the largest delay period for an active reaction to fire
+  static etime_t get_etime_ulimit();
 
  protected:
   /// Sort the species list by the label (in lexicogrphical order)
@@ -106,6 +110,13 @@ class Network {
 
   /// List of the BGL descriptors of species type vertices
   species_list_t m_species;
+
+  /**
+   * The upper limit of the delay period for an active reaction to fire beyond
+   * which we consider the reaction inactive/disabled. This is by default set to
+   * the largest value of the etime_t type.
+   */
+  static etime_t m_etime_ulimit;
 };
 
 /**@}*/

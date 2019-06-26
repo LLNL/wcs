@@ -2,8 +2,8 @@ include config.mk
 
 .PHONY: all target_dep target_rule test clean
 
-#TARGET := graph_test
-TARGET := reaction
+#TARGET := reaction
+TARGET := ssa
 SRCS := $(TARGET).cpp
 
 WCM_SUBDIRS = reaction_network utils

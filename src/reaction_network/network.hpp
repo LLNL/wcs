@@ -77,7 +77,7 @@ class Network {
   /// Load an input Graph ML file
   void load(const std::string graphml_filename);
   void init();
-  void set_reaction_rate(const v_desc_t r) const;
+  reaction_rate_t set_reaction_rate(const v_desc_t r) const;
 
   size_t get_num_vertices() const;
   size_t get_num_species() const;

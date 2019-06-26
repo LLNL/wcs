@@ -67,7 +67,7 @@ void Network::init()
   sort_species();
 }
 
-void Network::set_reaction_rate(const Network::v_desc_t r) const
+reaction_rate_t Network::set_reaction_rate(const Network::v_desc_t r) const
 {
   auto & rprop = m_graph[r].checked_property< Reaction<v_desc_t> >();
   const auto& ri = rprop.get_rate_inputs();
@@ -77,7 +77,7 @@ void Network::set_reaction_rate(const Network::v_desc_t r) const
     const auto& s = m_graph[vd].checked_property<Species>();
     params.push_back(static_cast<reaction_rate_t>(s.get_count()));
   }
-  rprop.calc_rate(params);
+  return rprop.calc_rate(params);
 }
 
 void Network::sort_species()

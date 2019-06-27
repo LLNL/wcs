@@ -9,15 +9,13 @@
 #include <vector>
 #include <set>
 
-#define WCS_DEBUG
-
 extern "C" {
 #if HAVE_CONFIG_H
 #include "config.h"
 #endif
 }
 
-#define OPTIONS "ho:"
+#define OPTIONS "ho:s:i:"
 static const struct option longopts[] = {
     {"help",    no_argument,  0, 'h'},
     {"outfile", required_argument,  0, 'o'},
@@ -66,15 +64,12 @@ using graph_t  = boost::adjacency_list<
 using rng_t = wcs::RNGen<std::uniform_int_distribution, unsigned>;
 using priority_t = std::pair<wcs::etime_t, wcs::Network::v_desc_t>;
 using event_queue_t = std::vector<priority_t>;
-#if defined(WCS_DEBUG)
-using rtimes_t = std::map<wcs::Network::v_desc_t, wcs::etime_t>;
-#endif
 
 std::string show_species_names(const wcs::Network& rnet)
 {
   const wcs::Network::graph_t& g = rnet.graph();
 
-  std::string str("Specie:");
+  std::string str("Species: ");
   for(const auto& vd : rnet.species_list()) {
     const auto& sv = g[vd]; // vertex (property) of the species
     str += '\t' + sv.get_label();
@@ -123,17 +118,6 @@ std::string show_reaction_rates(const wcs::Network& rnet, wcs::etime_t t)
   return str;
 }
 
-#if defined(WCS_DEBUG)
-std::string show_reaction_times(const wcs::Network& rnet, const rtimes_t& rtimes, wcs::etime_t t)
-{
-  std::string str = std::to_string(t);
-  for(const auto& vd : rnet.reaction_list()) {
-    str += '\t' + std::to_string(rtimes.at(vd));
-  }
-  return str;
-}
-#endif
-
 /**
  * Defines the priority queue ordering by the event time of entries
  * (in ascending order).
@@ -147,11 +131,7 @@ bool later(const priority_t& v1, const priority_t& v2) {
  * For each reaction, compute the time to reaction using the random number
  * generator rgen.
  */
-#if defined(WCS_DEBUG)
-void build_heap(const wcs::Network& rnet, event_queue_t& heap, rng_t& rgen, rtimes_t& rtimes)
-#else
 void build_heap(const wcs::Network& rnet, event_queue_t& heap, rng_t& rgen)
-#endif
 {
   using r_prop_t = wcs::Reaction<wcs::Network::v_desc_t>;
 
@@ -174,11 +154,9 @@ void build_heap(const wcs::Network& rnet, event_queue_t& heap, rng_t& rgen)
     const auto& rv = g[vd]; // reaction vertex
     const auto& rp = rv.property<r_prop_t>(); // detailed vertex property data
     const auto rate = rp.get_rate(); // reaction rate
-    const auto t = log(unsigned_max/rgen())/rate;
+    const auto rn = unsigned_max/rgen();
+    const auto t = log(rn)/rate;
     heap.emplace_back(priority_t(t, vd));
-#if defined(WCS_DEBUG)
-    rtimes.insert(std::make_pair(vd, t));
-#endif
   }
   std::make_heap(heap.begin(), heap.end(), later);
 }
@@ -189,11 +167,7 @@ void build_heap(const wcs::Network& rnet, event_queue_t& heap, rng_t& rgen)
  * which are linked with updating species. This follows the next reaction
  * meothod procedure.
  */
-#if defined(WCS_DEBUG)
-std::pair<priority_t, bool> fire_reaction(const wcs::Network& rnet, event_queue_t& heap, rng_t& rgen, rtimes_t& rtimes)
-#else
 std::pair<priority_t, bool> fire_reaction(const wcs::Network& rnet, event_queue_t& heap, rng_t& rgen)
-#endif
 {
   using v_desc_t = wcs::Network::v_desc_t;
   using r_prop_t = wcs::Reaction<wcs::Network::v_desc_t>;
@@ -271,10 +245,14 @@ std::pair<priority_t, bool> fire_reaction(const wcs::Network& rnet, event_queue_
 
   { // process the firing reaction at the end of the heap
     const auto rate_new = rnet.set_reaction_rate(vd_firing);
-    heap.front().first = log(unsigned_max/rgen())/rate_new;
-#if defined(WCS_DEBUG)
-    rtimes[vd_firing] = heap.front().first;
-#endif
+    const auto rn = unsigned_max/rgen();
+    auto& next_time = heap.front().first;
+    next_time = (rate_new <= static_cast<wcs::etime_t>(0))?
+                   wcs::Network::get_etime_ulimit() :
+                   log(rn)/rate_new;
+    if (isnan(next_time)) {
+      next_time = wcs::Network::get_etime_ulimit();
+    }
   }
 
   // update the event time of the rest of affected reactions
@@ -288,10 +266,18 @@ std::pair<priority_t, bool> fire_reaction(const wcs::Network& rnet, event_queue_
     auto& rp_affected = rv_affected.property<r_prop_t>();
     const auto rate_old = rp_affected.get_rate();
     const auto rate_new = rnet.set_reaction_rate(e.second);
-    e.first =  e.first * rate_old / rate_new;
-#if defined(WCS_DEBUG)
-    rtimes[e.second] = e.first;
-#endif
+    auto& new_time = e.first;
+    if (rate_new <= static_cast<wcs::etime_t>(0)) {
+      new_time = wcs::Network::get_etime_ulimit();
+    } else if (rate_old <= static_cast<wcs::etime_t>(0)) {
+      const auto rn = unsigned_max/rgen();
+      new_time = log(rn)/rate_new;
+    } else {
+      new_time = new_time * rate_old / rate_new;
+    }
+    if (isnan(new_time)) {
+      new_time = wcs::Network::get_etime_ulimit();
+    }
   }
 
   std::make_heap(heap.begin(), heap.end(), later);
@@ -355,43 +341,22 @@ int main(int argc, char** argv)
   else
     rgen.set_seed(seed);
 
-  constexpr unsigned unsigned_max = std::numeric_limits<unsigned>::max();
-  rgen.param(typename rng_t::param_type(10000, unsigned_max-10000));
+  constexpr unsigned uint_max = std::numeric_limits<unsigned>::max();
+  rgen.param(typename rng_t::param_type(10000, uint_max-10000));
 
-  std::cout << show_species_names(rnet) << std::endl;
+  std::cout << show_species_names(rnet) << '\t';
   std::cout << show_reaction_names(rnet) << std::endl;
-  std::cout << show_species_counts(rnet, 0.0) << std::endl;;
-  std::cout << show_reaction_rates(rnet, 0.0) << std::endl;;
 
-  rtimes_t rtimes;
-#if defined(WCS_DEBUG)
-  build_heap(rnet, heap, rgen, rtimes);
-  std::cout << show_reaction_times(rnet, rtimes, 0.0) << std::endl;;
-#else
   build_heap(rnet, heap, rgen);
-#endif
 
   for (unsigned int i = 0u; i < num_iter; ++i) {
-#if defined(WCS_DEBUG)
-    auto p = fire_reaction(rnet, heap, rgen, rtimes);
-#else
     auto p = fire_reaction(rnet, heap, rgen);
-#endif
     if (!p.second) {
       break;
     }
-    const auto vd_firing = p.first.second; // BGL vertex descriptor of the firing reaction
-    const auto& rv_firing = g[vd_firing]; // vertex property of the firing reaction
-    using r_prop_t = wcs::Reaction<wcs::Network::v_desc_t>;
-    const auto& rp_firing = rv_firing.property<r_prop_t>(); // detailed property data
-     std::cout << " firing " << rv_firing.get_label() << " '"
-               << rp_firing.get_rate_formula() << "' at " << p.first.first << std::endl;
 
-    std::cout << show_species_counts(rnet, p.first.first) << std::endl;
+    std::cout << show_species_counts(rnet, p.first.first) << '\t';
     std::cout << show_reaction_rates(rnet, p.first.first) << std::endl;
-#if defined(WCS_DEBUG)
-    std::cout << show_reaction_times(rnet, rtimes, p.first.first) << std::endl;;
-#endif
   }
   return rc;
 }

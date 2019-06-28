@@ -32,7 +32,7 @@ namespace wcs {
 
 class Vertex {
  public:
-  enum vertex_type { _undefined_, _species_, _reaction_ };
+  enum vertex_type { _undefined_=0, _species_, _reaction_, _num_vertex_types_ };
   static std::map<vertex_type, std::string> vt_str;
   static std::map<std::string, vertex_type> str_vt;
 

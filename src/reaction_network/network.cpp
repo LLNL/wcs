@@ -8,7 +8,7 @@ namespace wcs {
 /** \addtogroup wcs_reaction_network
  *  *  @{ */
 
-etime_t Network::m_etime_ulimit = std::numeric_limits<etime_t>::infinity();
+sim_time_t Network::m_etime_ulimit = std::numeric_limits<sim_time_t>::infinity();
 
 void Network::load(const std::string graphml_filename)
 {
@@ -130,6 +130,7 @@ size_t Network::get_num_vertices_of_type(const Network::vertex_type vt) const
     case v_prop_t::_undefined_: return get_num_vertices();
     case v_prop_t::_species_: return get_num_species();
     case v_prop_t::_reaction_: return get_num_reactions();
+    case v_prop_t::_num_vertex_types_: return 0ul;
   }
   return 0ul;
 }
@@ -149,15 +150,68 @@ const Network::species_list_t& Network::species_list() const
   return m_species;
 }
 
-void Network::set_etime_ulimit(const etime_t t)
+void Network::set_etime_ulimit(const sim_time_t t)
 {
   m_etime_ulimit = t;
 }
 
-etime_t Network::get_etime_ulimit()
+sim_time_t Network::get_etime_ulimit()
 {
   return m_etime_ulimit;
 }
 
+std::string Network::show_species_labels(const std::string title) const
+{
+  std::string str(title);
+  str.reserve(str.size() + get_num_species()*30);
+
+  for(const auto& vd : species_list()) {
+    const auto& sv = m_graph[vd]; // vertex (property) of the species
+    str += '\t' + sv.get_label();
+  }
+  return str;
+}
+
+std::string Network::show_reaction_labels(const std::string title) const
+{
+  std::string str(title);
+  str.reserve(str.size() + get_num_reactions()*20);
+
+  for(const auto& vd : reaction_list()) {
+    const auto& rv = m_graph[vd]; // vertex (property) of the reaction
+    str += '\t' + rv.get_label();
+  }
+  return str;
+}
+
+std::string Network::show_species_counts() const
+{
+  using s_prop_t = wcs::Species;
+
+  std::string str;
+  str.reserve(get_num_species()*10);
+
+  for(const auto& vd : species_list()) {
+    const auto& sv = m_graph[vd]; // vertex (property) of the species
+    const auto& sp = sv.property<s_prop_t>(); // detailed vertex property data
+    str += '\t' + std::to_string(sp.get_count());
+  }
+  return str;
+}
+
+std::string Network::show_reaction_rates() const
+{
+  using r_prop_t = wcs::Reaction<wcs::Network::v_desc_t>;
+
+  std::string str;
+  str.reserve(get_num_reactions()*15);
+
+  for(const auto& vd : reaction_list()) {
+    const auto& rv = m_graph[vd]; // vertex (property) of the reaction
+    const auto& rp = rv.property<r_prop_t>(); // detailed vertex property data
+    str += '\t' + std::to_string(rp.get_rate());
+  }
+  return str;
+}
 /**@}*/
 } // end of namespace wcs

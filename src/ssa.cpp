@@ -1,13 +1,14 @@
 #include <getopt.h>
-#include <boost/filesystem.hpp>
-#include "reaction_network/network.hpp"
-#include "utils/write_graphviz.hpp"
-#include "utils/rngen.hpp"
 #include <fstream>
 #include <cmath>
 #include <limits>
 #include <vector>
 #include <set>
+#include <boost/filesystem.hpp>
+#include "reaction_network/network.hpp"
+#include "utils/write_graphviz.hpp"
+#include "utils/rngen.hpp"
+#include "utils/trace_ssa.hpp"
 
 extern "C" {
 #if HAVE_CONFIG_H
@@ -15,36 +16,88 @@ extern "C" {
 #endif
 }
 
-#define OPTIONS "ho:s:i:"
+#define OPTIONS "g:hi:o:s:"
 static const struct option longopts[] = {
-    {"help",    no_argument,  0, 'h'},
-    {"outfile", required_argument,  0, 'o'},
-    {"seed", required_argument,  0, 's'},
-    {"iter", required_argument,  0, 'i'},
+    {"graphviz", required_argument,  0, 'g'},
+    {"help",     no_argument,        0, 'h'},
+    {"iter",     required_argument,  0, 'i'},
+    {"outfile",  required_argument,  0, 'o'},
+    {"seed",     required_argument,  0, 's'},
     { 0, 0, 0, 0 },
 };
 
-void print_usage(const std::string exec, int code)
+struct Config {
+  Config() : seed(0u), num_iter(10u) {}
+
+  void getopt(int& argc, char** &argv);
+  void print_usage(const std::string exec, int code);
+
+  unsigned seed;
+  unsigned num_iter;
+
+  std::string infile;
+  std::string outfile;
+  std::string gvizfile;
+};
+
+void Config::getopt(int& argc, char** &argv)
+{
+  int c;
+
+  while ((c = getopt_long(argc, argv, OPTIONS, longopts, NULL)) != -1) {
+    switch (c) {
+      case 'g': /* --graphviz */
+        gvizfile = std::string(optarg);
+        break;
+      case 'h': /* --help */
+        print_usage(argv[0], 0);
+        break;
+      case 'i': /* --iter */
+        num_iter = static_cast<unsigned>(atoi(optarg));
+        break;
+      case 'o': /* --outfile */
+        outfile = std::string(optarg);
+        break;
+      case 's': /* --seed */
+        seed = static_cast<unsigned>(atoi(optarg));
+        break;
+      default:
+        print_usage(argv[0], 1);
+        break;
+    }
+  }
+
+  if (optind != (argc - 1)) {
+    print_usage (argv[0], 1);
+  }
+
+  infile = argv[optind];
+}
+
+void Config::print_usage(const std::string exec, int code)
 {
   std::cerr <<
     "Usage: " << exec << " <filename>.graphml\n"
-    "    Load a reaction network graph (<filename>.graphml)\n"
-    "    into a graph with the flat vertex property stucture.\n"
-    "    Then, convert it to the one with polymorphic vertices.\n"
-    "    Finally, write to a GraphViz format file (<filename>.dot)\n"
-    "    that has the same name as the input file except the \n"
-    "    extention '.dot' unless --outfile is given.\n"
+    "    Run the stochastic simulation algorithm (SSA) on a reaction\n"
+    "    network graph (<filename>.graphml) for the given number of\n"
+    "    iteration and with the given random number seed.\n"
+    "    Specifically, the next reaction method is used. Optionally,\n"
+    "    write the reaction network into a GraphViz-formatted file.\n"
     "\n"
     "    OPTIONS:\n"
     "    -h, --help\n"
     "            Display this usage information\n"
     "\n"
+    "    -g, --graphviz\n"
+    "            Specify the name of the file to export the reaction\n"
+    "            network into in the GraphViz format.\n"
+    "\n"
     "    -o, --outfile\n"
     "            Specify the output file name\n"
     "\n"
     "    -s, --seed\n"
-    "            Specify the seed for random number generator. Without this it"
-    "            will use a value dependent on the current system clock.\n"
+    "            Specify the seed for random number generator. Without this,\n"
+    "            it will use a value dependent on the current system clock.\n"
     "\n"
     "    -i, --iter\n"
     "            Specify the number of reaction iterations to run.\n"
@@ -52,71 +105,10 @@ void print_usage(const std::string exec, int code)
   exit(code);
 }
 
-using graph_t  = boost::adjacency_list<
-    boost::vecS,
-    boost::vecS,
-    boost::bidirectionalS,
-    wcs::Vertex,
-    wcs::Edge,
-    boost::no_property,
-    boost::vecS>;
-
 using rng_t = wcs::RNGen<std::uniform_int_distribution, unsigned>;
-using priority_t = std::pair<wcs::etime_t, wcs::Network::v_desc_t>;
+using priority_t = std::pair<wcs::sim_time_t, wcs::Network::v_desc_t>;
 using event_queue_t = std::vector<priority_t>;
 
-std::string show_species_names(const wcs::Network& rnet)
-{
-  const wcs::Network::graph_t& g = rnet.graph();
-
-  std::string str("Species: ");
-  for(const auto& vd : rnet.species_list()) {
-    const auto& sv = g[vd]; // vertex (property) of the species
-    str += '\t' + sv.get_label();
-  }
-  return str;
-}
-
-std::string show_reaction_names(const wcs::Network& rnet)
-{
-  const wcs::Network::graph_t& g = rnet.graph();
-
-  std::string str("Reaction:");
-  for(const auto& vd : rnet.reaction_list()) {
-    const auto& rv = g[vd]; // vertex (property) of the reaction
-    str += '\t' + rv.get_label();
-  }
-  return str;
-}
-
-
-std::string show_species_counts(const wcs::Network& rnet, wcs::etime_t t)
-{
-  using s_prop_t = wcs::Species;
-  const wcs::Network::graph_t& g = rnet.graph();
-
-  std::string str = std::to_string(t);
-  for(const auto& vd : rnet.species_list()) {
-    const auto& sv = g[vd]; // vertex (property) of the species
-    const auto& sp = sv.property<s_prop_t>(); // detailed vertex property data of the species
-    str += '\t' + std::to_string(sp.get_count());
-  }
-  return str;
-}
-
-std::string show_reaction_rates(const wcs::Network& rnet, wcs::etime_t t)
-{
-  using r_prop_t = wcs::Reaction<wcs::Network::v_desc_t>;
-  const wcs::Network::graph_t& g = rnet.graph();
-
-  std::string str = std::to_string(t);
-  for(const auto& vd : rnet.reaction_list()) {
-    const auto& rv = g[vd]; // vertex (property) of the reaction
-    const auto& rp = rv.property<r_prop_t>(); // detailed vertex property data of the reaction
-    str += '\t' + std::to_string(rp.get_rate());
-  }
-  return str;
-}
 
 /**
  * Defines the priority queue ordering by the event time of entries
@@ -167,7 +159,11 @@ void build_heap(const wcs::Network& rnet, event_queue_t& heap, rng_t& rgen)
  * which are linked with updating species. This follows the next reaction
  * meothod procedure.
  */
-std::pair<priority_t, bool> fire_reaction(const wcs::Network& rnet, event_queue_t& heap, rng_t& rgen)
+std::pair<priority_t, bool>
+fire_reaction(const wcs::Network& rnet,
+              event_queue_t& heap,
+              rng_t& rgen,
+              wcs::Trace& trace)
 {
   using v_desc_t = wcs::Network::v_desc_t;
   using r_prop_t = wcs::Reaction<wcs::Network::v_desc_t>;
@@ -191,11 +187,12 @@ std::pair<priority_t, bool> fire_reaction(const wcs::Network& rnet, event_queue_
 
   const auto firing = heap.front();
   const v_desc_t& vd_firing = firing.second; // vertex descriptor of the firing reaction
-  const wcs::etime_t t_firing = firing.first; // time to fire the reaction
-  if ((t_firing == std::numeric_limits<wcs::etime_t>::infinity()) ||
+  const wcs::sim_time_t t_firing = firing.first; // time to fire the reaction
+  if ((t_firing == std::numeric_limits<wcs::sim_time_t>::infinity()) ||
       (t_firing >= wcs::Network::get_etime_ulimit())) {
     return std::make_pair(firing, false);
   } 
+  trace.record_reaction(t_firing, vd_firing);
 
   // species to update as a result of the reaction fired
   std::vector<v_desc_t> updating_species;
@@ -206,9 +203,14 @@ std::pair<priority_t, bool> fire_reaction(const wcs::Network& rnet, event_queue_
     const auto vd_updating = boost::target(ei_out, g);
     updating_species.push_back(vd_updating);
     const auto& sv_updating = g[vd_updating];
+    if constexpr (wcs::Vertex::_num_vertex_types_  > 3) {
+      // in case that there are other type of vertices than species or reaction
+      if (sv_updating.get_type() != wcs::Vertex::_species_) continue;
+    }
+
     auto& sp_updating = sv_updating.property<s_prop_t>();
     const auto stoichio = g[ei_out].get_stoichiometry_ratio();
-    if (!sp_updating.inc_count(stoichio)) {
+    if (!sp_updating.inc_count(stoichio)) { // State update
       // TODO: For reversible implementation, this has to be carefully handled.
       // e.g., record which one was successful or not successful.
       continue;
@@ -228,9 +230,14 @@ std::pair<priority_t, bool> fire_reaction(const wcs::Network& rnet, event_queue_
     // need to check if the vertex is species type
     updating_species.push_back(vd_updating);
     const auto& sv_updating = g[vd_updating];
+    if constexpr (wcs::Vertex::_num_vertex_types_  > 3) {
+      // in case that there are other type of vertices than species or reaction
+      if (sv_updating.get_type() != wcs::Vertex::_species_) continue;
+    }
+
     auto& sp_updating = sv_updating.property<s_prop_t>();
     const auto stoichio = g[ei_in].get_stoichiometry_ratio();
-    if (!sp_updating.dec_count(stoichio)) {
+    if (!sp_updating.dec_count(stoichio)) { // State update
       // TODO: For reversible implementation, this has to be carefully handled.
       // e.g., record which one was successful or not successful.
       continue;
@@ -247,7 +254,7 @@ std::pair<priority_t, bool> fire_reaction(const wcs::Network& rnet, event_queue_
     const auto rate_new = rnet.set_reaction_rate(vd_firing);
     const auto rn = unsigned_max/rgen();
     auto& next_time = heap.front().first;
-    next_time = (rate_new <= static_cast<wcs::etime_t>(0))?
+    next_time = (rate_new <= static_cast<wcs::sim_time_t>(0))?
                    wcs::Network::get_etime_ulimit() :
                    log(rn)/rate_new;
     if (isnan(next_time)) {
@@ -267,9 +274,9 @@ std::pair<priority_t, bool> fire_reaction(const wcs::Network& rnet, event_queue_
     const auto rate_old = rp_affected.get_rate();
     const auto rate_new = rnet.set_reaction_rate(e.second);
     auto& new_time = e.first;
-    if (rate_new <= static_cast<wcs::etime_t>(0)) {
+    if (rate_new <= static_cast<wcs::sim_time_t>(0)) {
       new_time = wcs::Network::get_etime_ulimit();
-    } else if (rate_old <= static_cast<wcs::etime_t>(0)) {
+    } else if (rate_old <= static_cast<wcs::sim_time_t>(0)) {
       const auto rn = unsigned_max/rgen();
       new_time = log(rn)/rate_new;
     } else {
@@ -284,79 +291,70 @@ std::pair<priority_t, bool> fire_reaction(const wcs::Network& rnet, event_queue_
   return std::make_pair(firing, true);
 }
 
-int main(int argc, char** argv)
+
+void run_SSA_next_reaction_method(
+        wcs::Network& rnet,
+        wcs::Trace& trace,
+        rng_t& rgen,
+        unsigned int max_iter)
 {
-  int c;
-  int rc = 0;
-  unsigned seed = 0;
-  unsigned num_iter = 10;
-  std::string outfile;
-
-  while ((c = getopt_long(argc, argv, OPTIONS, longopts, NULL)) != -1) {
-    switch (c) {
-      case 'h': /* --help */
-        print_usage(argv[0], 0);
-        break;
-      case 'o': /* --outfile */
-        outfile = std::string(optarg);
-        break;
-      case 's': /* --seed */
-        seed = static_cast<unsigned>(atoi(optarg));
-        break;
-      case 'i': /* --iter */
-        num_iter = static_cast<unsigned>(atoi(optarg));
-        break;
-      default:
-        print_usage(argv[0], 1);
-        break;
-    }
-  }
-
-  if (optind != (argc - 1)) {
-    print_usage (argv[0], 1);
-  }
-
-  std::string fn(argv[optind]);
-
-  wcs::Network rnet;
-  rnet.load(fn);
-  rnet.init();
-  const wcs::Network::graph_t& g = rnet.graph();
-
-  if (outfile.empty()) {
-    boost::filesystem::path path = fn;
-    std::string base = path.stem().string();
-    outfile = base + "_poly.dot";;;
-  }
-
-  if (!wcs::write_graphviz(outfile, g)) {
-    std::cerr << "Failed to write " << outfile << std::endl;
-    rc = -1;
-  }
+  wcs::sim_time_t sim_time = 0.0;
+  std::cout << rnet.show_species_labels() << '\t';
+  std::cout << rnet.show_reaction_labels() << std::endl;
+  std::cout << sim_time << rnet.show_species_counts() << '\t';
+  std::cout << sim_time << rnet.show_reaction_rates() << std::endl;
 
   event_queue_t heap;
-  rng_t rgen;
-  if (seed == 0u)
-    rgen.set_seed();
-  else
-    rgen.set_seed(seed);
-
-  constexpr unsigned uint_max = std::numeric_limits<unsigned>::max();
-  rgen.param(typename rng_t::param_type(10000, uint_max-10000));
-
-  std::cout << show_species_names(rnet) << '\t';
-  std::cout << show_reaction_names(rnet) << std::endl;
-
   build_heap(rnet, heap, rgen);
 
-  for (unsigned int i = 0u; i < num_iter; ++i) {
-    auto p = fire_reaction(rnet, heap, rgen);
+  for (unsigned int i = 0u; i < max_iter; ++i) {
+    auto p = fire_reaction(rnet, heap, rgen, trace);
     if (!p.second) {
       break;
     }
-
-    std::cout << show_species_counts(rnet, p.first.first) << '\t';
-    std::cout << show_reaction_rates(rnet, p.first.first) << std::endl;
+    sim_time += p.first.first;
+    std::cout << sim_time << rnet.show_species_counts() << '\t';
+    std::cout << sim_time << rnet.show_reaction_rates() << std::endl;
   }
+}
+
+
+int main(int argc, char** argv)
+{
+  int rc = 0;
+  Config cfg;
+  cfg.getopt(argc, argv);
+
+  std::shared_ptr<wcs::Network> rnet_ptr = std::make_shared<wcs::Network>();
+  wcs::Network& rnet = *rnet_ptr;
+  rnet.load(cfg.infile);
+  rnet.init();
+  const wcs::Network::graph_t& g = rnet.graph();
+
+  wcs::TraceSSA trace;
+  trace.record_initial_condition(rnet_ptr);
+
+  if (!cfg.gvizfile.empty() &&
+      !wcs::write_graphviz(cfg.gvizfile, g))
+  {
+    std::cerr << "Failed to write " << cfg.gvizfile << std::endl;
+    rc = -1;
+  }
+
+  rng_t rgen;
+  if (cfg.seed == 0u)
+    rgen.set_seed();
+  else
+    rgen.set_seed(cfg.seed);
+
+  constexpr unsigned uint_max = std::numeric_limits<unsigned>::max();
+  rgen.param(typename rng_t::param_type(1000, uint_max-1000));
+
+  run_SSA_next_reaction_method(rnet, trace, rgen, cfg.num_iter);
+
+  if (!cfg.outfile.empty()) {
+    trace.write(cfg.outfile);
+  }
+
   return rc;
 }

@@ -93,9 +93,14 @@ class Network {
   /// Find the species by the label and return the BGL vertex descriptor
   v_desc_t find_species(const std::string& label);
   /// Set the largest delay period for an active reaction to fire
-  static void set_etime_ulimit(const etime_t t);
+  static void set_etime_ulimit(const sim_time_t t);
   /// Return the largest delay period for an active reaction to fire
-  static etime_t get_etime_ulimit();
+  static sim_time_t get_etime_ulimit();
+
+  std::string show_species_labels(const std::string title="Species: ") const;
+  std::string show_reaction_labels(const std::string title="Reaction:") const;
+  std::string show_species_counts() const;
+  std::string show_reaction_rates() const;
 
  protected:
   /// Sort the species list by the label (in lexicogrphical order)
@@ -114,9 +119,9 @@ class Network {
   /**
    * The upper limit of the delay period for an active reaction to fire beyond
    * which we consider the reaction inactive/disabled. This is by default set to
-   * the largest value of the etime_t type.
+   * the largest value of the sim_time_t type.
    */
-  static etime_t m_etime_ulimit;
+  static sim_time_t m_etime_ulimit;
 };
 
 /**@}*/

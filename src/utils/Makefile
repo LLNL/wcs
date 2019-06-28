@@ -7,11 +7,11 @@ LIBS += -lboost_filesystem -lboost_system
 .PHONY: all target_dep target_rule test clean
 
 CUR_TARGET := $(CUR_DIR)/graphml2dot
-SRCS := $(CUR_DIR)/graph_factory.cpp $(CUR_DIR)/exception.cpp $(CUR_TARGET).cpp
+SRCS := $(CUR_DIR)/graph_factory.cpp $(CUR_DIR)/exception.cpp $(CUR_DIR)/trace.cpp $(CUR_DIR)/trace_ssa.cpp $(CUR_TARGET).cpp
 
 OBJS := $(addsuffix .o, $(basename $(SRCS)))
 
-WCM_OBJS := $(BASE_DIR)/reaction_network/*.o $(CUR_DIR)/graph_factory.o $(CUR_DIR)/exception.o
+WCM_OBJS := $(BASE_DIR)/reaction_network/*.o $(CUR_DIR)/graph_factory.o $(CUR_DIR)/exception.o $(CUR_DIR)/trace.o $(CUR_DIR)/trace_ssa.o
 
 
 ${CUR_TARGET}: $(SRCS) $(WCM_OBJS)

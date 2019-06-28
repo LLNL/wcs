@@ -7,7 +7,7 @@ TARGET := ssa
 SRCS := $(TARGET).cpp
 
 WCM_SUBDIRS = reaction_network utils
-WCM_OBJS = reaction_network/*.o utils/graph_factory.o utils/exception.o
+WCM_OBJS = reaction_network/*.o utils/graph_factory.o utils/exception.o utils/trace.o utils/trace_ssa.o
 
 all: target_dep target_rule
 	@for i in ${WCM_SUBDIRS}; \
@@ -40,7 +40,7 @@ target_dep: $(addsuffix .d, $(basename $(SRCS)))
 target_rule: $(OBJS)
 
 test: ${TARGET}
-	./$(TARGET) utils/unit_tests/examples/simple.graphml
+	./$(TARGET) utils/unit_tests/examples/simple.graphml -g simple_poly.dot -o result.txt -i 20 -s 47
 	dot -Teps simple_poly.dot -o simple_poly.eps
 #	./${TARGET} > graph.dot
 #	dot -Teps graph.dot -o graph.eps

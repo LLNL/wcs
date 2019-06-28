@@ -6,8 +6,8 @@ include config.mk
 TARGET := ssa
 SRCS := $(TARGET).cpp
 
-WCM_SUBDIRS = reaction_network utils
-WCM_OBJS = reaction_network/*.o utils/graph_factory.o utils/exception.o utils/trace.o utils/trace_ssa.o
+WCM_SUBDIRS = reaction_network utils sim_methods
+WCM_OBJS = reaction_network/*.o utils/graph_factory.o utils/exception.o utils/trace.o utils/trace_ssa.o sim_methods/ssa_nrm.o
 
 all: target_dep target_rule
 	@for i in ${WCM_SUBDIRS}; \

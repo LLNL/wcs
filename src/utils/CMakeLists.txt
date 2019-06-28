@@ -3,6 +3,10 @@ set_full_path(THIS_DIR_HEADERS
   detect_methods.hpp
   exception.hpp
   graph_factory.hpp
+  rngen.hpp
+  rngen_impl.hpp
+  trace.hpp
+  trace_ssa.hpp
   write_graphviz.hpp
   )
 
@@ -10,6 +14,8 @@ set_full_path(THIS_DIR_SOURCES
   exception.cpp
   graph_factory.cpp
   graphml2dot.cpp
+  trace.cpp
+  trace_ssa.cpp
   )
 
 # Add the subdirectories

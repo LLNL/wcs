@@ -160,6 +160,58 @@ sim_time_t Network::get_etime_ulimit()
   return m_etime_ulimit;
 }
 
+/**
+ * Check if the condition for reaction is satisfied such as whether a
+ * sufficient number of reactants exist.
+ */
+bool Network::check_reaction(const wcs::Network::v_desc_t r) const
+{
+  if (m_graph[r].get_type() != wcs::Vertex::_reaction_) {
+    WCS_THROW(m_graph[r].get_label() + " is not a reaction.");
+    return false;
+  }
+
+  // reactant species
+  for (const auto ei_in : boost::make_iterator_range(boost::in_edges(r, m_graph))) {
+    const auto vd_reactant = boost::source(ei_in, m_graph);
+    const auto& sv_reactant = m_graph[vd_reactant];
+    if constexpr (wcs::Vertex::_num_vertex_types_  > 3) {
+      // in case that there are other type of vertices than species or reaction
+      if (sv_reactant.get_type() != wcs::Vertex::_species_) continue;
+    }
+
+    const auto& sp_reactant = sv_reactant.property<Species>();
+    const auto stoichio = m_graph[ei_in].get_stoichiometry_ratio();
+    if (!sp_reactant.dec_check(stoichio)) {
+      // check if reaction is possible, i.e., decrement is possible
+      return false;
+    }
+  }
+
+  // product species
+  for (const auto ei_out : boost::make_iterator_range(boost::out_edges(r, m_graph))) {
+    const auto vd_product = boost::target(ei_out, m_graph);
+    const auto& sv_product = m_graph[vd_product];
+    if constexpr (wcs::Vertex::_num_vertex_types_  > 3) {
+      // in case that there are other type of vertices than species or reaction
+      if (sv_product.get_type() != wcs::Vertex::_species_) continue;
+    }
+
+    const auto& sp_product = sv_product.property<Species>();
+    const auto stoichio = m_graph[ei_out].get_stoichiometry_ratio();
+    if (!sp_product.inc_check(stoichio)) {
+      // check if reaction is possible, i.e., increment is possible
+      return false;
+    }
+  }
+
+  // Alternatively, the rate computation may involve dividing the species count
+  // by the stoichiometry ratio. If the species count is less than the ratio,
+  // the resultant rate would be zero.
+
+  return true;
+}
+
 std::string Network::show_species_labels(const std::string title) const
 {
   std::string str(title);
@@ -186,14 +238,12 @@ std::string Network::show_reaction_labels(const std::string title) const
 
 std::string Network::show_species_counts() const
 {
-  using s_prop_t = wcs::Species;
-
   std::string str;
   str.reserve(get_num_species()*10);
 
   for(const auto& vd : species_list()) {
     const auto& sv = m_graph[vd]; // vertex (property) of the species
-    const auto& sp = sv.property<s_prop_t>(); // detailed vertex property data
+    const auto& sp = sv.property<Species>(); // detailed vertex property data
     str += '\t' + std::to_string(sp.get_count());
   }
   return str;

@@ -29,6 +29,10 @@ class Species : public VertexPropertyBase {
   bool set_count(const species_cnt_t c);
   /// Return the current count.
   species_cnt_t get_count() const;
+  /// Check if increasing the count by the given amount c is possible.
+  bool inc_check(const species_cnt_t c) const;
+  /// Check if decreasing the count by the given amount c is possible.
+  bool dec_check(const species_cnt_t c) const;
 
  protected:
   void reset(Species& obj);

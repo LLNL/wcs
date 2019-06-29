@@ -31,6 +31,11 @@ void Trace::record_initial_condition(const std::shared_ptr<wcs::Network>& net_pt
   }
 }
 
+void Trace::pop_back()
+{
+  m_trace.pop_back();
+}
+
 void Trace::write(const std::string filename)
 {
   std::ofstream ofs;

@@ -97,6 +97,8 @@ class Network {
   /// Return the largest delay period for an active reaction to fire
   static sim_time_t get_etime_ulimit();
 
+  bool check_reaction(const v_desc_t r) const;
+
   std::string show_species_labels(const std::string title="Species: ") const;
   std::string show_reaction_labels(const std::string title="Reaction:") const;
   std::string show_species_counts() const;

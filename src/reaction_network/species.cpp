@@ -113,5 +113,15 @@ species_cnt_t Species::get_count() const
   return m_count;
 }
 
+bool Species::inc_check(const species_cnt_t c) const
+{
+  return ((m_max_count -  m_count) >= c);
+}
+
+bool Species::dec_check(const species_cnt_t c) const
+{
+  return (m_count >= c);
+}
+
 /**@}*/
 } // end of namespace wcs

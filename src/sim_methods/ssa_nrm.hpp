@@ -14,22 +14,35 @@ namespace wcs {
 class SSA_NRM {
 public:
   using rng_t = wcs::RNGen<std::uniform_int_distribution, unsigned>;
-  using priority_t = std::pair<wcs::sim_time_t, wcs::Network::v_desc_t>;
+  using v_desc_t = wcs::Network::v_desc_t;
+  using priority_t = std::pair<wcs::sim_time_t, v_desc_t>;
   using event_queue_t = std::vector<priority_t>;
   using trace_t = wcs::TraceSSA;
 
+  /** Type for keeping track of species updates to facilitate undoing 
+   *  reaction processing.  */
+  using update_t = std::pair<v_desc_t, wcs::Edge::stoic_t>;
+
   SSA_NRM();
-  void init(std::shared_ptr<wcs::Network>& net_ptr, 
+  void init(std::shared_ptr<wcs::Network>& net_ptr,
             const unsigned max_iter,
+            const double max_time,
             const unsigned rng_seed,
             const bool enable_tracing);
-  void build_heap();
-  std::pair<priority_t, bool> fire_reaction();
+
   std::pair<unsigned, wcs::sim_time_t> run();
 
   static bool later(const priority_t& v1, const priority_t& v2);
   rng_t& rgen();
   trace_t& trace();
+
+protected:
+  void build_heap();
+  bool fire_reaction(priority_t& firing,
+                     std::vector<update_t>& updating_species,
+                     std::set<v_desc_t>& affected_reactions);
+  void update_reactions(std::set<v_desc_t>& affected_reactions);
+  void undo_species_updates(const std::vector<update_t>& updates) const;
 
 protected:
   /** The pointer to the reaction network being monitored.
@@ -38,6 +51,7 @@ protected:
    */
   std::shared_ptr<wcs::Network> m_net_ptr;
   unsigned m_max_iter;
+  double m_max_time;
   bool m_enable_tracing;
 
   wcs::sim_time_t m_sim_time;

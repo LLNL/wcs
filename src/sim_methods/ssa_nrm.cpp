@@ -51,7 +51,7 @@ SSA_NRM::trace_t& SSA_NRM::trace() {
  */
 void SSA_NRM::build_heap()
 {
-  using r_prop_t = wcs::Reaction<wcs::Network::v_desc_t>;
+  using r_prop_t = wcs::Reaction<v_desc_t>;
 
   const wcs::Network::graph_t& g = m_net_ptr->graph();
 
@@ -65,7 +65,6 @@ void SSA_NRM::build_heap()
   for (const auto& vd : m_net_ptr->reaction_list())
   {
     if (!m_net_ptr->check_reaction(vd)) {
-std::cout << "+ set the infinite time of reaction " << g[vd].get_label()  << std::endl;
       m_heap.emplace_back(priority_t(wcs::Network::get_etime_ulimit(), vd));
     } else {
       const auto& rv = g[vd]; // reaction vertex
@@ -80,60 +79,42 @@ std::cout << "+ set the infinite time of reaction " << g[vd].get_label()  << std
 }
 
 /// Undo the species updates applied during incomplete reaction processing.
-void SSA_NRM::undo_species_updates(const std::vector<SSA_NRM::update_t>& undos) const
+void SSA_NRM::undo_species_updates(const std::vector<SSA_NRM::update_t>& updates) const
 {
+  bool ok = true;
   const wcs::Network::graph_t& g = m_net_ptr->graph();
 
-  for (const auto& u: undos) {
+  for (const auto& u: updates) {
     const auto& sv_undo = g[u.first];
     using s_prop_t = wcs::Species;
     auto& sp_undo = sv_undo.property<s_prop_t>();
-    if (u.second < static_cast<wcs::Edge::stoic_t>(0)) {
-      sp_undo.dec_count(u.second);
+    if (u.second > static_cast<wcs::Edge::stoic_t>(0)) {
+      ok &= sp_undo.dec_count(u.second);
     } else {
-      sp_undo.inc_count(u.second);
+      ok &= sp_undo.inc_count(u.second);
+    }
+    if (!ok) {
+      WCS_THROW("Failed to reverse the species updates");
     }
   }
 }
 
 /**
  * Pick the reaction with the earlies time to occur, execute it, update
- * the species population, recompute the reaction rates of those affected,
- * which are linked with updating species. This follows the next reaction
- * meothod procedure.
+ * the species population
  */
-std::pair<SSA_NRM::priority_t, bool> SSA_NRM::fire_reaction()
+bool SSA_NRM::fire_reaction(priority_t& firing,
+                            std::vector<SSA_NRM::update_t>& updating_species,
+                            std::set<SSA_NRM::v_desc_t>& affected_reactions)
 {
-  using v_desc_t = wcs::Network::v_desc_t;
-  using r_prop_t = wcs::Reaction<wcs::Network::v_desc_t>;
   using s_prop_t = wcs::Species;
-  constexpr double unsigned_max = static_cast<double>(std::numeric_limits<unsigned>::max());
-
-  if (m_heap.empty()) { // no reaction possible
-    return std::make_pair(priority_t(), false);
-  }
 
   // Reactions do not change the connectivity, but only change the property
   // data, which are allocated outside of BGL graph, but only linked to it.
   const wcs::Network::graph_t& g = m_net_ptr->graph();
 
-  const auto firing = m_heap.front();
-  const v_desc_t& vd_firing = firing.second; // vertex descriptor of the firing reaction
-  const wcs::sim_time_t t_firing = firing.first; // time to fire the reaction
-  if ((t_firing == std::numeric_limits<wcs::sim_time_t>::infinity()) ||
-      (t_firing >= wcs::Network::get_etime_ulimit())) {
-    return std::make_pair(firing, false);
-  }
-
-  // species to update as a result of the reaction fired
-  std::vector<update_t> updating_species;
-  // Any other reaction that takes any of species being updated as a result of
-  // the current reaction as a reactant is affected. This assumes that species
-  // count never reaches 'Species::m_max_count'. Otherwise, those reactions
-  // that produce any of the updated species are affected as well. Here, we
-  // take the assumption for simplicity. However, if we consider compartments
-  // with population/concentration limit, we need to reconsider how to handle.
-  std::set<v_desc_t> affected_reactions;
+  // The BGL vertex descriptor of the curren reaction
+  const auto vd_firing = firing.second;
 
   // reactant species
   for (const auto ei_in : boost::make_iterator_range(boost::in_edges(vd_firing, g))) {
@@ -147,21 +128,13 @@ std::pair<SSA_NRM::priority_t, bool> SSA_NRM::fire_reaction()
     auto& sp_updating = sv_updating.property<s_prop_t>();
     const auto stoichio = g[ei_in].get_stoichiometry_ratio();
     if (!sp_updating.dec_count(stoichio)) { // State update
-      // In case of an unsuccessful reaction, undo updates partially done so far
-      // for this reaction. Here we first update and undo later as necessary.
-      // For successful reactions, which is most likely to be the case, this
-      // saves extra checking of reaction feasibility.
-      // However, for optimistic PDES, a cleaner approach would be to collect
-      // updating species and update all at once when it is certain that the
-      // reaction can fire.
-      undo_species_updates(updating_species);
       std::string err = "Not enough reactants of " + sv_updating.get_label()
                       + "[" + std::to_string(sp_updating.get_count())
                       + "] for reaction " + g[vd_firing].get_label();
       WCS_THROW(err);
-      return std::make_pair(firing, false);
+      return false;
     }
-    updating_species.emplace_back(std::make_pair(vd_updating, stoichio));
+    updating_species.emplace_back(std::make_pair(vd_updating, -stoichio));
 
     for (const auto vi_affected : boost::make_iterator_range(boost::out_edges(vd_updating, g))) {
       const auto vd_affected = boost::target(vi_affected, g);
@@ -182,16 +155,13 @@ std::pair<SSA_NRM::priority_t, bool> SSA_NRM::fire_reaction()
     auto& sp_updating = sv_updating.property<s_prop_t>();
     const auto stoichio = g[ei_out].get_stoichiometry_ratio();
     if (!sp_updating.inc_count(stoichio)) { // State update
-      // In case of an unsuccessful reaction, undo updates partially done so far
-      // for this reaction.
-      undo_species_updates(updating_species);
       std::string err = "Can not produce more of " + sv_updating.get_label()
                       + "[" + std::to_string(sp_updating.get_count())
                       + "] by reaction " + g[vd_firing].get_label();
       WCS_THROW(err);
-      return std::make_pair(firing, false);
+      return false;
     }
-    updating_species.emplace_back(std::make_pair(vd_updating, -stoichio));
+    updating_species.emplace_back(std::make_pair(vd_updating, stoichio));
 
     for (const auto vi_affected : boost::make_iterator_range(boost::out_edges(vd_updating, g))) {
       const auto vd_affected = boost::target(vi_affected, g);
@@ -200,13 +170,21 @@ std::pair<SSA_NRM::priority_t, bool> SSA_NRM::fire_reaction()
     }
   }
 
-  if (m_enable_tracing) {
-    m_trace.record_reaction(t_firing, vd_firing);
-  }
+  return true;
+}
 
-  // State updates of the reaction are completed. Prepapre for the next reaction.
+/**
+ * Recompute the reaction rates of those affected which are linked with
+ * updating species. This follows the next reaction meothod procedure.
+ */
+void SSA_NRM::update_reactions(
+  std::set<SSA_NRM::v_desc_t>& affected_reactions)
+{
+  using r_prop_t = wcs::Reaction<v_desc_t>;
+  constexpr double unsigned_max = static_cast<double>(std::numeric_limits<unsigned>::max());
 
   auto& next_time = m_heap.front().first;
+  const auto vd_firing = m_heap.front().second;
   const auto rate_new = m_net_ptr->set_reaction_rate(vd_firing);
 
   if (!m_net_ptr->check_reaction(vd_firing)) {
@@ -234,38 +212,39 @@ std::pair<SSA_NRM::priority_t, bool> SSA_NRM::fire_reaction()
     // Heap items are unique. No need to find again.
     affected_reactions.erase(it_found);
 
-    auto& new_time = e.first;
-    const auto& rv_affected = g[e.second];
+    auto& t_to_update = e.first;
+    const auto& rv_affected = m_net_ptr->graph()[e.second];
     auto& rp_affected = rv_affected.property<r_prop_t>();
     const auto rate_old = rp_affected.get_rate();
     const auto rate_new = m_net_ptr->set_reaction_rate(e.second);
 
     if (!m_net_ptr->check_reaction(e.second)) {
-      new_time = wcs::Network::get_etime_ulimit();
+      t_to_update = wcs::Network::get_etime_ulimit();
       continue; // skip reaction time computation
     }
 
     if (rate_new <= static_cast<wcs::sim_time_t>(0)) {
-      new_time = wcs::Network::get_etime_ulimit();
-    } else if (rate_old <= static_cast<wcs::sim_time_t>(0)) {
+      t_to_update = wcs::Network::get_etime_ulimit();
+    } else if (rate_old <= static_cast<wcs::sim_time_t>(0) ||
+               t_to_update >= wcs::Network::get_etime_ulimit()) {
       const auto rn = unsigned_max/m_rgen();
-      new_time = log(rn)/rate_new;
+      t_to_update = log(rn)/rate_new;
     } else {
-      new_time = new_time * rate_old / rate_new;
+      t_to_update = t_to_update * rate_old / rate_new;
     }
 
-    if (std::isnan(new_time)) {
-      new_time = wcs::Network::get_etime_ulimit();
+    if (std::isnan(t_to_update)) {
+      t_to_update = wcs::Network::get_etime_ulimit();
     }
   }
 
   std::make_heap(m_heap.begin(), m_heap.end(), SSA_NRM::later);
-  return std::make_pair(firing, true);
 }
 
 
 void SSA_NRM::init(std::shared_ptr<wcs::Network>& net_ptr,
                    const unsigned max_iter,
+                   const double max_time,
                    const unsigned rng_seed,
                    const bool enable_tracing)
 {
@@ -274,6 +253,7 @@ void SSA_NRM::init(std::shared_ptr<wcs::Network>& net_ptr,
   }
 
   m_net_ptr = net_ptr;
+  m_max_time = max_time;
   m_max_iter = max_iter;
   m_enable_tracing = enable_tracing;
   m_sim_time = static_cast<sim_time_t>(0);
@@ -298,13 +278,50 @@ void SSA_NRM::init(std::shared_ptr<wcs::Network>& net_ptr,
 
 std::pair<unsigned, wcs::sim_time_t> SSA_NRM::run()
 {
+  // species to update as a result of the reaction fired
+  std::vector<update_t> updating_species;
+
+  // Any other reaction that takes any of species being updated as a result of
+  // the current reaction as a reactant is affected. This assumes that species
+  // count never reaches 'Species::m_max_count'. Otherwise, those reactions
+  // that produce any of the updated species are affected as well. Here, we
+  // take the assumption for simplicity. However, if we consider compartments
+  // with population/concentration limits, we need to reconsider.
+  std::set<v_desc_t> affected_reactions;
+
   for (; m_cur_iter < m_max_iter; ++ m_cur_iter) {
-    auto p = fire_reaction();
-    if (!p.second) {
+    if (m_heap.empty()) { // no reaction possible
       break;
     }
-    m_sim_time += p.first.first;
+
+    updating_species.clear();
+    affected_reactions.clear();
+
+    auto firing = m_heap.front();
+    const wcs::sim_time_t dt = firing.first;
+
+    if ((dt == std::numeric_limits<wcs::sim_time_t>::infinity()) ||
+        (dt >= wcs::Network::get_etime_ulimit())) {
+      break;
+    }
+
+    if (!fire_reaction(firing, updating_species, affected_reactions)) {
+      break;
+    }
+
+    if (m_enable_tracing) {
+      m_trace.record_reaction(firing.first, firing.second);
+    }
+
+    update_reactions(affected_reactions);
+
+    m_sim_time += dt;
+
+    if (dt > m_max_time) {
+      break;
+    }
   }
+
   return std::make_pair(m_cur_iter, m_sim_time);
 }
 

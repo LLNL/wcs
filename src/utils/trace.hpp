@@ -27,6 +27,7 @@ public:
   void write(const std::string filename);
   virtual std::ostream& write(std::ostream& os);
   void record_initial_condition(const std::shared_ptr<wcs::Network>& net_ptr);
+  void pop_back();
 
 protected:
   virtual void build_index_maps();

@@ -5,7 +5,7 @@
 
 # The cmake recipe is under development. Until that becomes available,
 # make sure to export CXX, BOOST_ROOT and 
-# LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:/${BOOST_ROOT}/lib
+# LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:${BOOST_ROOT}/lib
 # Then, type make
 
 CPPFLAGS += -I. -I${BOOST_ROOT}/include

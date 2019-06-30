@@ -78,15 +78,13 @@ template<typename G> void GraphFactory::copy_to(G& g)
     const v_prop_t& v = m_g[*vi];
     const auto vt = static_cast<v_prop_t::vertex_type>(v.get_typeid());
     const auto num_out_edges = boost::out_degree(*vi, m_g);
-               // = m_g.out_edge_list(*vi).size();
-               // = static_cast<const graph_t::stored_vertex*>(*vi)->m_out_edges.size();
     v_new_desc_t vd;
 
     if (vt == v_prop_t::_species_) {
       vd = boost::add_vertex(wcs::Vertex{v, g}, g);
       if constexpr (has_reserve_for_vertex_out_edges<G>::value) {
         g.m_vertices[vd].m_out_edges.reserve(num_out_edges);
-      }
+      } else { (void) num_out_edges; }
       if constexpr (has_reserve_for_vertex_in_edges<G>::value && is_bidirectional) {
         g.m_vertices[vd].m_in_edges.reserve(num_in_edges_to_reserve);
       }

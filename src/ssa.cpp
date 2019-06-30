@@ -53,6 +53,8 @@ struct Config {
 void Config::getopt(int& argc, char** &argv)
 {
   int c;
+  bool is_iter_set = false;
+  bool is_time_set = false;
 
   while ((c = getopt_long(argc, argv, OPTIONS, longopts, NULL)) != -1) {
     switch (c) {
@@ -67,6 +69,7 @@ void Config::getopt(int& argc, char** &argv)
         break;
       case 'i': /* --iter */
         max_iter = static_cast<unsigned>(atoi(optarg));
+        is_iter_set = true;
         break;
       case 'o': /* --outfile */
         outfile = std::string(optarg);
@@ -77,6 +80,7 @@ void Config::getopt(int& argc, char** &argv)
         break;
       case 't': /* --time */
         max_time = static_cast<wcs::sim_time_t>(std::stod(optarg));
+        is_time_set = true;
         break;
       default:
         print_usage(argv[0], 1);
@@ -89,6 +93,10 @@ void Config::getopt(int& argc, char** &argv)
   }
 
   infile = argv[optind];
+
+  if (!is_iter_set && is_time_set) {
+    max_iter = std::numeric_limits<decltype(max_iter)>::max();
+  }
 }
 
 void Config::print_usage(const std::string exec, int code)

@@ -317,7 +317,7 @@ std::pair<unsigned, wcs::sim_time_t> SSA_NRM::run()
 
     m_sim_time += dt;
 
-    if (dt > m_max_time) {
+    if (m_sim_time >= m_max_time) {
       break;
     }
   }

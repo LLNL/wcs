@@ -1,0 +1,1 @@
+mpicxx -Wall -O2 -I../ross/include -o matrix-cancel-model matrix-cancel-model.cc -L../ross/lib -lROSS

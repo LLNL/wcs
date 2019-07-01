@@ -50,7 +50,9 @@ class GraphFactory {
   bool read_graphml(const std::string &ifn);
   /** Export the internal adjacency list to g, which might be of a different
       type in terms of the random accessibility but of a compatible one (G). */
-  template<typename G> void copy_to(G& g);
+  template<typename G> void copy_to(G& g) const;
+  template<typename G>
+  typename std::shared_ptr<G> make_graph() const;
 
  private:
   void setup_dynamic_property ();
@@ -59,7 +61,7 @@ class GraphFactory {
 };
 
 
-template<typename G> void GraphFactory::copy_to(G& g)
+template<typename G> void GraphFactory::copy_to(G& g) const
 {
   using v_new_desc_t = typename boost::graph_traits<G>::vertex_descriptor;
   std::unordered_map<v_desc_t, v_new_desc_t> v_desc_map;
@@ -108,10 +110,19 @@ template<typename G> void GraphFactory::copy_to(G& g)
     v_new_desc_t v_new = v_desc_map.at(v);
     const e_prop_t& e = m_g[*ei];
     boost::add_edge(u_new, v_new, e_prop_t{e}, g);
-    //std::cerr << "adding edge from "
-    //          << g[u_new].get_label() << " to "
-    //          << g[v_new].get_label() << std::endl;
   }
+}
+
+/**
+ * Load the graph from GraphML file and return the shared pointer of the
+ * graph object of type G.
+ */
+template<typename G>
+typename std::shared_ptr<G> GraphFactory::make_graph() const
+{
+  std::shared_ptr<G> g = std::make_shared<G>();
+  copy_to(*g);
+  return g;
 }
 
 /**@}*/

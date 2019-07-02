@@ -142,6 +142,11 @@ include(SetupCXX)
 
 # Required dependencies
 
+find_package(Boost #1.66.0
+             REQUIRED COMPONENTS
+             graph regex filesystem system
+)
+
 # This shouldn't be here, but is ok for now. This will occasionally be
 # part of another TPL's libraries (e.g., MKL), but it's no
 # guarantee. There's no harm including it multiple times.
@@ -216,6 +221,7 @@ target_include_directories(wcs PUBLIC
   $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}>
   $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/src>
   $<INSTALL_INTERFACE:${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_INCLUDEDIR}>)
+target_include_directories(wcs SYSTEM PUBLIC ${Boost_INCLUDE_DIRS})
 
 # Use the IMPORTED targets when possible.
 
@@ -236,6 +242,8 @@ if (TARGET WCS_CXX_FLAGS_werror)
 endif ()
 
 target_link_libraries(wcs PUBLIC ${DL_LIBRARY})
+
+target_link_libraries(wcs PUBLIC ${Boost_LIBRARIES})
 
 # Clean things up
 include(WCSDebugUtilities)
@@ -329,8 +337,8 @@ install(
 
 # Install contributor list, license, readme
 install(
-  FILES "${PROJECT_SOURCE_DIR}/CONTRIBUTORS"
-        "${PROJECT_SOURCE_DIR}/LICENSE"
+  FILES #"${PROJECT_SOURCE_DIR}/CONTRIBUTORS"
+        #"${PROJECT_SOURCE_DIR}/LICENSE"
         "${PROJECT_SOURCE_DIR}/README.md"
   DESTINATION "${CMAKE_INSTALL_DOCDIR}")
 

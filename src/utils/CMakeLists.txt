@@ -21,12 +21,12 @@ set_full_path(THIS_DIR_SOURCES
 # Add the subdirectories
 
 # Propagate the files up the tree
-set(WCS_HEADERS "${HEADERS}" "${THIS_DIR_HEADERS}" PARENT_SCOPE)
-set(WCS_SOURCES "${SOURCES}" "${THIS_DIR_SOURCES}" PARENT_SCOPE)
+set(WCS_HEADERS "${WCS_HEADERS}" "${THIS_DIR_HEADERS}" PARENT_SCOPE)
+set(WCS_SOURCES "${WCS_SOURCES}" "${THIS_DIR_SOURCES}" PARENT_SCOPE)
 
 
 add_executable( graphml2dot-bin graphml2dot.cpp )
-target_link_libraries(graphml2dot-bin graphml2dot )
+target_link_libraries(graphml2dot-bin PRIVATE wcs)
 set_target_properties(graphml2dot-bin PROPERTIES OUTPUT_NAME graphml2dot)
 
 # Install the binaries

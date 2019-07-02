@@ -185,15 +185,15 @@ void SSA_NRM::update_reactions(
 
   auto& next_time = m_heap.front().first;
   const auto vd_firing = m_heap.front().second;
-  const auto rate_new = m_net_ptr->set_reaction_rate(vd_firing);
+  const auto new_rate = m_net_ptr->set_reaction_rate(vd_firing);
 
   if (!m_net_ptr->check_reaction(vd_firing)) {
     next_time = wcs::Network::get_etime_ulimit();
   } else { // Update the rate of the reaction fired
     const auto rn = unsigned_max/m_rgen();
-    next_time = (rate_new <= static_cast<wcs::sim_time_t>(0))?
+    next_time = (new_rate <= static_cast<wcs::sim_time_t>(0))?
                    wcs::Network::get_etime_ulimit() :
-                   log(rn)/rate_new;
+                   log(rn)/new_rate;
     if (std::isnan(next_time)) {
       next_time = wcs::Network::get_etime_ulimit();
     }

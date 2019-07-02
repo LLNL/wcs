@@ -74,7 +74,7 @@ bool Species::inc_count()
 
 bool Species::dec_count()
 {
-  if (m_count <= 0) {
+  if (m_count <= static_cast<species_cnt_t>(0)) {
     return false;
   }
   m_count --;
@@ -99,9 +99,17 @@ bool Species::dec_count(const species_cnt_t c)
   return true;
 }
 
+template<typename T>
+constexpr bool check_if_negative(const T& val) {
+  if constexpr (std::is_signed<T>::value)
+    return (val < 0);
+  else
+    return false;
+}
+
 bool Species::set_count(const species_cnt_t c)
 {
-  if ((m_count < 0) || (m_count > m_max_count)) {
+  if (check_if_negative(m_count) || (m_count > m_max_count)) {
     return false;
   }
   m_count = c;

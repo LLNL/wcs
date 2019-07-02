@@ -5,6 +5,9 @@ namespace wcs {
 /** \addtogroup wcs_utils
  *  *  @{ */
 
+Trace::~Trace()
+{}
+
 void Trace::record_reaction(const sim_time_t t, const Trace::r_desc_t r)
 {
   m_trace.emplace_back(std::make_pair(t, r));

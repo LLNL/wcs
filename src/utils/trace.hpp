@@ -23,6 +23,7 @@ public:
   using entry_t = typename std::pair<sim_time_t, r_desc_t>;
   using trace_t = std::list<entry_t>;
 
+  virtual ~Trace();
   void record_reaction(const sim_time_t t, const r_desc_t r);
   void write(const std::string filename);
   virtual std::ostream& write(std::ostream& os);

@@ -117,14 +117,14 @@ option(WCS_WARNINGS_AS_ERRORS
 mark_as_advanced(WCS_WARNINGS_AS_ERRORS)
 
 #
-# The datatype option is not binary
+# The BGL adjacency list container selector. By default, vecS is used
+# for both out-edge lists and vertex lists.
 #
+#set(WCS_VERTEX_LIST_TYPE "::boost::listS"
+#  CACHE STRING "The BGL vertex list type to use in WCS")
 
-set(WCS_VERTEX_LIST_TYPE "vecS"
-  CACHE STRING "The BGL vertex list type to use in WCS")
-
-set(WCS_OUT_EDGE_LIST_TYPE "vecS"
-  CACHE STRING "The BGL out edge list type to use in WCS")
+#set(WCS_OUT_EDGE_LIST_TYPE "::boost::vecS"
+#  CACHE STRING "The BGL out edge list type to use in WCS")
 
 #
 # Initialize build
@@ -134,18 +134,22 @@ set(WCS_OUT_EDGE_LIST_TYPE "vecS"
 # best to just make them available
 include(GNUInstallDirs)
 
-include(SetupCXX)
-
 ################################################################
 # Initialize dependencies
 ################################################################
 
 # Required dependencies
 
-find_package(Boost #1.66.0
+if(DEFINED ENV{BOOST_ROOT})
+    message(STATUS "BOOST_ROOT: " $ENV{BOOST_ROOT})
+    set(Boost_NO_SYSTEM_PATHS ON)
+endif()
+
+find_package(Boost
              REQUIRED COMPONENTS
-             graph regex filesystem system
-)
+             graph regex filesystem system)
+
+message(STATUS "Boost_LIBRARY_DIRS: " ${Boost_LIBRARY_DIRS})
 
 # This shouldn't be here, but is ok for now. This will occasionally be
 # part of another TPL's libraries (e.g., MKL), but it's no
@@ -210,6 +214,7 @@ configure_file(
   "${CMAKE_SOURCE_DIR}/cmake/configure_files/wcs_config.hpp.in"
   "${CMAKE_BINARY_DIR}/wcs_config.hpp"
   @ONLY)
+add_definitions(-DWCS_HAS_CONFIG)
 
 # Add WCS source files
 add_subdirectory(src)
@@ -279,6 +284,7 @@ write_basic_package_version_file(
 set(INCLUDE_INSTALL_DIRS 
   "${CMAKE_SOURCE_DIR}/src"
   "${CMAKE_SOURCE_DIR}/src/reaction_network"
+  "${CMAKE_SOURCE_DIR}/src/sim_methods"
   "${CMAKE_SOURCE_DIR}/src/utils")
 set(LIB_INSTALL_DIR "${CMAKE_BINARY_DIR}")
 set(EXTRA_CMAKE_MODULE_DIR "${CMAKE_SOURCE_DIR}/cmake/modules")
@@ -328,11 +334,21 @@ install(DIRECTORY cmake/modules
 
 # Install header files
 install(
-  DIRECTORY "${PROJECT_SOURCE_DIR}/include/wcs"
+  DIRECTORY "${PROJECT_SOURCE_DIR}/src/reaction_network"
+  DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
+  FILES_MATCHING PATTERN "*.h" PATTERN "*.hpp")
+install(
+  DIRECTORY "${PROJECT_SOURCE_DIR}/src/sim_methods"
+  DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
+  FILES_MATCHING PATTERN "*.h" PATTERN "*.hpp")
+install(
+  DIRECTORY "${PROJECT_SOURCE_DIR}/src/utils"
   DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
   FILES_MATCHING PATTERN "*.h" PATTERN "*.hpp")
 install(
   FILES "${PROJECT_BINARY_DIR}/wcs_config.hpp"
+        "${PROJECT_SOURCE_DIR}/src/wcs_types.hpp"
+        "${PROJECT_SOURCE_DIR}/src/bgl.hpp"
   DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}")
 
 # Install contributor list, license, readme

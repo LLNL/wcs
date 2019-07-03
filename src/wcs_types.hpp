@@ -5,6 +5,7 @@
 #include <memory>  // std::unique_ptr
 
 namespace wcs {
+
 using species_cnt_t = unsigned int;
 using reaction_rate_t = double;
 using sim_time_t = double;

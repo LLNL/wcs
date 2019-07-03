@@ -1,5 +1,5 @@
-#ifndef __WCS_SPECIES_HPP__
-#define __WCS_SPECIES_HPP__
+#ifndef __WCS_REACTION_NETWORK_SPECIES_HPP__
+#define __WCS_REACTION_NETWORK_SPECIES_HPP__
 
 #include "reaction_network/vertex_property_base.hpp"
 
@@ -48,4 +48,4 @@ class Species : public VertexPropertyBase {
 
 /**@}*/
 } // end of namespace wcs
-#endif // __WCS_SPECIES_HPP__
+#endif // __WCS_REACTION_NETWORK_SPECIES_HPP__

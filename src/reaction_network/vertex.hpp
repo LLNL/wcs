@@ -1,3 +1,5 @@
+#ifndef __WCS_REACTION_NETWORK_VERTEX_HPP__
+#define __WCS_REACTION_NETWORK_VERTEX_HPP__
 // Whole Cell Model Simulator
 /** @file
  * \ingroup wcs_reaction_network
@@ -13,8 +15,6 @@
  * \author Jae-Seung Yeom <yeom2@llnl.gov>
  * \date 2019
  */
-#ifndef __WCS_VERTEX_HPP__
-#define __WCS_VERTEX_HPP__
 
 #include <string>
 #include <map>
@@ -118,11 +118,11 @@ template <typename P> P& Vertex::checked_property() const
 {
   auto ptr = dynamic_cast<P*>(m_p.get());
   if (ptr == nullptr) {
-    WCS_THROW("Attempted to dereference a wrong type of property porinter.");
+    WCS_REACTION_NETWORK_THROW("Attempted to dereference a wrong type of property porinter.");
   }
   return *ptr;
 }
 
 /**@}*/
 } // end of namespace wcs
-#endif // __WCS_VERTEX_HPP__
+#endif // __WCS_REACTION_NETWORK_VERTEX_HPP__

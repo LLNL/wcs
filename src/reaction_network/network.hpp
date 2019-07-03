@@ -1,3 +1,5 @@
+#ifndef __WCS_REACTION_NETWORK_NETWORK_HPP__
+#define __WCS_REACTION_NETWORK_NETWORK_HPP__
 // Whole Cell Model Simulator
 /** @file
  * \ingroup wcs_reaction_network
@@ -14,8 +16,6 @@
  * \author Jae-Seung Yeom <yeom2@llnl.gov>
  * \date 2019
  */
-#ifndef __WCS_NETWORK_HPP__
-#define __WCS_NETWORK_HPP__
 
 #include <string>
 #include <unordered_map>
@@ -128,4 +128,4 @@ class Network {
 
 /**@}*/
 } // end of namespace wcs
-#endif // __WCS_NETWORK_HPP__
+#endif // __WCS_REACTION_NETWORK_NETWORK_HPP__

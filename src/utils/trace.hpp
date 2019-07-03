@@ -1,5 +1,5 @@
-#ifndef	 __TRACE_HPP__
-#define	 __TRACE_HPP__
+#ifndef	 __WCS_UTILS_TRACE_HPP__
+#define	 __WCS_UTILS_TRACE_HPP__
 #include <map>
 #include <list>
 #include <string>
@@ -56,4 +56,4 @@ protected:
 
 /**@}*/
 } // end of namespace wcs
-#endif // __TRACE_HPP__
+#endif // __WCS_UTILS_TRACE_HPP__

@@ -1,5 +1,5 @@
-#ifndef __WCS_SSA_NRM_HPP
-#define __WCS_SSA_NRM_HPP
+#ifndef __WCS_SIM_METHODS_SSA_NRM_HPP__
+#define __WCS_SIM_METHODS_SSA_NRM_HPP__
 #include <cmath>
 #include <limits>
 #include "wcs_types.hpp"
@@ -63,4 +63,4 @@ protected:
 
 /**@}*/
 } // end of namespace wcs
-#endif // __WCS_SSA_NRM_HPP
+#endif // __WCS_SIM_METHODS_SSA_NRM_HPP__

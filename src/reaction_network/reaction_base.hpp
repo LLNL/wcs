@@ -1,5 +1,5 @@
-#ifndef __WCS_REACTION_BASE_HPP__
-#define __WCS_REACTION_BASE_HPP__
+#ifndef __WCS_REACTION_NETWORK_REACTION_BASE_HPP__
+#define __WCS_REACTION_NETWORK_REACTION_BASE_HPP__
 #include "reaction_network/vertex_property_base.hpp"
 #include "utils/exception.hpp"
 #include <vector>
@@ -81,7 +81,7 @@ std::vector<VD> ReactionBase::interpret_species_name(
     species.erase(std::remove_if(species.begin(), species.end(), ::isspace), species.end());
     typename std::map<std::string, VD>::const_iterator it = species_linked.find(species);
     if (it == species_linked.cend()) {
-      WCS_THROW("Cannot interpret " + species + " in " + formula);
+      WCS_REACTION_NETWORK_THROW("Cannot interpret " + species + " in " + formula);
     }
     vertices.push_back(it->second);
   }
@@ -90,4 +90,4 @@ std::vector<VD> ReactionBase::interpret_species_name(
 
 /**@}*/
 } // end of namespace wcs
-#endif // __WCS_REACTION_BASE_HPP__
+#endif // __WCS_REACTION_NETWORK_REACTION_BASE_HPP__

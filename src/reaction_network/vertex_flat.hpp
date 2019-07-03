@@ -1,3 +1,5 @@
+#ifndef __WCS_REACTION_NETWORK_VERTEX_FLAT_HPP__
+#define __WCS_REACTION_NETWORK_VERTEX_FLAT_HPP__
 // Whole Cell Model Simulator
 /** @file
  * \ingroup wcs_reaction_network
@@ -18,8 +20,6 @@
  * \author Jae-Seung Yeom <yeom2@llnl.gov>
  * \date 2019
  */
-#ifndef __WCS_VERTEX_FLAT_HPP__
-#define __WCS_VERTEX_FLAT_HPP__
 
 #include <string>
 #include <map>
@@ -81,4 +81,4 @@ class VertexFlat {
 
 /**@}*/
 } // end of namespace wcs
-#endif // __WCS_VERTEX_FLAT_HPP__
+#endif // __WCS_REACTION_NETWORK_VERTEX_FLAT_HPP__

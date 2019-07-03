@@ -33,8 +33,8 @@ class Network {
  public:
     /// The type of the BGL graph to represent reaction networks
   using graph_t  = boost::adjacency_list<
-                   boost::vecS,
-                   boost::vecS,
+                   wcs_out_edge_list_t,
+                   wcs_vertex_list_t,
                    boost::bidirectionalS,
                    wcs::Vertex, // vertex property bundle
                    wcs::Edge,   // edge property bundle

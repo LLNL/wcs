@@ -37,7 +37,7 @@ set_target_properties(ssa-bin PROPERTIES OUTPUT_NAME ssa)
 
 # Install the binaries
 install(
-  TARGETS  reaction-bin
+  TARGETS  reaction-bin ssa-bin
   EXPORT   WCSTargets
   RUNTIME  DESTINATION ${CMAKE_INSTALL_BINDIR}
   ARCHIVE  DESTINATION ${CMAKE_INSTALL_LIBDIR}

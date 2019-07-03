@@ -1,6 +1,10 @@
 #ifndef __WCS_UTILS_GRAPH_FACTORY_HPP__
 #define __WCS_UTILS_GRAPH_FACTORY_HPP__
 
+#include <string>
+#include <unordered_map>
+#include <type_traits>
+
 #if !defined(__clang__) && defined(__GNUC__)
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
@@ -8,11 +12,11 @@
 // To suppress the gcc compiler warning 'maybe-uninitialized'
 // from the boost graph source code.
 // clang does not recognize this particular diagnostic flag.
-#include <boost/graph/adjacency_list.hpp>
 #include <boost/graph/graphml.hpp>
 #if !defined(__clang__) && defined(__GNUC__)
 #pragma GCC diagnostic pop
 #endif
+#include <bgl.hpp>
 
 #include <reaction_network/vertex_flat.hpp>
 #include <reaction_network/vertex.hpp>
@@ -20,9 +24,6 @@
 #include <reaction_network/species.hpp>
 #include <reaction_network/reaction.hpp>
 #include <utils/detect_methods.hpp>
-#include <string>
-#include <unordered_map>
-#include <type_traits>
 
 
 namespace wcs {

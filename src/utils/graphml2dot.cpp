@@ -5,11 +5,6 @@
 #include "graph_factory.hpp"
 #include <fstream>
 
-extern "C" {
-#if HAVE_CONFIG_H
-#include "config.h"
-#endif
-}
 
 #define OPTIONS "ho:"
 static const struct option longopts[] = {

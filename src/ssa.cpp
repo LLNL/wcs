@@ -12,11 +12,6 @@
 #include "utils/trace_ssa.hpp"
 #include "sim_methods/ssa_nrm.hpp"
 
-extern "C" {
-#if HAVE_CONFIG_H
-#include "config.h"
-#endif
-}
 
 #define OPTIONS "dg:hi:o:s:t:"
 static const struct option longopts[] = {

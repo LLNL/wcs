@@ -15,11 +15,7 @@
 #cmakedefine WCS_HAS_VTUNE
 #cmakedefine WCS_VTUNE
 
-// Define the WCS datatype
-namespace wcs
-{
-  using wcs_vertex_list_t = @WCS_VERTEX_LIST_TYPE@;
-  using wcs_out_edge_list_t = @WCS_OUT_EDGE_LIST_TYPE@;
-}// namespace wcs
+#cmakedefine WCS_VERTEX_LIST_TYPE @WCS_VERTEX_LIST_TYPE@
+#cmakedefine WCS_OUT_EDGE_LIST_TYPE @WCS_OUT_EDGE_LIST_TYPE@
 
 #endif /* WCS_CONFIG_H__ */

@@ -1,5 +1,5 @@
-#ifndef __WCS_RNGEN_HPP__
-#define __WCS_RNGEN_HPP__
+#ifndef __WCS_UTILS_RNGEN_HPP__
+#define __WCS_UTILS_RNGEN_HPP__
 #include <random>
 #include <chrono>
 
@@ -30,4 +30,4 @@ class RNGen {
 
 #include "rngen_impl.hpp"
 
-#endif // __WCS_RNGEN_HPP__
+#endif // __WCS_UTILS_RNGEN_HPP__

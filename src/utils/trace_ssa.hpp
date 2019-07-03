@@ -1,5 +1,5 @@
-#ifndef	 __TRACE_SSA_HPP__
-#define	 __TRACE_SSA_HPP__
+#ifndef	 __WCS_UTILS_TRACE_SSA_HPP__
+#define	 __WCS_UTILS_TRACE_SSA_HPP__
 #include "utils/trace.hpp"
 
 namespace wcs {
@@ -27,4 +27,4 @@ protected:
 
 /**@}*/
 } // end of namespace wcs
-#endif // __TRACE_SSA_HPP__
+#endif // __WCS_UTILS_TRACE_SSA_HPP__

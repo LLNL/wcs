@@ -1,5 +1,5 @@
-#ifndef __WCS_EDGE_HPP__
-#define __WCS_EDGE_HPP__
+#ifndef __WCS_REACTION_NETWORK_EDGE_HPP__
+#define __WCS_REACTION_NETWORK_EDGE_HPP__
 
 #include <string>
 #include <iostream>
@@ -32,4 +32,4 @@ class Edge {
 
 /**@}*/
 } // end of namespace wcs
-#endif // __WCS_EDGE_HPP__
+#endif // __WCS_REACTION_NETWORK_EDGE_HPP__

@@ -1,10 +1,10 @@
-#ifndef  __WCS_EXCEPTION__
-#define  __WCS_EXCEPTION__
+#ifndef  __WCS_UTILS_EXCEPTION__
+#define  __WCS_UTILS_EXCEPTION__
 #include <string>
 #include <iostream>
 #include <exception>
 
-#define WCS_THROW(_MSG_)                                   \
+#define WCS_UTILS_THROW(_MSG_)                                   \
   throw wcs::exception(std::string( __FILE__) + " : line " \
                        + std::to_string(__LINE__) + " : "  \
                        + _MSG_ + '\n')
@@ -28,4 +28,4 @@ std::ostream& operator<<(std::ostream& os, const exception& e);
 
 /**@}*/
 } // end of namespace wcs
-#endif //  __WCS_EXCEPTION__
+#endif //  __WCS_UTILS_EXCEPTION__

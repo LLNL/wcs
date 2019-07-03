@@ -1,5 +1,5 @@
-#ifndef __WCS_REACTION_HPP__
-#define __WCS_REACTION_HPP__
+#ifndef __WCS_REACTION_NETWORK_REACTION_HPP__
+#define __WCS_REACTION_NETWORK_REACTION_HPP__
 #include "reaction_network/reaction_base.hpp"
 
 namespace wcs {
@@ -37,4 +37,4 @@ class Reaction : public ReactionBase {
 } // end of namespace wcs
 
 #include "reaction_network/reaction_impl.hpp"
-#endif // __WCS_REACTION_HPP__
+#endif // __WCS_REACTION_NETWORK_REACTION_HPP__

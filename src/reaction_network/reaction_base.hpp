@@ -26,17 +26,11 @@ class ReactionBase : public VertexPropertyBase {
 
   void set_rate_constant(reaction_rate_t k);
   reaction_rate_t get_rate_constant() const;
-#if 1
-  void set_calc_rate_fn();
-  void set_calc_rate_fn(const std::function<
-                          reaction_rate_t (const std::vector<reaction_rate_t>&)
-                        >& calc_rate);
-#endif
   reaction_rate_t get_rate() const;
   void set_rate_formula(const std::string& f);
   const std::string& get_rate_formula() const;
 
-  reaction_rate_t calc_rate(std::vector<reaction_rate_t> params);
+  virtual reaction_rate_t calc_rate(std::vector<reaction_rate_t> params) = 0;
 
  protected:  
   void reset(ReactionBase& obj);
@@ -55,10 +49,11 @@ class ReactionBase : public VertexPropertyBase {
   reaction_rate_t m_rate; ///< reaction rate
   reaction_rate_t m_rate_const; ///< rate constant
   std::string m_rate_formula; ///< reaction rate formula
-  std::function<reaction_rate_t (const std::vector<reaction_rate_t>&)> m_calc_rate;
 };
 
 
+// GG: dead code
+#if 0
 template <typename VD>
 std::vector<VD> ReactionBase::interpret_species_name(
   const std::string& formula,
@@ -87,6 +82,7 @@ std::vector<VD> ReactionBase::interpret_species_name(
   }
   return vertices;
 }
+#endif
 
 /**@}*/
 } // end of namespace wcs

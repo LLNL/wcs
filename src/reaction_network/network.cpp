@@ -43,26 +43,27 @@ void Network::init()
         = std::is_same<directed_category, boost::bidirectional_tag>::value;
 
       const v_desc_t reaction = *vi;
-      s_involved_t involved_species;
+      s_involved_t reactants, products;
 
       if constexpr (is_bidirectional) {
         for(const auto ei_in :
             boost::make_iterator_range(boost::in_edges(reaction, m_graph))) {
           v_desc_t reactant = boost::source(ei_in, m_graph);
-          involved_species.insert(std::make_pair(m_graph[reactant].get_label(), reactant));
+          reactants.insert(std::make_pair(m_graph[reactant].get_label(), reactant));
         }
       }
 
       for(const auto ei_out :
           boost::make_iterator_range(boost::out_edges(reaction, m_graph))) {
         v_desc_t product = boost::target(ei_out, m_graph);
-        involved_species.insert(std::make_pair(m_graph[product].get_label(), product));
+        products.insert(std::make_pair(m_graph[product].get_label(), product));
       }
 
       m_reactions.emplace_back(reaction);
 
       auto& r = m_graph[*vi].checked_property< Reaction<v_desc_t> >();
-      r.set_rate_inputs(involved_species);
+      r.set_rate_inputs(reactants);
+      r.set_outputs(products);
       set_reaction_rate(*vi);
     }
   }
@@ -75,6 +76,7 @@ reaction_rate_t Network::set_reaction_rate(const Network::v_desc_t r) const
   auto & rprop = m_graph[r].checked_property< Reaction<v_desc_t> >();
   const auto& ri = rprop.get_rate_inputs();
   std::vector<reaction_rate_t> params;
+  // GG: rate constant is part of the Reaction object
   params.reserve(ri.size()+1u); // reserve space for species count and rate constant
   for (auto vd : ri) { // add species counts here and the rate constant will be appended later
     const auto& s = m_graph[vd].checked_property<Species>();

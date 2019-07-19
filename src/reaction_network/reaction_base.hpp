@@ -81,7 +81,7 @@ std::vector<VD> ReactionBase::interpret_species_name(
     species.erase(std::remove_if(species.begin(), species.end(), ::isspace), species.end());
     typename std::map<std::string, VD>::const_iterator it = species_linked.find(species);
     if (it == species_linked.cend()) {
-      WCS_REACTION_NETWORK_THROW("Cannot interpret " + species + " in " + formula);
+      WCS_THROW("Cannot interpret " + species + " in " + formula);
     }
     vertices.push_back(it->second);
   }

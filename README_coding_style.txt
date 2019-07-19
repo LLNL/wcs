@@ -17,7 +17,7 @@ WCS coding style mostly follows the standard C++ libraries and Boost projects.
   * outside use a doxygen comment
     * minimize blocks of // or /* */ comments that are not picked up by doxygen
 * for variable names, spell out the full dictionary words as much as possible
-  and refrain from using undocumented or unfamilir acronyms
+  and refrain from using undocumented or unfamiliar acronyms
 * use const keyword when a variable is not supposed to be modified and a member
   function does not update any member state.
 * avoid relying on implicit type promotion or conversion,
@@ -27,4 +27,4 @@ WCS coding style mostly follows the standard C++ libraries and Boost projects.
 * check and fix compiler warnings
 * avoid using "using namespace xxx", and explicitly specify the
   namespace of each symbol of a different namespace referenced
-* do not put implementation details inside of a class defition body
+* do not put implementation details inside of a class definition body

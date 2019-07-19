@@ -12,7 +12,7 @@ int main(int argc, char** argv)
 
   using rng1_t = wcs::RNGen<std::uniform_real_distribution>;
   rng1_t r1;
-  
+
   if (argc == 1)
     r1.set_seed();
   else
@@ -26,7 +26,7 @@ int main(int argc, char** argv)
 
   using rng2_t = wcs::RNGen<std::uniform_int_distribution, unsigned>;
   rng2_t r2;
-  
+
   if (argc == 1)
     r2.set_seed();
   else

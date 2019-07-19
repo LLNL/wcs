@@ -38,7 +38,7 @@ class ReactionBase : public VertexPropertyBase {
 
   reaction_rate_t calc_rate(std::vector<reaction_rate_t> params);
 
- protected:  
+ protected:
   void reset(ReactionBase& obj);
 #if 0
   reaction_rate_t calc_rate(const std::vector<reaction_rate_t>& cnts);
@@ -51,7 +51,7 @@ class ReactionBase : public VertexPropertyBase {
  private:
   ReactionBase* clone_impl() const override = 0;
 
- protected:  
+ protected:
   reaction_rate_t m_rate; ///< reaction rate
   reaction_rate_t m_rate_const; ///< rate constant
   std::string m_rate_formula; ///< reaction rate formula

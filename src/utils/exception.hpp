@@ -4,7 +4,7 @@
 #include <iostream>
 #include <exception>
 
-#define WCS_UTILS_THROW(_MSG_)                                   \
+#define WCS_THROW(_MSG_)                                   \
   throw wcs::exception(std::string( __FILE__) + " : line " \
                        + std::to_string(__LINE__) + " : "  \
                        + _MSG_ + '\n')

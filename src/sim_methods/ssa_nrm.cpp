@@ -100,7 +100,7 @@ void SSA_NRM::undo_species_updates(const std::vector<SSA_NRM::update_t>& updates
 }
 
 /**
- * Pick the reaction with the earlies time to occur, execute it, update
+ * Pick the reaction with the earliest time to occur, execute it, update
  * the species population
  */
 bool SSA_NRM::fire_reaction(priority_t& firing,

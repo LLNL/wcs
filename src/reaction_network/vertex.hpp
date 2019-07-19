@@ -118,7 +118,7 @@ template <typename P> P& Vertex::checked_property() const
 {
   auto ptr = dynamic_cast<P*>(m_p.get());
   if (ptr == nullptr) {
-    WCS_REACTION_NETWORK_THROW("Attempted to dereference a wrong type of property porinter.");
+    WCS_THROW("Attempted to dereference a wrong type of property porinter.");
   }
   return *ptr;
 }

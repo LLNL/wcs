@@ -69,7 +69,7 @@ std::ostream& write_graphviz(std::ostream& os, const G& g, const VIdxMap& v_idx_
     //using v_prop_t = typename G::vertex_property_type;
 
     // Use detection idiom to see if at() is available.
-    // If so, replace g[v] with g.at(v), and this allows const 
+    // If so, replace g[v] with g.at(v), and this allows const
     // v_idx_map with std containers, which does not define
     // const access by the [] operator.
     std::function<void (const v_desc_t&)> vertex_writer
@@ -79,13 +79,13 @@ std::ostream& write_graphviz(std::ostream& os, const G& g, const VIdxMap& v_idx_
           {v_prop_t::_species_,   "lightsteelblue"},
           {v_prop_t::_reaction_,  "plum1"}
         };
-  
+
         os << "  " << get_v_index(v_idx_map, v)
            << " [label=\"" << boost::escape_dot_string(g[v].get_label())
            << "\" fillcolor=\"" << colormap.at(g[v].get_type())
            << "\"];" << std::endl;
       };
-  
+
     typename boost::graph_traits<G>::vertex_iterator vi, vi_end;
     boost::tie(vi, vi_end) = boost::vertices(g);
 
@@ -94,7 +94,7 @@ std::ostream& write_graphviz(std::ostream& os, const G& g, const VIdxMap& v_idx_
 
   { // print edges
     using e_desc_t = typename boost::graph_traits<G>::edge_descriptor;
-  
+
     constexpr const char* edge_delimiter = directed? "->" : "--";
 
     std::function<void (const e_desc_t&)> edge_writer
@@ -105,7 +105,7 @@ std::ostream& write_graphviz(std::ostream& os, const G& g, const VIdxMap& v_idx_
            << " [taillabel=\"" << g[e].get_stoichiometry_ratio() << "\"];"
            << std::endl;
       };
-  
+
     typename boost::graph_traits<G>::edge_iterator ei, ei_end;
     boost::tie(ei, ei_end) = boost::edges(g);
 
@@ -123,7 +123,7 @@ std::ostream& write_graphviz(std::ostream& os, const G& g)
 {
   using rand_access
     = typename boost::detail::is_random_access<typename G::vertex_list_selector>::type;
-   
+
   if constexpr (rand_access::value) {
     using v_index_map_t
       = typename boost::property_map<G, boost::vertex_index_t>::const_type;

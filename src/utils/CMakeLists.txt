@@ -40,5 +40,5 @@ install(
   )
 
 # Install the relevant prototext
-#install(DIRECTORY unit_tests/examples 
+#install(DIRECTORY unit_tests/examples
 #  DESTINATION ${CMAKE_INSTALL_DATADIR}/examples)

@@ -23,7 +23,7 @@ all: target_dep target_rule
 %.d: %.cpp
 	@echo "$@ `$(CXXDEP) $(CXXFLAGS) $(CPPFLAGS) -MM $<`" > $@
 
-clean: 
+clean:
 	@rm -f reaction_network/*.o reaction_network/*.d
 
 target_dep: $(addsuffix .d, $(basename $(SRCS)))

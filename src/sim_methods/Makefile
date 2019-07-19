@@ -17,7 +17,7 @@ all: target_dep target_rule
 %.d: %.cpp
 	@echo "$@ `$(CXXDEP) $(CXXFLAGS) $(CPPFLAGS) -MM $<`" > $@
 
-clean: 
+clean:
 	@rm -f sim_methods/*.o sim_methods/*.d
 
 target_dep: $(addsuffix .d, $(basename $(SRCS)))

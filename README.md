@@ -23,9 +23,9 @@
    The first one does not work well with the compiler choices above.
    The second one works well with the clang choice, and the third with gcc.
    To override building with a manual choice of boost, set the environment
-   variable "BOOST\_ROOT" or pass "-DBOOST\_ROOT=<path-to-the-chosen-boost-build>"
-   to cmake. To run the executable, you might need to add "${BOOST\_ROOT}/lib"
-   to the "LD\_LIBRARY\_PATH"
+   variable `BOOST_ROOT` or pass `-DBOOST_ROOT=<path-to-the-chosen-boost-build>`
+   to cmake. To run the executable, you might need to add `${BOOST_ROOT}/lib`
+   to the `LD_LIBRARY_PATH`
  + cmake 3.12 or later
 
 ## Future requirements:

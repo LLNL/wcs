@@ -10,7 +10,7 @@ namespace wcs {
 template <typename VD>
 class Reaction : public ReactionBase {
  public:
-  using rate_input_t = std::vector<VD>;
+  using involved_species_t = std::vector<VD>;
 
   Reaction();
   Reaction(const Reaction& rhs);
@@ -22,7 +22,7 @@ class Reaction : public ReactionBase {
 
   void set_rate_inputs(const std::map<std::string, VD>& reactants);
   void set_outputs(const std::map<std::string, VD>& products);
-  const rate_input_t& get_rate_inputs() const;
+  const involved_species_t& get_rate_inputs() const;
   reaction_rate_t calc_rate(std::vector<reaction_rate_t> params) override;
 
  protected:
@@ -38,8 +38,8 @@ class Reaction : public ReactionBase {
 
  protected:
   /// The BGL descriptors of input vertices to reaction rate formula
-  rate_input_t m_rate_inputs;
-  std::vector<VD> m_outputs;
+  involved_species_t m_rate_inputs;
+  involved_species_t m_outputs;
 };
 
 /**@}*/

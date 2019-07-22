@@ -98,7 +98,7 @@ inline void Reaction<VD>::set_outputs(const std::map<std::string, VD>& products)
 }
 
 template <typename VD>
-inline const typename Reaction<VD>::rate_input_t& Reaction<VD>::get_rate_inputs() const
+inline const typename Reaction<VD>::involved_species_t& Reaction<VD>::get_rate_inputs() const
 {
   return m_rate_inputs;
 }

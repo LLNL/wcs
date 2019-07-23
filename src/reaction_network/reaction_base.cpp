@@ -11,13 +11,15 @@ ReactionBase::ReactionBase()
   m_rate_const(static_cast<reaction_rate_t>(0)),
   m_rate_formula("")
 {
+  set_calc_rate_fn();
 }
 
 ReactionBase::ReactionBase(const ReactionBase& rhs)
 : VertexPropertyBase(rhs),
   m_rate(rhs.m_rate),
   m_rate_const(rhs.m_rate_const),
-  m_rate_formula(rhs.m_rate_formula)
+  m_rate_formula(rhs.m_rate_formula),
+  m_calc_rate(rhs.m_calc_rate)
 {}
 
 ReactionBase::ReactionBase(ReactionBase&& rhs) noexcept
@@ -27,6 +29,7 @@ ReactionBase::ReactionBase(ReactionBase&& rhs) noexcept
 {
   if (this != &rhs) {
     m_rate_formula = std::move(rhs.m_rate_formula);
+    m_calc_rate = std::move(rhs.m_calc_rate);
 
     reset(rhs);
   }
@@ -39,6 +42,7 @@ ReactionBase& ReactionBase::operator=(const ReactionBase& rhs)
     m_rate = rhs.m_rate;
     m_rate_const = rhs.m_rate_const;
     m_rate_formula = rhs.m_rate_formula;
+    m_calc_rate = rhs.m_calc_rate;
   }
   return *this;
 }
@@ -50,6 +54,7 @@ ReactionBase& ReactionBase::operator=(ReactionBase&& rhs) noexcept
     m_rate = rhs.m_rate;
     m_rate_const = rhs.m_rate_const;
     m_rate_formula = std::move(rhs.m_rate_formula);
+    m_calc_rate = std::move(rhs.m_calc_rate);
 
     reset(rhs);
   }
@@ -77,6 +82,7 @@ void ReactionBase::reset(ReactionBase& obj)
   obj.m_rate = static_cast<reaction_rate_t>(0);
   obj.m_rate_const = static_cast<reaction_rate_t>(0);
   obj.m_rate_formula.clear();
+  obj.m_calc_rate = nullptr;
 }
 
 void ReactionBase::ReactionBase::set_rate_constant(reaction_rate_t k)
@@ -87,6 +93,33 @@ void ReactionBase::ReactionBase::set_rate_constant(reaction_rate_t k)
 reaction_rate_t ReactionBase::get_rate_constant() const
 {
   return m_rate_const;
+}
+
+void ReactionBase::set_calc_rate_fn()
+{
+  m_calc_rate = [] (const std::vector<reaction_rate_t>& params)
+    {
+      reaction_rate_t rate = static_cast<reaction_rate_t>(1);
+      for(const auto p : params) {
+        rate *= p;
+      }
+      return rate;
+    };
+}
+
+void ReactionBase::set_calc_rate_fn(
+  const std::function<
+    reaction_rate_t (const std::vector<reaction_rate_t>&)
+  >& calc_rate)
+{
+  m_calc_rate = calc_rate;
+}
+
+reaction_rate_t ReactionBase::calc_rate(std::vector<reaction_rate_t> params)
+{
+  params.push_back(m_rate_const);
+  m_rate = (!m_calc_rate)? 0.0 : m_calc_rate(params);
+  return m_rate;
 }
 
 reaction_rate_t ReactionBase::get_rate() const

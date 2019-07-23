@@ -1,5 +1,3 @@
-//#include "reaction_network/reaction.hpp"
-
 #include <iostream>
 
 namespace wcs {
@@ -70,13 +68,16 @@ inline void Reaction<VD>::reset(Reaction& obj)
   ReactionBase::reset(obj);
 }
 
+#if defined(WCS_HAS_SBML)
+#error "libSBML is not supported yet."
+#elif defined(WCS_HAS_EXPRTK)
 template <typename VD>
-inline void Reaction<VD>::set_rate_inputs(const std::map<std::string, VD>& reactants)
+inline void Reaction<VD>::set_rate_inputs(const std::map<std::string, VD>& species_involved)
 {
-  m_rate_inputs = std::vector<VD>( reactants.size() );
-  m_params = std::vector<reaction_rate_t>( reactants.size() );
+  m_rate_inputs = std::vector<VD>( species_involved.size() );
+  m_params = std::vector<reaction_rate_t>( species_involved.size() );
   size_t i = 0;
-  for(auto &e : reactants ) {
+  for(auto &e : species_involved ) {
       std::string var_str = e.first;
       m_rate_inputs[i] = e.second;
       m_sym_table.add_variable( var_str, m_params[i] );
@@ -89,20 +90,6 @@ inline void Reaction<VD>::set_rate_inputs(const std::map<std::string, VD>& react
   m_parser.compile(m_rate_formula, m_expr);
 }
 
-
-template <typename VD>
-inline void Reaction<VD>::set_outputs(const std::map<std::string, VD>& products)
-{
-  for( auto &e: products )
-      m_outputs.push_back( e.second );
-}
-
-template <typename VD>
-inline const typename Reaction<VD>::rate_input_t& Reaction<VD>::get_rate_inputs() const
-{
-  return m_rate_inputs;
-}
-
 template <typename VD>
 reaction_rate_t Reaction<VD>::calc_rate(std::vector<reaction_rate_t> params)
 {
@@ -110,6 +97,26 @@ reaction_rate_t Reaction<VD>::calc_rate(std::vector<reaction_rate_t> params)
   m_params = params;
   m_rate = m_expr.value();
   return m_rate;
+}
+
+template <typename VD>
+inline void Reaction<VD>::set_products(const std::map<std::string, VD>& products)
+{
+  for( auto &e: products )
+      m_products.push_back( e.second );
+}
+#else
+template <typename VD>
+inline void Reaction<VD>::set_rate_inputs(const std::map<std::string, VD>& species_involved)
+{
+  m_rate_inputs = ReactionBase::interpret_species_name(this->get_rate_formula(), species_involved);
+}
+#endif
+
+template <typename VD>
+inline const typename Reaction<VD>::involved_species_t& Reaction<VD>::get_rate_inputs() const
+{
+  return m_rate_inputs;
 }
 
 /**@}*/

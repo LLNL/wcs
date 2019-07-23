@@ -21,7 +21,8 @@
    the one under "/usr/tce/packages/boost/boost-1.66.0-mvapich2-2.2-gcc-6.1.0"
 
    The first one does not work well with the compiler choices above.
-   The second one works well with the clang choice, and the third with gcc.
+   The second one works well with the aforementioned clang version, and the
+   third with that of gcc.
    To override building with a manual choice of boost, set the environment
    variable `BOOST_ROOT` or pass `-DBOOST_ROOT=<path-to-the-chosen-boost-build>`
    to cmake. To run the executable, you might need to add `${BOOST_ROOT}/lib`

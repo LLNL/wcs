@@ -1,7 +1,16 @@
 #ifndef __WCS_REACTION_NETWORK_REACTION_HPP__
 #define __WCS_REACTION_NETWORK_REACTION_HPP__
+#if defined(WCS_HAS_CONFIG)
+#include "wcs_config.hpp"
+#endif
+
 #include "reaction_network/reaction_base.hpp"
-#include "include/exprtk.hpp"
+
+#if defined(WCS_HAS_SBML)
+#error "libSBML is not supported yet."
+#elif defined(WCS_HAS_EXPRTK)
+#include "exprtk.hpp"
+#endif
 
 namespace wcs {
 /** \addtogroup wcs_reaction_network
@@ -20,10 +29,12 @@ class Reaction : public ReactionBase {
   ~Reaction() override;
   std::unique_ptr<Reaction> clone() const;
 
-  void set_rate_inputs(const std::map<std::string, VD>& reactants);
-  void set_outputs(const std::map<std::string, VD>& products);
+  void set_rate_inputs(const std::map<std::string, VD>& species_involved);
   const involved_species_t& get_rate_inputs() const;
+#if !defined(WCS_HAS_SBML) && defined(WCS_HAS_EXPRTK)
+  void set_products(const std::map<std::string, VD>& products);
   reaction_rate_t calc_rate(std::vector<reaction_rate_t> params) override;
+#endif // !defined(WCS_HAS_SBML) && defined(WCS_HAS_EXPRTK)
 
  protected:
   void reset(Reaction& obj);
@@ -31,15 +42,17 @@ class Reaction : public ReactionBase {
  private:
   Reaction* clone_impl() const override;
 
+#if !defined(WCS_HAS_SBML) && defined(WCS_HAS_EXPRTK)
   std::vector<reaction_rate_t> m_params;
   exprtk::symbol_table<reaction_rate_t> m_sym_table;
   exprtk::parser<reaction_rate_t> m_parser;
   exprtk::expression<reaction_rate_t> m_expr;
+#endif // !defined(WCS_HAS_SBML) && defined(WCS_HAS_EXPRTK)
 
  protected:
   /// The BGL descriptors of input vertices to reaction rate formula
   involved_species_t m_rate_inputs;
-  involved_species_t m_outputs;
+  involved_species_t m_products;
 };
 
 /**@}*/

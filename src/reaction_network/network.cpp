@@ -43,27 +43,42 @@ void Network::init()
         = std::is_same<directed_category, boost::bidirectional_tag>::value;
 
       const v_desc_t reaction = *vi;
-      s_involved_t reactants, products;
+      // `involved_speices` include all the species involved in the reaction:
+      // the rate-determining species as the reactants, the enzymes and the
+      // inhibiters, as well as the products.
+      // They may exclude products depending on how formula parsing is
+      // implemented.
+      s_involved_t involved_species;
+
+    #if !defined(WCS_HAS_SBML) && defined(WCS_HAS_EXPRTK)
+      s_involved_t products;
+    #endif // !defined(WCS_HAS_SBML) && defined(WCS_HAS_EXPRTK)
 
       if constexpr (is_bidirectional) {
         for(const auto ei_in :
             boost::make_iterator_range(boost::in_edges(reaction, m_graph))) {
           v_desc_t reactant = boost::source(ei_in, m_graph);
-          reactants.insert(std::make_pair(m_graph[reactant].get_label(), reactant));
+          involved_species.insert(std::make_pair(m_graph[reactant].get_label(), reactant));
         }
       }
 
       for(const auto ei_out :
           boost::make_iterator_range(boost::out_edges(reaction, m_graph))) {
         v_desc_t product = boost::target(ei_out, m_graph);
+    #if !defined(WCS_HAS_SBML) && defined(WCS_HAS_EXPRTK)
         products.insert(std::make_pair(m_graph[product].get_label(), product));
+    #else
+        involved_species.insert(std::make_pair(m_graph[product].get_label(), product));
+    #endif // !defined(WCS_HAS_SBML) && defined(WCS_HAS_EXPRTK)
       }
 
       m_reactions.emplace_back(reaction);
 
       auto& r = m_graph[*vi].checked_property< Reaction<v_desc_t> >();
-      r.set_rate_inputs(reactants);
-      r.set_outputs(products);
+      r.set_rate_inputs(involved_species);
+    #if !defined(WCS_HAS_SBML) && defined(WCS_HAS_EXPRTK)
+      r.set_products(products);
+    #endif // !defined(WCS_HAS_SBML) && defined(WCS_HAS_EXPRTK)
       set_reaction_rate(*vi);
     }
   }

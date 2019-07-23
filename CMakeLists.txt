@@ -232,13 +232,17 @@ endif ()
 if (WCS_WITH_EXPRTK)
   set(WCS_HAS_EXPRTK TRUE)
   set(EXPRTK_SOURCE_DIR ${CMAKE_SOURCE_DIR}/external/exprtk)
-  set(EXPRTK_HEADER ${EXPRTK_SOURCE_DIR}/exprtk.hpp)
+  set(EXPRTK_HEADER exprtk.hpp)
 
-  find_file(EXPRTK_FOUND ${EXPRTK_HEADER})
+  find_file(EXPRTK ${EXPRTK_HEADER}
+            HINTS ${EXPRTK_SOURCE_DIR} $ENV{EXPRTK_ROOT} ${EXPRTK_ROOT})
 
-  if (EXPRTK_FOUND)
-    message(STATUS "Found EXPRTK")
+  if (EXPRTK)
+    message(STATUS "Found EXPRTK: ${EXPRTK}")
+    unset(EXPRTK_ROOT CACHE)
+    get_filename_component(EXPRTK_ROOT ${EXPRTK} DIRECTORY CACHE)
   else ()
+    message(STATUS "EXPRTK not found")
     ExternalProject_Add(EXPRTK
       GIT_REPOSITORY https://github.com/ArashPartow/exprtk.git
       SOURCE_DIR "${EXPRTK_SOURCE_DIR}"
@@ -248,10 +252,11 @@ if (WCS_WITH_EXPRTK)
       BUILD_COMMAND ""
       INSTALL_COMMAND ""
     )
+    set(EXPRTK_ROOT ${EXPRTK_SOURCE_DIR})
     add_dependencies(wcs EXPRTK-download)
     ExternalProject_Add_StepDependencies(EXPRTK build EXPRTK-download)
   endif ()
-  target_include_directories(wcs PUBLIC $<BUILD_INTERFACE:${EXPRTK_SOURCE_DIR}>)
+  target_include_directories(wcs PUBLIC $<BUILD_INTERFACE:${EXPRTK_ROOT}>)
 endif (WCS_WITH_EXPRTK)
 
 if (WCS_HAS_VTUNE)
@@ -376,7 +381,7 @@ install(
 
 if (WCS_WITH_EXPRTK)
   install(
-    FILES ${EXPRTK_HEADER}
+    FILES ${EXPRTK_ROOT}/${EXPRTK_HEADER}
     DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}")
 endif ()
 
@@ -442,7 +447,7 @@ string(APPEND _str "\n")
 append_str_tf(_str
   WCS_GNU_LINUX
   WCS_HAS_SBML
-  WCS_WITH_EXPRTK
+  WCS_HAS_EXPRTK
   WCS_HAS_VTUNE
   WCS_HAS_DOXYGEN)
 string(APPEND _str

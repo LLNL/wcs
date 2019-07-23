@@ -134,6 +134,7 @@ mark_as_advanced(WCS_WARNINGS_AS_ERRORS)
 # Get installation directories -- these get used in various places;
 # best to just make them available
 include(GNUInstallDirs)
+include(ExternalProject)
 
 ################################################################
 # Initialize dependencies
@@ -210,13 +211,6 @@ endif (WCS_WITH_UNIT_TESTING)
 # Build WCS
 ################################################################
 
-# Write the configure file
-configure_file(
-  "${CMAKE_SOURCE_DIR}/cmake/configure_files/wcs_config.hpp.in"
-  "${CMAKE_BINARY_DIR}/wcs_config.hpp"
-  @ONLY)
-add_definitions(-DWCS_HAS_CONFIG)
-
 # Add WCS source files
 add_subdirectory(src)
 
@@ -235,13 +229,41 @@ if (WCS_HAS_SBML)
   target_link_libraries(wcs PUBLIC EXPRTK::SBML)
 endif ()
 
-if (WCS_HAS_EXPRTK)
-  target_link_libraries(wcs PUBLIC EXPRTK::EXPRTK)
-endif ()
+if (WCS_WITH_EXPRTK)
+  set(WCS_HAS_EXPRTK TRUE)
+  set(EXPRTK_SOURCE_DIR ${CMAKE_SOURCE_DIR}/external/exprtk)
+  set(EXPRTK_HEADER ${EXPRTK_SOURCE_DIR}/exprtk.hpp)
+
+  find_file(EXPRTK_FOUND ${EXPRTK_HEADER})
+
+  if (EXPRTK_FOUND)
+    message(STATUS "Found EXPRTK")
+  else ()
+    ExternalProject_Add(EXPRTK
+      GIT_REPOSITORY https://github.com/ArashPartow/exprtk.git
+      SOURCE_DIR "${EXPRTK_SOURCE_DIR}"
+      LOG_DOWNLOAD ON
+      STEP_TARGETS download
+      CONFIGURE_COMMAND ""
+      BUILD_COMMAND ""
+      INSTALL_COMMAND ""
+    )
+    add_dependencies(wcs EXPRTK-download)
+    ExternalProject_Add_StepDependencies(EXPRTK build EXPRTK-download)
+  endif ()
+  target_include_directories(wcs PUBLIC $<BUILD_INTERFACE:${EXPRTK_SOURCE_DIR}>)
+endif (WCS_WITH_EXPRTK)
 
 if (WCS_HAS_VTUNE)
   target_link_libraries(wcs PUBLIC ${VTUNE_STATIC_LIB})
 endif ()
+
+# Write the configure file
+configure_file(
+  "${CMAKE_SOURCE_DIR}/cmake/configure_files/wcs_config.hpp.in"
+  "${CMAKE_BINARY_DIR}/wcs_config.hpp"
+  @ONLY)
+add_definitions(-DWCS_HAS_CONFIG)
 
 if (TARGET WCS_CXX_FLAGS_werror)
   target_link_libraries(wcs PUBLIC WCS_CXX_FLAGS_werror)
@@ -352,6 +374,12 @@ install(
         "${PROJECT_SOURCE_DIR}/src/bgl.hpp"
   DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}")
 
+if (WCS_WITH_EXPRTK)
+  install(
+    FILES ${EXPRTK_HEADER}
+    DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}")
+endif ()
+
 # Install contributor list, license, readme
 install(
   FILES #"${PROJECT_SOURCE_DIR}/CONTRIBUTORS"
@@ -413,6 +441,8 @@ string(APPEND _str "\n")
 #Print the true/false guys
 append_str_tf(_str
   WCS_GNU_LINUX
+  WCS_HAS_SBML
+  WCS_WITH_EXPRTK
   WCS_HAS_VTUNE
   WCS_HAS_DOXYGEN)
 string(APPEND _str

@@ -26,23 +26,27 @@ class ReactionBase : public VertexPropertyBase {
 
   void set_rate_constant(reaction_rate_t k);
   reaction_rate_t get_rate_constant() const;
-#if 1
+  /**
+   * Set a default method to calculate the rate of reaction, which is the
+   * product of all the reactant populations and the reaction constant.
+   */
   void set_calc_rate_fn();
+  /**
+   * Allow setting rate calculation method specific to each reaction.
+   * This is a fallback mechanism where no parsing method is available.
+   * Optinoal parsing methods include ExprTk and SBML.
+   */
   void set_calc_rate_fn(const std::function<
                           reaction_rate_t (const std::vector<reaction_rate_t>&)
                         >& calc_rate);
-#endif
   reaction_rate_t get_rate() const;
   void set_rate_formula(const std::string& f);
   const std::string& get_rate_formula() const;
 
-  reaction_rate_t calc_rate(std::vector<reaction_rate_t> params);
+  virtual reaction_rate_t calc_rate(std::vector<reaction_rate_t> params);
 
  protected:
   void reset(ReactionBase& obj);
-#if 0
-  reaction_rate_t calc_rate(const std::vector<reaction_rate_t>& cnts);
-#endif
   template <typename VD>
   static std::vector<VD> interpret_species_name(
                            const std::string& formula,

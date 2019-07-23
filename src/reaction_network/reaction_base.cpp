@@ -95,7 +95,6 @@ reaction_rate_t ReactionBase::get_rate_constant() const
   return m_rate_const;
 }
 
-#if 1
 void ReactionBase::set_calc_rate_fn()
 {
   m_calc_rate = [] (const std::vector<reaction_rate_t>& params)
@@ -122,19 +121,6 @@ reaction_rate_t ReactionBase::calc_rate(std::vector<reaction_rate_t> params)
   m_rate = (!m_calc_rate)? 0.0 : m_calc_rate(params);
   return m_rate;
 }
-
-#else
-reaction_rate_t ReactionBase::calc_rate(const std::vector<reaction_rate_t>& params)
-{
-  reaction_rate_t rate = static_cast<reaction_rate_t>(1);
-  for(const auto c : params) {
-    rate *= c;
-  }
-
-  m_rate = rate*m_rate_const;
-  return m_rate;
-}
-#endif
 
 reaction_rate_t ReactionBase::get_rate() const
 {

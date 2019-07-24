@@ -221,7 +221,7 @@ target_include_directories(wcs SYSTEM PUBLIC ${Boost_INCLUDE_DIRS})
 # Use the IMPORTED targets when possible.
 
 if (WCS_HAS_SBML)
-  target_link_libraries(wcs PUBLIC EXPRTK::SBML)
+  target_link_libraries(wcs PUBLIC SBML::SBML)
 endif ()
 
 if (WCS_WITH_EXPRTK)
@@ -429,6 +429,7 @@ append_str_tf(_str
   WCS_GNU_LINUX
   WCS_HAS_SBML
   WCS_HAS_EXPRTK
+  WCS_HAS_CATCH2
   WCS_HAS_VTUNE
   WCS_HAS_DOXYGEN)
 string(APPEND _str

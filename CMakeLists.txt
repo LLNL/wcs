@@ -167,6 +167,10 @@ if (NOT DL_LIBRARY)
   endif (DL_LIBRARY)
 endif ()
 
+if (WCS_WITH_EXPRTK)
+  include(SetupExprTk)
+endif (WCS_WITH_EXPRTK)
+
 if (WCS_WITH_VTUNE)
   find_package(VTune MODULE)
 
@@ -185,23 +189,14 @@ endif (WCS_WITH_VTUNE)
 
 
 if (WCS_WITH_UNIT_TESTING)
-  find_package(Catch2 2.0.0 CONFIG QUIET
-    HINTS ${CATCH2_DIR} $ENV{CATCH2_DIR} ${CATCH_DIR} $ENV{CATCH_DIR}
-    PATH_SUFFIXES lib64/cmake/Catch2 lib/cmake/Catch2
-    NO_DEFAULT_PATH)
-  if (NOT Catch2_FOUND)
-    find_package(Catch2 2.0.0 CONFIG QUIET REQUIRED)
-  endif ()
-  message(STATUS "Found Catch2: ${Catch2_DIR}")
-
+  include(SetupCatch2)
   # Now that Catch2 has been found, start adding the unit tests
   include(CTest)
-  include(Catch)
-  add_subdirectory(src/reaction_network/unit_test)
-  add_subdirectory(src/utils/unit_test)
+  #add_subdirectory(src/reaction_network/unit_test)
+  #add_subdirectory(src/utils/unit_test)
 
   # Add this one last
-  add_subdirectory(unit_test)
+  #add_subdirectory(unit_test)
 endif (WCS_WITH_UNIT_TESTING)
 
 # Handle the documentation
@@ -230,33 +225,18 @@ if (WCS_HAS_SBML)
 endif ()
 
 if (WCS_WITH_EXPRTK)
-  set(WCS_HAS_EXPRTK TRUE)
-  set(EXPRTK_SOURCE_DIR ${CMAKE_SOURCE_DIR}/external/exprtk)
-  set(EXPRTK_HEADER ${EXPRTK_SOURCE_DIR}/exprtk.hpp)
-
-  find_file(EXPRTK_FOUND ${EXPRTK_HEADER})
-
-  if (EXPRTK_FOUND)
-    message(STATUS "Found EXPRTK")
-  else ()
-    ExternalProject_Add(EXPRTK
-      GIT_REPOSITORY https://github.com/ArashPartow/exprtk.git
-      SOURCE_DIR "${EXPRTK_SOURCE_DIR}"
-      LOG_DOWNLOAD ON
-      STEP_TARGETS download
-      CONFIGURE_COMMAND ""
-      BUILD_COMMAND ""
-      INSTALL_COMMAND ""
-    )
-    add_dependencies(wcs EXPRTK-download)
-    ExternalProject_Add_StepDependencies(EXPRTK build EXPRTK-download)
-  endif ()
-  target_include_directories(wcs PUBLIC $<BUILD_INTERFACE:${EXPRTK_SOURCE_DIR}>)
+  add_dependencies(wcs EXPRTK-download)
+  target_include_directories(wcs PUBLIC $<BUILD_INTERFACE:${EXPRTK_DIR}>)
 endif (WCS_WITH_EXPRTK)
 
 if (WCS_HAS_VTUNE)
   target_link_libraries(wcs PUBLIC ${VTUNE_STATIC_LIB})
 endif ()
+
+if (WCS_WITH_UNIT_TESTING)
+  add_dependencies(wcs CATCH2-download)
+  target_include_directories(wcs PUBLIC $<BUILD_INTERFACE:${CATCH2_DIR}>)
+endif (WCS_WITH_UNIT_TESTING)
 
 # Write the configure file
 configure_file(
@@ -374,9 +354,15 @@ install(
         "${PROJECT_SOURCE_DIR}/src/bgl.hpp"
   DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}")
 
-if (WCS_WITH_EXPRTK)
+if (WCS_HAS_EXPRTK)
   install(
-    FILES ${EXPRTK_HEADER}
+    FILES ${EXPRTK_DIR}/${EXPRTK_HEADER}
+    DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}")
+endif ()
+
+if (WCS_HAS_CATCH2)
+  install(
+    FILES ${CATCH2_DIR}/${CATCH2_HEADER}
     DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}")
 endif ()
 
@@ -442,7 +428,7 @@ string(APPEND _str "\n")
 append_str_tf(_str
   WCS_GNU_LINUX
   WCS_HAS_SBML
-  WCS_WITH_EXPRTK
+  WCS_HAS_EXPRTK
   WCS_HAS_VTUNE
   WCS_HAS_DOXYGEN)
 string(APPEND _str

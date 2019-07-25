@@ -7,7 +7,8 @@ set(CATCH2_SOURCE_DIR ${CMAKE_SOURCE_DIR}/external/Catch2)
 set(CATCH2_HEADER catch.hpp)
 
 find_file(CATCH2 ${CATCH2_HEADER}
-          HINTS ${CATCH2_SOURCE_DIR} $ENV{CATCH2_DIR} ${CATCH2_DIR})
+          HINTS ${CATCH2_SOURCE_DIR}
+                $ENV{CATCH2_ROOT} ${CATCH2_ROOT})
 
 if (CATCH2)
   message(STATUS "Found Catch2: ${CATCH2}")
@@ -27,7 +28,9 @@ else ()
     BUILD_COMMAND ""
     INSTALL_COMMAND ""
   )
+
+  unset(CATCH2_DIR CACHE)
   set(CATCH2_DIR ${CATCH2_SOURCE_DIR})
-  # To prevent parallel build from simultaneously downloading
+
   ExternalProject_Add_StepDependencies(CATCH2 build CATCH2-download)
 endif ()

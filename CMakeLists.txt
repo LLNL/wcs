@@ -251,10 +251,10 @@ if (WCS_HAS_VTUNE)
 endif ()
 
 if (WCS_WITH_UNIT_TESTING)
-  add_dependencies(wcs CATCH2-download)
+  add_dependencies(wcs CATCH2)
   target_include_directories(wcs PUBLIC
-    $<BUILD_INTERFACE:${CATCH2_DIR}>
-    $<INSTALL_INTERFACE:${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_INCLUDEDIR}>)
+    $<BUILD_INTERFACE:${CATCH2_INCLUDE_DIR}>
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_PREFIX}/catch2/include>)
 endif (WCS_WITH_UNIT_TESTING)
 
 # Write the configure file
@@ -376,12 +376,6 @@ install(
 if (WCS_HAS_EXPRTK)
   install(
     FILES ${EXPRTK_DIR}/${EXPRTK_HEADER}
-    DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}")
-endif ()
-
-if (WCS_HAS_CATCH2)
-  install(
-    FILES ${CATCH2_DIR}/${CATCH2_HEADER}
     DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}")
 endif ()
 

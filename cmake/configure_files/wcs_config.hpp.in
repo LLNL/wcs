@@ -12,8 +12,8 @@
 
 #cmakedefine WCS_HAS_SBML
 #cmakedefine WCS_HAS_EXPRTK
+#cmakedefine WCS_HAS_CATCH2
 #cmakedefine WCS_HAS_VTUNE
-#cmakedefine WCS_VTUNE
 
 #cmakedefine WCS_VERTEX_LIST_TYPE @WCS_VERTEX_LIST_TYPE@
 #cmakedefine WCS_OUT_EDGE_LIST_TYPE @WCS_OUT_EDGE_LIST_TYPE@

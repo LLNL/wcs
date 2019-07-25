@@ -1,6 +1,6 @@
 # Exports the following variables
 #
-#   LBANN_HAS_VTUNE
+#   WCS_HAS_VTUNE
 #   VTUNE_INCLUDE_DIR
 #   VTUNE_STATIC_LIB
 #

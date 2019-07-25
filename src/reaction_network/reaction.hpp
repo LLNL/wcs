@@ -7,7 +7,7 @@
 #include "reaction_network/reaction_base.hpp"
 
 #if defined(WCS_HAS_SBML)
-#error "libSBML is not supported yet."
+#pragma message ("libSBML is not supported yet.")
 #elif defined(WCS_HAS_EXPRTK)
 #include "exprtk.hpp"
 #endif

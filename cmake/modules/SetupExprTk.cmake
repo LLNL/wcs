@@ -7,7 +7,8 @@ set(EXPRTK_SOURCE_DIR ${CMAKE_SOURCE_DIR}/external/exprtk)
 set(EXPRTK_HEADER exprtk.hpp)
 
 find_file(EXPRTK ${EXPRTK_HEADER}
-          HINTS ${EXPRTK_SOURCE_DIR} $ENV{EXPRTK_DIR} ${EXPRTK_DIR})
+          HINTS ${EXPRTK_SOURCE_DIR}
+                $ENV{EXPRTK_ROOT} ${EXPRTK_ROOT})
 
 if (EXPRTK)
   message(STATUS "Found ExprTk: ${EXPRTK}")
@@ -25,7 +26,9 @@ else ()
     BUILD_COMMAND ""
     INSTALL_COMMAND ""
   )
+
+  unset(EXPRTK_DIR CACHE)
   set(EXPRTK_DIR ${EXPRTK_SOURCE_DIR})
-  # To prevent parallel build from simultaneously downloading
+
   ExternalProject_Add_StepDependencies(EXPRTK build EXPRTK-download)
 endif ()

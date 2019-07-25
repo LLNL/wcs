@@ -42,16 +42,28 @@
  + **Sundial CVODE**
 
 ## Optional requirements:
- + **libSBML**
- + **ExprTK**
+ + [**libSBML C++ API**](http://sbml.org/Software/libSBML)
+ + [**ExprTK**](https://github.com/ArashPartow/exprtk)
 
  We rely on either of the two approaches to ingest problem inputs. The one
- based on libSBML is currently under development. The other is based on
- ExprTk to parse the formula of the reaction rate annotated to each reaction
+ based on libSBML, currently under development. The other is based on ExprTk
+ to parse the formula of the reaction rate annotated to each reaction
  vertex in the GraphML-formatted description of the reaction network.
  To enable one of the optional components, either set the environment
- variable or pass it to cmake as `-DWCS_WITH_SBML:BOOL=ON` or
- `-DWCS_WITH_EXPRTK:BOOL=ON` respectively for libSBML or ExprTk.
+ variable `WCS_WITH_SBML` or `WCS_WITH_EXPRTK`, or invoke cmake with
+ the option `-DWCS_WITH_SBML:BOOL=ON` or `-DWCS_WITH_EXPRTK:BOOL=ON`
+ respectively for libSBML or ExprTk.
+ In case that both are set, only libSBML is enabled and ExprTk is ignored.
+ To use a pre-installed libSBML, either set the environment variable
+ `SBML_ROOT` or invoke cmake with the option `-DSBML_ROOT=<path-to-libsbml>`.
  For ExprTk, no pre-installation is required as it will automatically download
  it during the build if the presence is not detected. To use a pre-installed
- copy, use the variable `EXPRTK_DIR`.
+ copy, use the variable `EXPRTK_ROOT`.
+
+## Unit testing:
+ + [**Catch2**](https://github.com/catchorg/Catch2)
+ We rely on Catch2 for unit testing. To enable testing for development, set
+ the environment variable `WCS_WITH_UNIT_TESTING` or invoke cmake with the
+ option `-DWCS_WITH_UNIT_TESTING=ON`. No pre-installation of Catch2 is required
+ as it is automatically downloaded and made available. To use a pre-installed
+ copy, use the variable `CATCH2_ROOT`.

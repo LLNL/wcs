@@ -13,7 +13,6 @@ set_full_path(THIS_DIR_HEADERS
 set_full_path(THIS_DIR_SOURCES
   exception.cpp
   graph_factory.cpp
-  graphml2dot.cpp
   trace.cpp
   trace_ssa.cpp
   )
@@ -29,9 +28,13 @@ add_executable( graphml2dot-bin graphml2dot.cpp )
 target_link_libraries(graphml2dot-bin PRIVATE wcs)
 set_target_properties(graphml2dot-bin PROPERTIES OUTPUT_NAME graphml2dot)
 
+add_executable( readSBML-bin readSBML.cpp )
+target_link_libraries(readSBML-bin PRIVATE SBML::SBML)
+set_target_properties(readSBML-bin PROPERTIES OUTPUT_NAME readSBML)
+
 # Install the binaries
 install(
-  TARGETS  graphml2dot-bin
+  TARGETS  graphml2dot-bin readSBML-bin
   EXPORT   WCSTargets
   RUNTIME  DESTINATION ${CMAKE_INSTALL_BINDIR}
   ARCHIVE  DESTINATION ${CMAKE_INSTALL_LIBDIR}

@@ -167,8 +167,22 @@ if (NOT DL_LIBRARY)
   endif (DL_LIBRARY)
 endif ()
 
+if (WCS_WITH_SBML)
+  find_package(SBML MODULE)
+  if (SBML_FOUND)
+    set(WCS_HAS_SBML TRUE)
+  else (SBML_FOUND)
+    set(WCS_HAS_SBML FALSE)
+  endif (SBML_FOUND)
+endif (WCS_WITH_SBML)
+
 if (WCS_WITH_EXPRTK)
-  include(SetupExprTk)
+  if (WCS_WITH_SBML)
+    message(WARNING "Disable ExprTk and keep libSBML enabled.")
+    set(WCS_WITH_EXPRTK OFF)
+  else (WCS_WITH_SBML)
+    include(SetupExprTk)
+  endif (WCS_WITH_SBML)
 endif (WCS_WITH_EXPRTK)
 
 if (WCS_WITH_VTUNE)
@@ -222,12 +236,15 @@ target_include_directories(wcs SYSTEM PUBLIC ${Boost_INCLUDE_DIRS})
 
 if (WCS_HAS_SBML)
   target_link_libraries(wcs PUBLIC SBML::SBML)
-endif ()
+#  target_include_directories(wcs SYSTEM PUBLIC ${SBML_INCLUDE_DIRS})
+endif (WCS_HAS_SBML)
 
-if (WCS_WITH_EXPRTK)
+if (WCS_HAS_EXPRTK)
   add_dependencies(wcs EXPRTK-download)
-  target_include_directories(wcs PUBLIC $<BUILD_INTERFACE:${EXPRTK_DIR}>)
-endif (WCS_WITH_EXPRTK)
+  target_include_directories(wcs PUBLIC
+    $<BUILD_INTERFACE:${EXPRTK_DIR}>
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_INCLUDEDIR}>)
+endif (WCS_HAS_EXPRTK)
 
 if (WCS_HAS_VTUNE)
   target_link_libraries(wcs PUBLIC ${VTUNE_STATIC_LIB})
@@ -235,7 +252,9 @@ endif ()
 
 if (WCS_WITH_UNIT_TESTING)
   add_dependencies(wcs CATCH2-download)
-  target_include_directories(wcs PUBLIC $<BUILD_INTERFACE:${CATCH2_DIR}>)
+  target_include_directories(wcs PUBLIC
+    $<BUILD_INTERFACE:${CATCH2_DIR}>
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_INCLUDEDIR}>)
 endif (WCS_WITH_UNIT_TESTING)
 
 # Write the configure file

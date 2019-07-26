@@ -39,7 +39,7 @@
  * ------------------------------------------------------------------------ -->
  */
 
-
+#if defined(WCS_HAS_SBML)
 #include <iostream>
 
 #include <sbml/SBMLTypes.h>
@@ -80,3 +80,4 @@ main (int argc, char* argv[])
 }
 
 END_C_DECLS
+#endif // defined(WCS_HAS_SBML)

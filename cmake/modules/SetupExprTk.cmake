@@ -16,7 +16,7 @@ if (EXPRTK)
   unset(EXPRTK_DIR CACHE)
   get_filename_component(EXPRTK_DIR ${EXPRTK} DIRECTORY CACHE)
 else ()
-  message(STATUS "EXPRTK not found")
+  message(STATUS "ExprTk will be downloaded.")
   ExternalProject_Add(EXPRTK
     GIT_REPOSITORY https://github.com/ArashPartow/exprtk.git
     SOURCE_DIR "${EXPRTK_SOURCE_DIR}"

@@ -28,13 +28,18 @@ add_executable( graphml2dot-bin graphml2dot.cpp )
 target_link_libraries(graphml2dot-bin PRIVATE wcs)
 set_target_properties(graphml2dot-bin PROPERTIES OUTPUT_NAME graphml2dot)
 
-add_executable( readSBML-bin readSBML.cpp )
-target_link_libraries(readSBML-bin PRIVATE SBML::SBML)
-set_target_properties(readSBML-bin PROPERTIES OUTPUT_NAME readSBML)
+list(APPEND WCS_UTILS_TARGETS graphml2dot-bin)
+
+if (WCS_HAS_SBML)
+  add_executable( readSBML-bin readSBML.cpp )
+  target_link_libraries(readSBML-bin PRIVATE SBML::SBML)
+  set_target_properties(readSBML-bin PROPERTIES OUTPUT_NAME readSBML)
+  list(APPEND WCS_UTILS_TARGETS readSBML-bin)
+endif (WCS_HAS_SBML)
 
 # Install the binaries
 install(
-  TARGETS  graphml2dot-bin readSBML-bin
+  TARGETS  ${WCS_UTILS_TARGETS}
   EXPORT   WCSTargets
   RUNTIME  DESTINATION ${CMAKE_INSTALL_BINDIR}
   ARCHIVE  DESTINATION ${CMAKE_INSTALL_LIBDIR}

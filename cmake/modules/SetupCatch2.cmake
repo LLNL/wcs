@@ -17,7 +17,7 @@ if (CATCH2)
   get_filename_component(CATCH2_DIR ${CATCH2} DIRECTORY)
   get_filename_component(CATCH2_INCLUDE_DIR ${CATCH2_DIR} DIRECTORY CACHE)
 else ()
-  message(STATUS "Catch2 not found")
+  message(STATUS "Catch2 will be downloaded")
   ExternalProject_Add(CATCH2
     GIT_REPOSITORY https://github.com/catchorg/Catch2.git
     SOURCE_DIR ${CATCH2_SOURCE_DIR}

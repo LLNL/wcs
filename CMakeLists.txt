@@ -97,6 +97,9 @@ endif ()
 # Options
 #
 
+# Sundials may become requirement later
+option(WCS_WITH_SUNDIALS "Enable SUNDIALS library" OFF)
+
 option(WCS_WITH_SBML "Enable SBML library" OFF)
 
 option(WCS_WITH_EXPRTK "Include ExprTk" OFF)
@@ -167,12 +170,19 @@ if (NOT DL_LIBRARY)
   endif (DL_LIBRARY)
 endif ()
 
+if (WCS_WITH_SUNDIALS)
+  set(WCS_HAS_SUNDIALS FALSE)
+  find_package(Sundials MODULE)
+  if (SUNDIALS_FOUND)
+    set(WCS_HAS_SUNDIALS TRUE)
+  endif (SUNDIALS_FOUND)
+endif (WCS_WITH_SUNDIALS)
+
 if (WCS_WITH_SBML)
+  set(WCS_HAS_SBML FALSE)
   find_package(SBML MODULE)
   if (SBML_FOUND)
     set(WCS_HAS_SBML TRUE)
-  else (SBML_FOUND)
-    set(WCS_HAS_SBML FALSE)
   endif (SBML_FOUND)
 endif (WCS_WITH_SBML)
 
@@ -233,6 +243,10 @@ target_include_directories(wcs PUBLIC
 target_include_directories(wcs SYSTEM PUBLIC ${Boost_INCLUDE_DIRS})
 
 # Use the IMPORTED targets when possible.
+
+if (WCS_HAS_SUNDIALS)
+  target_link_libraries(wcs PUBLIC SUNDIALS::SUNDIALS)
+endif (WCS_HAS_SUNDIALS)
 
 if (WCS_HAS_SBML)
   target_link_libraries(wcs PUBLIC SBML::SBML)
@@ -440,6 +454,7 @@ string(APPEND _str "\n")
 #Print the true/false guys
 append_str_tf(_str
   WCS_GNU_LINUX
+  WCS_HAS_SUNDIALS
   WCS_HAS_SBML
   WCS_HAS_EXPRTK
   WCS_HAS_CATCH2

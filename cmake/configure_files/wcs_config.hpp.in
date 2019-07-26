@@ -10,6 +10,7 @@
 
 #cmakedefine WCS_GNU_LINUX
 
+#cmakedefine WCS_HAS_SUNDIALS
 #cmakedefine WCS_HAS_SBML
 #cmakedefine WCS_HAS_EXPRTK
 #cmakedefine WCS_HAS_CATCH2

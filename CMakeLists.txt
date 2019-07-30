@@ -138,6 +138,7 @@ mark_as_advanced(WCS_WARNINGS_AS_ERRORS)
 # best to just make them available
 include(GNUInstallDirs)
 include(ExternalProject)
+include(SetupCXX)
 
 ################################################################
 # Initialize dependencies
@@ -276,7 +277,7 @@ configure_file(
   "${CMAKE_SOURCE_DIR}/cmake/configure_files/wcs_config.hpp.in"
   "${CMAKE_BINARY_DIR}/wcs_config.hpp"
   @ONLY)
-add_definitions(-DWCS_HAS_CONFIG)
+target_compile_definitions(wcs PUBLIC WCS_HAS_CONFIG)
 
 if (TARGET WCS_CXX_FLAGS_werror)
   target_link_libraries(wcs PUBLIC WCS_CXX_FLAGS_werror)

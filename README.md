@@ -39,7 +39,10 @@
 
 ## Future requirements:
  + **Charm++ and Charades (ROSS over Charm++)**
- + **Sundial CVODE**
+ + [**Sundial CVODE**](https://github.com/LLNL/sundials.git)
+   For linking with CVODES of Sundials package, use `-DWCS_WITH_SUNDIALS:BOOL=ON`
+   and `-DSUNDIALS_ROOT:FILEPATH=<path-to-sundials>`.
+   Make sure that Sundials is built with the cmake option `-DBUILD_CVODE:BOOL=ON`.
 
 ## Optional requirements:
  + [**libSBML C++ API**](http://sbml.org/Software/libSBML)

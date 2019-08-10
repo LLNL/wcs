@@ -39,6 +39,12 @@
  * ------------------------------------------------------------------------ -->
  */
 
+#if defined(WCS_HAS_CONFIG)
+#include "wcs_config.hpp"
+#else
+#error "no config"
+#endif
+
 #if defined(WCS_HAS_SBML)
 #include <iostream>
 

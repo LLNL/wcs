@@ -26,6 +26,18 @@ if (NOT DEFINED BUILD_SHARED_LIBS)
   set(BUILD_SHARED_LIBS ON)
 endif ()
 
+# Convenience defines
+string(TOUPPER "${PROJECT_NAME}" UPPER_PROJECT_NAME)
+string(TOLOWER "${PROJECT_NAME}" LOWER_PROJECT_NAME)
+
+################################################################
+# Version setup
+################################################################
+
+set(WCS_VERSION_MAJOR 0)
+set(WCS_VERSION_MINOR 1)
+set(WCS_VERSION_PATCH 0)
+
 # Build with at least C++17 standard; allow newer standards.
 if (NOT CMAKE_CXX_STANDARD OR CMAKE_CXX_STANDARD EQUAL 98
     OR CMAKE_CXX_STANDARD EQUAL 11)
@@ -33,24 +45,12 @@ if (NOT CMAKE_CXX_STANDARD OR CMAKE_CXX_STANDARD EQUAL 98
   set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
 endif ()
 
-# Convenience defines
-string(TOUPPER "${PROJECT_NAME}" UPPER_PROJECT_NAME)
-string(TOLOWER "${PROJECT_NAME}" LOWER_PROJECT_NAME)
-
 # This will help define some targets later
 if (CMAKE_VERSION VERSION_LESS 3.9)
   set(WCS_PUBLIC_LINK_FLAG)
 else ()
   set(WCS_PUBLIC_LINK_FLAG "PUBLIC")
 endif ()
-
-#
-# Version setup
-#
-
-set(WCS_VERSION_MAJOR 0)
-set(WCS_VERSION_MINOR 1)
-set(WCS_VERSION_PATCH 0)
 
 set(WCS_VERSION "${WCS_VERSION_MAJOR}.${WCS_VERSION_MINOR}.${WCS_VERSION_PATCH}")
 
@@ -93,9 +93,9 @@ if (CMAKE_HOST_SYSTEM_NAME MATCHES "Linux")
   set(WCS_GNU_LINUX TRUE)
 endif ()
 
-#
+################################################################
 # Options
-#
+################################################################
 
 # Sundials may become requirement later
 option(WCS_WITH_SUNDIALS "Enable SUNDIALS library" OFF)
@@ -130,9 +130,9 @@ mark_as_advanced(WCS_WARNINGS_AS_ERRORS)
 #set(WCS_OUT_EDGE_LIST_TYPE "::boost::vecS"
 #  CACHE STRING "The BGL out edge list type to use in WCS")
 
-#
+################################################################
 # Initialize build
-#
+################################################################
 
 # Get installation directories -- these get used in various places;
 # best to just make them available

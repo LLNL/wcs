@@ -32,6 +32,9 @@ list(APPEND WCS_UTILS_TARGETS graphml2dot-bin)
 
 if (WCS_HAS_SBML)
   add_executable( readSBML-bin readSBML.cpp )
+  target_compile_definitions(readSBML-bin PRIVATE WCS_HAS_CONFIG)
+  target_include_directories(readSBML-bin
+    PRIVATE $<TARGET_PROPERTY:wcs,INTERFACE_INCLUDE_DIRECTORIES>)
   target_link_libraries(readSBML-bin PRIVATE SBML::SBML)
   set_target_properties(readSBML-bin PROPERTIES OUTPUT_NAME readSBML)
   list(APPEND WCS_UTILS_TARGETS readSBML-bin)

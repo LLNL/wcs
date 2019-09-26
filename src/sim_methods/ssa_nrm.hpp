@@ -8,7 +8,7 @@
 #include "utils/trace_ssa.hpp"
 
 namespace wcs {
-/** \addtogroup wcs_reaction_network
+/** \addtogroup wcs_sim_methods
  *  *  @{ */
 
 class SSA_NRM {

@@ -19,7 +19,7 @@ public:
   using event_queue_t = std::vector<priority_t>;
   using trace_t = wcs::TraceSSA;
 
-  /** Type for keeping track of species updates to facilitate undoing 
+  /** Type for keeping track of species updates to facilitate undoing
    *  reaction processing.  */
   using update_t = std::pair<v_desc_t, wcs::Edge::stoic_t>;
 

@@ -72,7 +72,7 @@ template<typename G> void GraphFactory::copy_to(G& g) const
   }
 
   using directed_category = typename boost::graph_traits<G>::directed_category;
-  constexpr bool is_bidirectional 
+  constexpr bool is_bidirectional
     = std::is_same<directed_category, boost::bidirectional_tag>::value;
 
   typename boost::graph_traits<graph_t>::vertex_iterator vi, vi_end;

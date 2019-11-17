@@ -47,4 +47,4 @@ install(
 
 # Install
 install(DIRECTORY utils/unit_tests/examples
-  DESTINATION ${CMAKE_INSTALL_DATADIR}/examples)
+  DESTINATION ${CMAKE_INSTALL_DATADIR})

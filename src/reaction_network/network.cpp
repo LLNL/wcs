@@ -43,7 +43,16 @@ void Network::init()
         = std::is_same<directed_category, boost::bidirectional_tag>::value;
 
       const v_desc_t reaction = *vi;
+      // `involved_speices` include all the species involved in the reaction:
+      // the rate-determining species as the reactants, the enzymes and the
+      // inhibiters, as well as the products.
+      // They may exclude products depending on how formula parsing is
+      // implemented.
       s_involved_t involved_species;
+
+    #if !defined(WCS_HAS_SBML) && defined(WCS_HAS_EXPRTK)
+      s_involved_t products;
+    #endif // !defined(WCS_HAS_SBML) && defined(WCS_HAS_EXPRTK)
 
       if constexpr (is_bidirectional) {
         for(const auto ei_in :
@@ -56,13 +65,20 @@ void Network::init()
       for(const auto ei_out :
           boost::make_iterator_range(boost::out_edges(reaction, m_graph))) {
         v_desc_t product = boost::target(ei_out, m_graph);
+    #if !defined(WCS_HAS_SBML) && defined(WCS_HAS_EXPRTK)
+        products.insert(std::make_pair(m_graph[product].get_label(), product));
+    #else
         involved_species.insert(std::make_pair(m_graph[product].get_label(), product));
+    #endif // !defined(WCS_HAS_SBML) && defined(WCS_HAS_EXPRTK)
       }
 
       m_reactions.emplace_back(reaction);
 
       auto& r = m_graph[*vi].checked_property< Reaction<v_desc_t> >();
       r.set_rate_inputs(involved_species);
+    #if !defined(WCS_HAS_SBML) && defined(WCS_HAS_EXPRTK)
+      r.set_products(products);
+    #endif // !defined(WCS_HAS_SBML) && defined(WCS_HAS_EXPRTK)
       set_reaction_rate(*vi);
     }
   }
@@ -75,6 +91,7 @@ reaction_rate_t Network::set_reaction_rate(const Network::v_desc_t r) const
   auto & rprop = m_graph[r].checked_property< Reaction<v_desc_t> >();
   const auto& ri = rprop.get_rate_inputs();
   std::vector<reaction_rate_t> params;
+  // GG: rate constant is part of the Reaction object
   params.reserve(ri.size()+1u); // reserve space for species count and rate constant
   for (auto vd : ri) { // add species counts here and the rate constant will be appended later
     const auto& s = m_graph[vd].checked_property<Species>();

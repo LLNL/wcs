@@ -19,11 +19,11 @@
 
 #include <string>
 #include <unordered_map>
+#include "bgl.hpp"
 #include "reaction_network/species.hpp"
 #include "reaction_network/reaction.hpp"
 #include "reaction_network/vertex.hpp"
 #include "reaction_network/edge.hpp"
-#include "bgl.hpp"
 
 namespace wcs {
 /** \addtogroup wcs_reaction_network

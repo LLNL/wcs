@@ -41,7 +41,7 @@ std::ostream& TraceSSA::write_header(std::ostream& os) const
     ostr += '\t' + std::to_string(scnt);
   }
   ostr += "\tNA";
-  // write the initial reaction distribution 
+  // write the initial reaction distribution
   for (const auto rcnt : m_reaction_counts) {
     ostr += '\t' + std::to_string(rcnt);
   }

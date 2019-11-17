@@ -72,7 +72,7 @@ class Vertex {
    * This allows to use different property bundle structure types for reaction
    * and species vertices even when the BGL does not support polymorphic vertex
    * property bundle type.
-   */ 
+   */
   std::unique_ptr<VertexPropertyBase> m_p;
 
  friend ::wcs::GraphFactory;

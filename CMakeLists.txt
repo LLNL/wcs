@@ -97,6 +97,9 @@ endif ()
 # Options
 #
 
+# Sundials may become requirement later
+option(WCS_WITH_SUNDIALS "Enable SUNDIALS library" OFF)
+
 option(WCS_WITH_SBML "Enable SBML library" OFF)
 
 option(WCS_WITH_EXPRTK "Include ExprTk" OFF)
@@ -134,6 +137,8 @@ mark_as_advanced(WCS_WARNINGS_AS_ERRORS)
 # Get installation directories -- these get used in various places;
 # best to just make them available
 include(GNUInstallDirs)
+include(ExternalProject)
+include(SetupCXX)
 
 ################################################################
 # Initialize dependencies
@@ -166,6 +171,31 @@ if (NOT DL_LIBRARY)
   endif (DL_LIBRARY)
 endif ()
 
+if (WCS_WITH_SUNDIALS)
+  set(WCS_HAS_SUNDIALS FALSE)
+  find_package(Sundials MODULE)
+  if (SUNDIALS_FOUND)
+    set(WCS_HAS_SUNDIALS TRUE)
+  endif (SUNDIALS_FOUND)
+endif (WCS_WITH_SUNDIALS)
+
+if (WCS_WITH_SBML)
+  set(WCS_HAS_SBML FALSE)
+  find_package(SBML MODULE)
+  if (SBML_FOUND)
+    set(WCS_HAS_SBML TRUE)
+  endif (SBML_FOUND)
+endif (WCS_WITH_SBML)
+
+if (WCS_WITH_EXPRTK)
+  if (WCS_WITH_SBML)
+    message(WARNING "Disable ExprTk and keep libSBML enabled.")
+    set(WCS_WITH_EXPRTK OFF)
+  else (WCS_WITH_SBML)
+    include(SetupExprTk)
+  endif (WCS_WITH_SBML)
+endif (WCS_WITH_EXPRTK)
+
 if (WCS_WITH_VTUNE)
   find_package(VTune MODULE)
 
@@ -184,23 +214,14 @@ endif (WCS_WITH_VTUNE)
 
 
 if (WCS_WITH_UNIT_TESTING)
-  find_package(Catch2 2.0.0 CONFIG QUIET
-    HINTS ${CATCH2_DIR} $ENV{CATCH2_DIR} ${CATCH_DIR} $ENV{CATCH_DIR}
-    PATH_SUFFIXES lib64/cmake/Catch2 lib/cmake/Catch2
-    NO_DEFAULT_PATH)
-  if (NOT Catch2_FOUND)
-    find_package(Catch2 2.0.0 CONFIG QUIET REQUIRED)
-  endif ()
-  message(STATUS "Found Catch2: ${Catch2_DIR}")
-
+  include(SetupCatch2)
   # Now that Catch2 has been found, start adding the unit tests
   include(CTest)
-  include(Catch)
-  add_subdirectory(src/reaction_network/unit_test)
-  add_subdirectory(src/utils/unit_test)
+  #add_subdirectory(src/reaction_network/unit_test)
+  #add_subdirectory(src/utils/unit_test)
 
   # Add this one last
-  add_subdirectory(unit_test)
+  #add_subdirectory(unit_test)
 endif (WCS_WITH_UNIT_TESTING)
 
 # Handle the documentation
@@ -209,13 +230,6 @@ endif (WCS_WITH_UNIT_TESTING)
 ################################################################
 # Build WCS
 ################################################################
-
-# Write the configure file
-configure_file(
-  "${CMAKE_SOURCE_DIR}/cmake/configure_files/wcs_config.hpp.in"
-  "${CMAKE_BINARY_DIR}/wcs_config.hpp"
-  @ONLY)
-add_definitions(-DWCS_HAS_CONFIG)
 
 # Add WCS source files
 add_subdirectory(src)
@@ -231,17 +245,39 @@ target_include_directories(wcs SYSTEM PUBLIC ${Boost_INCLUDE_DIRS})
 
 # Use the IMPORTED targets when possible.
 
+if (WCS_HAS_SUNDIALS)
+  target_link_libraries(wcs PUBLIC SUNDIALS::SUNDIALS)
+endif (WCS_HAS_SUNDIALS)
+
 if (WCS_HAS_SBML)
-  target_link_libraries(wcs PUBLIC EXPRTK::SBML)
-endif ()
+  target_link_libraries(wcs PUBLIC SBML::SBML)
+#  target_include_directories(wcs SYSTEM PUBLIC ${SBML_INCLUDE_DIRS})
+endif (WCS_HAS_SBML)
 
 if (WCS_HAS_EXPRTK)
-  target_link_libraries(wcs PUBLIC EXPRTK::EXPRTK)
-endif ()
+  add_dependencies(wcs EXPRTK-download)
+  target_include_directories(wcs PUBLIC
+    $<BUILD_INTERFACE:${EXPRTK_DIR}>
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_INCLUDEDIR}>)
+endif (WCS_HAS_EXPRTK)
 
 if (WCS_HAS_VTUNE)
   target_link_libraries(wcs PUBLIC ${VTUNE_STATIC_LIB})
 endif ()
+
+if (WCS_WITH_UNIT_TESTING)
+  add_dependencies(wcs CATCH2)
+  target_include_directories(wcs PUBLIC
+    $<BUILD_INTERFACE:${CATCH2_INCLUDE_DIR}>
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_PREFIX}/catch2/include>)
+endif (WCS_WITH_UNIT_TESTING)
+
+# Write the configure file
+configure_file(
+  "${CMAKE_SOURCE_DIR}/cmake/configure_files/wcs_config.hpp.in"
+  "${CMAKE_BINARY_DIR}/wcs_config.hpp"
+  @ONLY)
+target_compile_definitions(wcs PUBLIC WCS_HAS_CONFIG)
 
 if (TARGET WCS_CXX_FLAGS_werror)
   target_link_libraries(wcs PUBLIC WCS_CXX_FLAGS_werror)
@@ -352,6 +388,12 @@ install(
         "${PROJECT_SOURCE_DIR}/src/bgl.hpp"
   DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}")
 
+if (WCS_HAS_EXPRTK)
+  install(
+    FILES ${EXPRTK_DIR}/${EXPRTK_HEADER}
+    DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}")
+endif ()
+
 # Install contributor list, license, readme
 install(
   FILES #"${PROJECT_SOURCE_DIR}/CONTRIBUTORS"
@@ -413,6 +455,10 @@ string(APPEND _str "\n")
 #Print the true/false guys
 append_str_tf(_str
   WCS_GNU_LINUX
+  WCS_HAS_SUNDIALS
+  WCS_HAS_SBML
+  WCS_HAS_EXPRTK
+  WCS_HAS_CATCH2
   WCS_HAS_VTUNE
   WCS_HAS_DOXYGEN)
 string(APPEND _str

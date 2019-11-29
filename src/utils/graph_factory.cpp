@@ -2,11 +2,6 @@
 #include <boost/filesystem.hpp>
 #include <utils/graph_factory.hpp>
 
-extern "C" {
-#if HAVE_CONFIG_H
-#include "config.h"
-#endif
-}
 
 namespace wcs {
 /** \addtogroup wcs_utils

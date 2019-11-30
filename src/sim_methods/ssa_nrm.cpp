@@ -7,22 +7,9 @@ namespace wcs {
  *  *  @{ */
 
 SSA_NRM::SSA_NRM()
-: m_net_ptr(nullptr),
-  m_max_iter(0u),
-  m_enable_tracing(false),
-  m_sim_time(static_cast<sim_time_t>(0)),
-  m_cur_iter(0u)
-{
-  using directed_category
-    = typename boost::graph_traits<wcs::Network::graph_t>::directed_category;
+: Sim_Method() {}
 
-  constexpr bool is_bidirectional
-    = std::is_same<directed_category, boost::bidirectional_tag>::value;
-
-  if constexpr (!is_bidirectional) {
-    WCS_THROW("Cannot get species population without in-edges.");
-  }
-}
+SSA_NRM::~SSA_NRM() {}
 
 /**
  * Defines the priority queue ordering by the event time of entries
@@ -35,11 +22,6 @@ bool SSA_NRM::later(const priority_t& v1, const priority_t& v2) {
 /// Allow access to the internal random number generator
 SSA_NRM::rng_t& SSA_NRM::rgen() {
   return m_rgen;
-}
-
-/// Allow access to the internal tracer
-SSA_NRM::trace_t& SSA_NRM::trace() {
-  return m_trace;
 }
 
 /**
@@ -99,11 +81,18 @@ void SSA_NRM::undo_species_updates(const std::vector<SSA_NRM::update_t>& updates
   }
 }
 
+SSA_NRM::priority_t& SSA_NRM::choose_reaction()
+{
+  m_heap.front();
+}
+
 /**
- * Pick the reaction with the earliest time to occur, execute it, update
- * the species population
+ * Given the reaction with the earliest time to occur, execute it (i.e.,
+ * update the species population involved in the reaction). In addition,
+ * record how the species are updated, and which other reactions are
+ * affected as a result.
  */
-bool SSA_NRM::fire_reaction(priority_t& firing,
+bool SSA_NRM::fire_reaction(const priority_t& firing,
                             std::vector<SSA_NRM::update_t>& updating_species,
                             std::set<SSA_NRM::v_desc_t>& affected_reactions)
 {
@@ -175,16 +164,17 @@ bool SSA_NRM::fire_reaction(priority_t& firing,
 
 /**
  * Recompute the reaction rates of those affected which are linked with
- * updating species. This follows the next reaction meothod procedure.
+ * updating species. Also, recompute the reaction time of those affected
+ * and update the heap. This follows the next reaction meothod procedure.
  */
-void SSA_NRM::update_reactions(
-  std::set<SSA_NRM::v_desc_t>& affected_reactions)
+void SSA_NRM::update_reactions(priority_t& firing,
+  const std::set<SSA_NRM::v_desc_t>& affected)
 {
   using r_prop_t = wcs::Reaction<v_desc_t>;
   constexpr double unsigned_max = static_cast<double>(std::numeric_limits<unsigned>::max());
 
-  auto& next_time = m_heap.front().first;
-  const auto vd_firing = m_heap.front().second;
+  auto& next_time = firing.first;
+  const auto vd_firing = firing.second;
   const auto new_rate = m_net_ptr->set_reaction_rate(vd_firing);
 
   if (!m_net_ptr->check_reaction(vd_firing)) {
@@ -198,6 +188,8 @@ void SSA_NRM::update_reactions(
       next_time = wcs::Network::get_etime_ulimit();
     }
   }
+
+  std::set<v_desc_t> affected_reactions(affected);
 
   // update the event time of the rest of affected reactions
   for (size_t hi = 1u; hi < m_heap.size(); ++ hi) {
@@ -297,7 +289,7 @@ std::pair<unsigned, wcs::sim_time_t> SSA_NRM::run()
     updating_species.clear();
     affected_reactions.clear();
 
-    auto firing = m_heap.front();
+    auto& firing = choose_reaction();
     const wcs::sim_time_t dt = firing.first;
 
     if ((dt == std::numeric_limits<wcs::sim_time_t>::infinity()) ||
@@ -313,7 +305,7 @@ std::pair<unsigned, wcs::sim_time_t> SSA_NRM::run()
       m_trace.record_reaction(firing.first, firing.second);
     }
 
-    update_reactions(affected_reactions);
+    update_reactions(firing, affected_reactions);
 
     m_sim_time += dt;
 

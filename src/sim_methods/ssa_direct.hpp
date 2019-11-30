@@ -30,7 +30,9 @@ public:
   std::pair<unsigned, sim_time_t> run() override;
 
   static bool greater(const priority_t& v1, const priority_t& v2);
-  rng_t& rgen();
+
+  rng_t& rgen_e();
+  rng_t& rgen_t();
 
 protected:
   void build_propensity_list();
@@ -43,8 +45,9 @@ protected:
   void undo_species_updates(const std::vector<update_t>& updates) const;
 
 protected:
-  propensisty_list_t m_propensity;
-  rng_t m_rgen;
+  propensisty_list_t m_propensity; ///< Event propensity list
+  rng_t m_rgen_e; ///< RNG for events
+  rng_t m_rgen_t; ///< RNG for event times
   /// map from vertex descriptor to propensity
   std::unordered_map<v_desc_t, size_t> m_pindices;
 };

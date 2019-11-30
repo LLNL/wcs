@@ -20,9 +20,14 @@ bool SSA_Direct::greater(const priority_t& v1, const priority_t& v2) {
   return (v1.first > v2.first);
 }
 
-/// Allow access to the internal random number generator
-SSA_Direct::rng_t& SSA_Direct::rgen() {
-  return m_rgen;
+/// Allow access to the internal random number generator for events
+SSA_Direct::rng_t& SSA_Direct::rgen_e() {
+  return m_rgen_e;
+}
+
+/// Allow access to the internal random number generator for event times
+SSA_Direct::rng_t& SSA_Direct::rgen_t() {
+  return m_rgen_t;
 }
 
 /**
@@ -83,7 +88,7 @@ void SSA_Direct::undo_species_updates(const std::vector<SSA_Direct::update_t>& u
 SSA_Direct::priority_t& SSA_Direct::choose_reaction()
 {
   const auto rn
-    = static_cast<reaction_rate_t>(m_rgen() * m_propensity.back().first);
+    = static_cast<reaction_rate_t>(m_rgen_e() * m_propensity.back().first);
   auto it = std::upper_bound(m_propensity.begin(),
                              m_propensity.end(),
                              rn,
@@ -100,7 +105,7 @@ sim_time_t SSA_Direct::get_reaction_time(const SSA_Direct::priority_t& p)
   const reaction_rate_t r = p.first;
   return ((r <= static_cast<reaction_rate_t>(0))?
             wcs::Network::get_etime_ulimit() :
-            -static_cast<reaction_rate_t>(log(m_rgen())/r));
+            -static_cast<reaction_rate_t>(log(m_rgen_t())/r));
 }
 
 /**
@@ -237,12 +242,16 @@ void SSA_Direct::init(std::shared_ptr<wcs::Network>& net_ptr,
   m_cur_iter = 0u;
 
   { // initialize the random number generator
-    if (rng_seed == 0u)
-      m_rgen.set_seed();
-    else
-      m_rgen.set_seed(rng_seed);
+    if (rng_seed == 0u) {
+      m_rgen_e.set_seed();
+      m_rgen_t.set_seed();
+    } else {
+      m_rgen_e.set_seed(rng_seed);
+      m_rgen_t.set_seed((rng_seed << 5) | static_cast<unsigned>(0x0f));
+    }
 
-    m_rgen.param(typename rng_t::param_type(0.0, 1.0));
+    m_rgen_e.param(typename rng_t::param_type(0.0, 1.0));
+    m_rgen_t.param(typename rng_t::param_type(0.0, 1.0));
   }
 
   if (m_enable_tracing) { // record initial state of the network

@@ -86,6 +86,11 @@ SSA_NRM::priority_t& SSA_NRM::choose_reaction()
   m_heap.front();
 }
 
+sim_time_t SSA_NRM::get_reaction_time(const SSA_NRM::priority_t& p)
+{
+    return p.first;
+}
+
 /**
  * Given the reaction with the earliest time to occur, execute it (i.e.,
  * update the species population involved in the reaction). In addition,
@@ -181,7 +186,7 @@ void SSA_NRM::update_reactions(priority_t& firing,
     next_time = wcs::Network::get_etime_ulimit();
   } else { // Update the rate of the reaction fired
     const auto rn = unsigned_max/m_rgen();
-    next_time = (new_rate <= static_cast<wcs::sim_time_t>(0))?
+    next_time = (new_rate <= static_cast<reaction_rate_t>(0))?
                    wcs::Network::get_etime_ulimit() :
                    log(rn)/new_rate;
     if (std::isnan(next_time)) {
@@ -215,9 +220,9 @@ void SSA_NRM::update_reactions(priority_t& firing,
       continue; // skip reaction time computation
     }
 
-    if (rate_new <= static_cast<wcs::sim_time_t>(0)) {
+    if (rate_new <= static_cast<reaction_rate_t>(0)) {
       t_to_update = wcs::Network::get_etime_ulimit();
-    } else if (rate_old <= static_cast<wcs::sim_time_t>(0) ||
+    } else if (rate_old <= static_cast<reaction_rate_t>(0) ||
                t_to_update >= wcs::Network::get_etime_ulimit()) {
       const auto rn = unsigned_max/m_rgen();
       t_to_update = log(rn)/rate_new;
@@ -268,7 +273,7 @@ void SSA_NRM::init(std::shared_ptr<wcs::Network>& net_ptr,
   build_heap(); // prepare internal priority queue
 }
 
-std::pair<unsigned, wcs::sim_time_t> SSA_NRM::run()
+std::pair<unsigned, sim_time_t> SSA_NRM::run()
 {
   // species to update as a result of the reaction fired
   std::vector<update_t> updating_species;
@@ -290,9 +295,9 @@ std::pair<unsigned, wcs::sim_time_t> SSA_NRM::run()
     affected_reactions.clear();
 
     auto& firing = choose_reaction();
-    const wcs::sim_time_t dt = firing.first;
+    const sim_time_t dt = get_reaction_time(firing);
 
-    if ((dt == std::numeric_limits<wcs::sim_time_t>::infinity()) ||
+    if ((dt == std::numeric_limits<sim_time_t>::infinity()) ||
         (dt >= wcs::Network::get_etime_ulimit())) {
       break;
     }

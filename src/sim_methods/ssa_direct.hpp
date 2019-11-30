@@ -12,7 +12,7 @@ namespace wcs {
 class SSA_Direct : public Sim_Method {
 public:
   using rng_t = wcs::RNGen<std::uniform_real_distribution, double>;
-  using priority_t = std::pair<wcs::reaction_rate_t, v_desc_t>;
+  using priority_t = std::pair<reaction_rate_t, v_desc_t>;
   using propensisty_list_t = std::vector<priority_t>;
 
   /** Type for keeping track of species updates to facilitate undoing
@@ -27,7 +27,7 @@ public:
             const unsigned rng_seed,
             const bool enable_tracing) override;
 
-  std::pair<unsigned, wcs::sim_time_t> run() override;
+  std::pair<unsigned, sim_time_t> run() override;
 
   static bool greater(const priority_t& v1, const priority_t& v2);
   rng_t& rgen();
@@ -35,6 +35,7 @@ public:
 protected:
   void build_propensity_list();
   priority_t& choose_reaction();
+  sim_time_t get_reaction_time(const priority_t& p);
   bool fire_reaction(const priority_t& firing,
                      std::vector<update_t>& updating_species,
                      std::set<v_desc_t>& affected_reactions);

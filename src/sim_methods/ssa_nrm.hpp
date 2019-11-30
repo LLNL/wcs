@@ -34,6 +34,7 @@ public:
 protected:
   void build_heap();
   priority_t& choose_reaction();
+  sim_time_t get_reaction_time(const priority_t& p);
   bool fire_reaction(const priority_t& firing,
                      std::vector<update_t>& updating_species,
                      std::set<v_desc_t>& affected_reactions);

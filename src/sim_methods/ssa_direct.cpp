@@ -1,6 +1,7 @@
 #include "sim_methods/ssa_direct.hpp"
 #include "utils/exception.hpp"
-#include <algorithm>
+#include <algorithm> // upper_bound
+#include <cmath> // log
 
 namespace wcs {
 /** \addtogroup wcs_reaction_network
@@ -82,7 +83,7 @@ void SSA_Direct::undo_species_updates(const std::vector<SSA_Direct::update_t>& u
 SSA_Direct::priority_t& SSA_Direct::choose_reaction()
 {
   const auto rn
-    = static_cast<wcs::reaction_rate_t>(m_rgen() * m_propensity.back().first);
+    = static_cast<reaction_rate_t>(m_rgen() * m_propensity.back().first);
   auto it = std::upper_bound(m_propensity.begin(),
                              m_propensity.end(),
                              rn,
@@ -92,6 +93,14 @@ SSA_Direct::priority_t& SSA_Direct::choose_reaction()
     WCS_THROW("Failed to choose a reaction to fire");
   }
   return *it;
+}
+
+sim_time_t SSA_Direct::get_reaction_time(const SSA_Direct::priority_t& p)
+{
+  const reaction_rate_t r = p.first;
+  return ((r <= static_cast<reaction_rate_t>(0))?
+            wcs::Network::get_etime_ulimit() :
+            -static_cast<reaction_rate_t>(log(m_rgen())/r));
 }
 
 /**
@@ -243,7 +252,7 @@ void SSA_Direct::init(std::shared_ptr<wcs::Network>& net_ptr,
   build_propensity_list(); // prepare internal priority queue
 }
 
-std::pair<unsigned, wcs::sim_time_t> SSA_Direct::run()
+std::pair<unsigned, sim_time_t> SSA_Direct::run()
 {
   // species to update as a result of the reaction fired
   std::vector<update_t> updating_species;
@@ -265,9 +274,9 @@ std::pair<unsigned, wcs::sim_time_t> SSA_Direct::run()
     affected_reactions.clear();
 
     auto& firing = choose_reaction();
-    const wcs::sim_time_t dt = firing.first;
+    const sim_time_t dt = get_reaction_time(firing);
 
-    if ((dt == std::numeric_limits<wcs::sim_time_t>::infinity()) ||
+    if ((dt == std::numeric_limits<sim_time_t>::infinity()) ||
         (dt >= wcs::Network::get_etime_ulimit())) {
       break;
     }

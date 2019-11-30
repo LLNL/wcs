@@ -16,6 +16,8 @@ class Sim_Method {
 public:
   using v_desc_t = wcs::Network::v_desc_t;
   using trace_t = wcs::TraceSSA;
+  using sim_time_t = wcs::sim_time_t;
+  using reaction_rate_t = wcs::reaction_rate_t;
 
   Sim_Method();
   virtual ~Sim_Method();
@@ -24,7 +26,7 @@ public:
                     const double max_time,
                     const unsigned rng_seed,
                     const bool enable_tracing) = 0;
-  virtual std::pair<unsigned, wcs::sim_time_t> run() = 0;
+  virtual std::pair<unsigned, sim_time_t> run() = 0;
 
   trace_t& trace();
 
@@ -38,7 +40,7 @@ protected:
   unsigned m_max_iter;
   double m_max_time;
   bool m_enable_tracing;
-  wcs::sim_time_t m_sim_time;
+  sim_time_t m_sim_time;
   unsigned int m_cur_iter;
   trace_t m_trace;
 };

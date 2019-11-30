@@ -307,7 +307,7 @@ std::pair<unsigned, sim_time_t> SSA_NRM::run()
     }
 
     if (m_enable_tracing) {
-      m_trace.record_reaction(firing.first, firing.second);
+      m_trace.record_reaction(dt, firing.second);
     }
 
     update_reactions(firing, affected_reactions);

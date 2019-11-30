@@ -11,9 +11,10 @@
 #include "utils/rngen.hpp"
 #include "utils/trace_ssa.hpp"
 #include "sim_methods/ssa_nrm.hpp"
+#include "sim_methods/ssa_direct.hpp"
 
 
-#define OPTIONS "dg:hi:o:s:t:"
+#define OPTIONS "dg:hi:o:s:t:m:"
 static const struct option longopts[] = {
     {"diag",     no_argument,        0, 'd'},
     {"graphviz", required_argument,  0, 'g'},
@@ -22,6 +23,7 @@ static const struct option longopts[] = {
     {"outfile",  required_argument,  0, 'o'},
     {"seed",     required_argument,  0, 's'},
     {"time",     required_argument,  0, 't'},
+    {"method",   required_argument,  0, 'm'},
     { 0, 0, 0, 0 },
 };
 
@@ -29,6 +31,7 @@ struct Config {
   Config()
   : seed(0u), max_iter(10u),
     max_time(wcs::Network::get_etime_ulimit()),
+    method(1),
     tracing(false)
   {}
 
@@ -38,6 +41,7 @@ struct Config {
   unsigned seed;
   unsigned max_iter;
   wcs::sim_time_t max_time;
+  int method;
   bool tracing;
 
   std::string infile;
@@ -76,6 +80,9 @@ void Config::getopt(int& argc, char** &argv)
       case 't': /* --time */
         max_time = static_cast<wcs::sim_time_t>(std::stod(optarg));
         is_time_set = true;
+        break;
+      case 'm': /* --method */
+        method = static_cast<int>(atoi(optarg));
         break;
       default:
         print_usage(argv[0], 1);
@@ -127,6 +134,9 @@ void Config::print_usage(const std::string exec, int code)
     "\n"
     "    -i, --iter\n"
     "            Specify the maximum number of reaction iterations to run.\n"
+    "\n"
+    "    -m, --method\n"
+    "            Specify the SSA method: 0 = direct, 1 = next reaction (default).\n"
     "\n";
   exit(code);
 }
@@ -151,19 +161,32 @@ int main(int argc, char** argv)
     rc = -1;
   }
 
-  wcs::SSA_NRM ssa;
-  ssa.init(rnet_ptr, cfg.max_iter, cfg.max_time, cfg.seed, cfg.tracing);
-  ssa.run();
+  wcs::Sim_Method* ssa = nullptr;
+
+  if (cfg.method == 0) {
+    ssa = new wcs::SSA_Direct;
+    std::cerr << "Direct SSA method." << std::endl;
+  } else if (cfg.method == 1) {
+    std::cerr << "Next Reaction SSA method." << std::endl;
+    ssa = new wcs::SSA_NRM;
+  } else {
+    std::cerr << "Unknown SSA method (" << cfg.method << ')' << std::endl;
+    return -1;
+  }
+  ssa->init(rnet_ptr, cfg.max_iter, cfg.max_time, cfg.seed, cfg.tracing);
+  ssa->run();
 
   if (!cfg.outfile.empty() && cfg.tracing) {
-    ssa.trace().write(cfg.outfile);
+    ssa->trace().write(cfg.outfile);
   } else if (cfg.tracing) {
-    ssa.trace().write(std::cout);
+    ssa->trace().write(std::cout);
   }
   if (!cfg.tracing) {
     std::cout << "Species   : " << rnet.show_species_labels("") << std::endl;
     std::cout << "FinalState: " << rnet.show_species_counts() << std::endl;
   }
+
+  delete ssa;
 
   return rc;
 }

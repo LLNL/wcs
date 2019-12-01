@@ -59,8 +59,10 @@ class Network {
 
   // Type of the species name
   using s_label_t = v_label_t;
+  // reaction driver type, std::pair<v_desc_t, stoic_t>
+  using rdriver_t = Reaction<v_desc_t>::rdriver_t;
   // Type of the map of species involve in a reaction
-  using s_involved_t = std::map<s_label_t, v_desc_t>;
+  using s_involved_t = std::map<s_label_t, rdriver_t>;
   // Reaction descriptor type
   using r_desc_t = std::pair<v_desc_t, s_involved_t>;
 

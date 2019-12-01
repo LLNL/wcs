@@ -71,15 +71,15 @@ inline void Reaction<VD>::reset(Reaction& obj)
 #if defined(WCS_HAS_SBML)
 #pragma message ("libSBML is not supported yet.")
 template <typename VD>
-inline void Reaction<VD>::set_rate_inputs(const std::map<std::string, VD>& species_involved)
+inline void Reaction<VD>::set_rate_inputs(const std::map<std::string, rdriver_t>& species_involved)
 {
   m_rate_inputs = ReactionBase::interpret_species_name(this->get_rate_formula(), species_involved);
 }
 #elif defined(WCS_HAS_EXPRTK)
 template <typename VD>
-inline void Reaction<VD>::set_rate_inputs(const std::map<std::string, VD>& species_involved)
+inline void Reaction<VD>::set_rate_inputs(const std::map<std::string, rdriver_t>& species_involved)
 {
-  m_rate_inputs = std::vector<VD>( species_involved.size() );
+  m_rate_inputs = std::vector<rdriver_t>( species_involved.size() );
   m_params = std::vector<reaction_rate_t>( species_involved.size() );
   size_t i = 0;
   for(auto &e : species_involved ) {
@@ -105,14 +105,14 @@ reaction_rate_t Reaction<VD>::calc_rate(std::vector<reaction_rate_t> params)
 }
 
 template <typename VD>
-inline void Reaction<VD>::set_products(const std::map<std::string, VD>& products)
+inline void Reaction<VD>::set_products(const std::map<std::string, rdriver_t>& products)
 {
   for( auto &e: products )
       m_products.push_back( e.second );
 }
 #else
 template <typename VD>
-inline void Reaction<VD>::set_rate_inputs(const std::map<std::string, VD>& species_involved)
+inline void Reaction<VD>::set_rate_inputs(const std::map<std::string, rdriver_t>& species_involved)
 {
   m_rate_inputs = ReactionBase::interpret_species_name(this->get_rate_formula(), species_involved);
 }

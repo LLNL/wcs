@@ -74,7 +74,7 @@ void SSA_Direct::undo_species_updates(const std::vector<SSA_Direct::update_t>& u
     const auto& sv_undo = g[u.first];
     using s_prop_t = wcs::Species;
     auto& sp_undo = sv_undo.property<s_prop_t>();
-    if (u.second > static_cast<wcs::Edge::stoic_t>(0)) {
+    if (u.second > static_cast<stoic_t>(0)) {
       ok &= sp_undo.dec_count(u.second);
     } else {
       ok &= sp_undo.inc_count(u.second);

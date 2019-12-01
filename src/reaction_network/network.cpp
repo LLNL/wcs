@@ -58,7 +58,9 @@ void Network::init()
         for(const auto ei_in :
             boost::make_iterator_range(boost::in_edges(reaction, m_graph))) {
           v_desc_t reactant = boost::source(ei_in, m_graph);
-          involved_species.insert(std::make_pair(m_graph[reactant].get_label(), reactant));
+          const auto st = m_graph[ei_in].get_stoichiometry_ratio();
+          involved_species.insert(std::make_pair(m_graph[reactant].get_label(),
+                                                 std::make_pair(reactant, st)));
         }
       }
 
@@ -66,9 +68,11 @@ void Network::init()
           boost::make_iterator_range(boost::out_edges(reaction, m_graph))) {
         v_desc_t product = boost::target(ei_out, m_graph);
     #if !defined(WCS_HAS_SBML) && defined(WCS_HAS_EXPRTK)
-        products.insert(std::make_pair(m_graph[product].get_label(), product));
+        products.insert(std::make_pair(m_graph[product].get_label(),
+                                       std::make_pair(product, 1)));
     #else
-        involved_species.insert(std::make_pair(m_graph[product].get_label(), product));
+        involved_species.insert(std::make_pair(m_graph[product].get_label(),
+                                               std::make_pair(product, 1)));
     #endif // !defined(WCS_HAS_SBML) && defined(WCS_HAS_EXPRTK)
       }
 
@@ -86,6 +90,10 @@ void Network::init()
   sort_species();
 }
 
+/**
+ * Computes the reaction rate based on the population of the reaction driving
+ * species and the reaction constant.
+ */
 reaction_rate_t Network::set_reaction_rate(const Network::v_desc_t r) const
 {
   auto & rprop = m_graph[r].checked_property< Reaction<v_desc_t> >();
@@ -93,11 +101,27 @@ reaction_rate_t Network::set_reaction_rate(const Network::v_desc_t r) const
   std::vector<reaction_rate_t> params;
   // GG: rate constant is part of the Reaction object
   params.reserve(ri.size()+1u); // reserve space for species count and rate constant
-  for (auto vd : ri) { // add species counts here and the rate constant will be appended later
-    const auto& s = m_graph[vd].checked_property<Species>();
-    params.push_back(static_cast<reaction_rate_t>(s.get_count()));
+  auto denominator = static_cast<stoic_t>(1);
+
+  for (auto driver : ri) { // add species counts here and the rate constant will be appended later
+    const auto& s = m_graph[driver.first].checked_property<Species>();
+    const stoic_t num_same = driver.second;
+    // A reaction may take a same reactant species multiple times.
+    // e.g., X + X -> Y
+    // In such a case, num_same_reactants is more than 1. Two in the example.
+    // In the example, the reaction rate is computed as [X]([X]-1)/2
+    // TODO: move this logic into ReactionBase::set_rate_fn()
+    species_cnt_t n = s.get_count();
+    for (stoic_t i = static_cast<stoic_t>(0); i < num_same ; ++i) {
+      denominator *= (num_same - i);
+      params.push_back(static_cast<reaction_rate_t>(n));
+      if (n <= static_cast<species_cnt_t>(0)) {
+        break;
+      }
+      -- n;
+    }
   }
-  return rprop.calc_rate(params);
+  return rprop.calc_rate(params)/denominator;
 }
 
 void Network::sort_species()

@@ -19,7 +19,8 @@ namespace wcs {
 template <typename VD>
 class Reaction : public ReactionBase {
  public:
-  using involved_species_t = std::vector<VD>;
+  using rdriver_t = std::template pair<VD, stoic_t>;
+  using involved_species_t = std::template vector<rdriver_t>;
 
   Reaction();
   Reaction(const Reaction& rhs);
@@ -29,10 +30,10 @@ class Reaction : public ReactionBase {
   ~Reaction() override;
   std::unique_ptr<Reaction> clone() const;
 
-  void set_rate_inputs(const std::map<std::string, VD>& species_involved);
+  void set_rate_inputs(const std::map<std::string, rdriver_t>& species_involved);
   const involved_species_t& get_rate_inputs() const;
 #if !defined(WCS_HAS_SBML) && defined(WCS_HAS_EXPRTK)
-  void set_products(const std::map<std::string, VD>& products);
+  void set_products(const std::map<std::string, rdriver_t>& products);
   reaction_rate_t calc_rate(std::vector<reaction_rate_t> params) override;
 #endif // !defined(WCS_HAS_SBML) && defined(WCS_HAS_EXPRTK)
 

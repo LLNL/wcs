@@ -70,7 +70,7 @@ void SSA_NRM::undo_species_updates(const std::vector<SSA_NRM::update_t>& updates
     const auto& sv_undo = g[u.first];
     using s_prop_t = wcs::Species;
     auto& sp_undo = sv_undo.property<s_prop_t>();
-    if (u.second > static_cast<wcs::Edge::stoic_t>(0)) {
+    if (u.second > static_cast<stoic_t>(0)) {
       ok &= sp_undo.dec_count(u.second);
     } else {
       ok &= sp_undo.inc_count(u.second);
@@ -83,12 +83,12 @@ void SSA_NRM::undo_species_updates(const std::vector<SSA_NRM::update_t>& updates
 
 SSA_NRM::priority_t& SSA_NRM::choose_reaction()
 {
-  m_heap.front();
+  return m_heap.front();
 }
 
 sim_time_t SSA_NRM::get_reaction_time(const SSA_NRM::priority_t& p)
 {
-    return p.first;
+  return p.first;
 }
 
 /**

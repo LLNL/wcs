@@ -17,7 +17,7 @@ public:
 
   /** Type for keeping track of species updates to facilitate undoing
    *  reaction processing.  */
-  using update_t = std::pair<v_desc_t, wcs::Edge::stoic_t>;
+  using update_t = std::pair<v_desc_t, stoic_t>;
 
   SSA_Direct();
   ~SSA_Direct() override;

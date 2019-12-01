@@ -47,10 +47,17 @@ class ReactionBase : public VertexPropertyBase {
 
  protected:
   void reset(ReactionBase& obj);
-  template <typename VD>
-  static std::vector<VD> interpret_species_name(
+  /**
+    * Parse out the species names from the given reaction formula string,
+    * and translate those into the information that can identify the
+    * corresponding vertices of the graph data structure using the map given.
+    * The template parameter RD represents the reaction driving species.
+    * i.e., std::pair<v_desc_t, stoic_t>.
+    */
+  template <typename RD>
+  static std::vector<RD> interpret_species_name(
                            const std::string& formula,
-                           const std::map<std::string, VD>& species_linked);
+                           const std::map<std::string, RD>& species_linked);
 
  private:
   ReactionBase* clone_impl() const override = 0;
@@ -63,10 +70,10 @@ class ReactionBase : public VertexPropertyBase {
 };
 
 
-template <typename VD>
-std::vector<VD> ReactionBase::interpret_species_name(
+template <typename RD>
+std::vector<RD> ReactionBase::interpret_species_name(
   const std::string& formula,
-  const std::map<std::string, VD>& species_linked)
+  const std::map<std::string, RD>& species_linked)
 {
   // concentration pattern, e.g., [A] and [B] and [C] in [A] + [B] -> [C]
   std::regex conc_pattern("\\[([\\s\\n\\r\\t]*\\w+[\\s\\n\\r\\t]*)]");
@@ -76,14 +83,17 @@ std::vector<VD> ReactionBase::interpret_species_name(
   std::sregex_iterator i
    = std::sregex_iterator(formula.begin(), formula.end(), conc_pattern);
 
-  std::vector<VD> vertices;
+  typename std::vector<RD> vertices;
+
   for( ; i != std::sregex_iterator(); ++i) {
     std::smatch m = *i;
     std::string species = m[1].str();
     // remove whitespace in each match such that, for example,
     // it gets A even with [A ] or [ A ].
-    species.erase(std::remove_if(species.begin(), species.end(), ::isspace), species.end());
-    typename std::map<std::string, VD>::const_iterator it = species_linked.find(species);
+    species.erase(std::remove_if(species.begin(), species.end(), ::isspace),
+                                 species.end());
+    typename std::map<std::string, RD>::const_iterator it
+      = species_linked.find(species);
     if (it == species_linked.cend()) {
       WCS_THROW("Cannot interpret " + species + " in " + formula);
     }

@@ -134,6 +134,11 @@ mark_as_advanced(WCS_WARNINGS_AS_ERRORS)
 # Initialize build
 ################################################################
 
+set(CMAKE_SKIP_BUILD_RPATH  FALSE)
+set(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)
+set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
+set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib")
+
 # Get installation directories -- these get used in various places;
 # best to just make them available
 include(GNUInstallDirs)

@@ -1,67 +1,71 @@
-#include "sim_methods/ssa_nrm.hpp"
+#include "sim_methods/ssa_direct.hpp"
 #include "utils/exception.hpp"
-#include <algorithm>
+#include <algorithm> // upper_bound
+#include <cmath> // log
 
 namespace wcs {
 /** \addtogroup wcs_reaction_network
  *  *  @{ */
 
-SSA_NRM::SSA_NRM()
+SSA_Direct::SSA_Direct()
 : Sim_Method() {}
 
-SSA_NRM::~SSA_NRM() {}
+SSA_Direct::~SSA_Direct() {}
 
 /**
  * Defines the priority queue ordering by the event time of entries
  * (in ascending order).
  */
-bool SSA_NRM::later(const priority_t& v1, const priority_t& v2) {
-  return (v1.first >= v2.first);
+bool SSA_Direct::greater(const priority_t& v1, const priority_t& v2) {
+  return (v1.first > v2.first);
 }
 
-/// Allow access to the internal random number generator
-SSA_NRM::rng_t& SSA_NRM::rgen() {
-  return m_rgen;
+/// Allow access to the internal random number generator for events
+SSA_Direct::rng_t& SSA_Direct::rgen_e() {
+  return m_rgen_e;
+}
+
+/// Allow access to the internal random number generator for event times
+SSA_Direct::rng_t& SSA_Direct::rgen_t() {
+  return m_rgen_t;
 }
 
 /**
- * Initialize the priority queue.
- * For each reaction, compute the time to reaction using the random number
- * generator m_rgen. While doing so, check if the reaction is feasible. In case
- * that it is not, do not compute the time to reaction but set it to the
- * infinite time.
+ * Initialize the reaction propensity list by filling it with the propesity of
+ * every reaction and sorting.
  */
-void SSA_NRM::build_heap()
+void SSA_Direct::build_propensity_list()
 {
   using r_prop_t = wcs::Reaction<v_desc_t>;
 
   const wcs::Network::graph_t& g = m_net_ptr->graph();
 
-  m_heap.clear();
-  m_heap.reserve(m_net_ptr->get_num_reactions()+10);
-  constexpr double unsigned_max = static_cast<double>(std::numeric_limits<unsigned>::max());
+  m_propensity.clear();
+  const size_t num_reactions = m_net_ptr->get_num_reactions()+1;
+  m_propensity.reserve(num_reactions);
+  m_pindices.reserve(num_reactions);
+  constexpr auto zero_rate = static_cast<reaction_rate_t>(0.0);
 
   // For each reaction, check if the reaction condition is met:
-  // i.e., a sufficient number of reactants
+  // i.e., a sufficient number of reactants considering the stoichiometry
 
+  reaction_rate_t sum = zero_rate;
   for (const auto& vd : m_net_ptr->reaction_list())
   {
-    if (!m_net_ptr->check_reaction(vd)) {
-      m_heap.emplace_back(priority_t(wcs::Network::get_etime_ulimit(), vd));
-    } else {
+    if (m_net_ptr->check_reaction(vd)) {
       const auto& rv = g[vd]; // reaction vertex
       const auto& rp = rv.property<r_prop_t>(); // detailed vertex property data
-      const auto rate = rp.get_rate(); // reaction rate
-      const auto rn = unsigned_max/m_rgen();
-      const auto t = log(rn)/rate;
-      m_heap.emplace_back(priority_t(t, vd));
+      sum += rp.get_rate(); // cumulative reaction propensity
     }
+
+    m_pindices.insert(std::make_pair(vd, m_propensity.size()));
+    m_propensity.emplace_back(priority_t(sum, vd));
   }
-  std::make_heap(m_heap.begin(), m_heap.end(), SSA_NRM::later);
+  //std::stable_sort(m_propensity.begin(), m_propensity.end(), SSA_Direct::greater);
 }
 
 /// Undo the species updates applied during incomplete reaction processing.
-void SSA_NRM::undo_species_updates(const std::vector<SSA_NRM::update_t>& updates) const
+void SSA_Direct::undo_species_updates(const std::vector<SSA_Direct::update_t>& updates) const
 {
   bool ok = true;
   const wcs::Network::graph_t& g = m_net_ptr->graph();
@@ -81,14 +85,27 @@ void SSA_NRM::undo_species_updates(const std::vector<SSA_NRM::update_t>& updates
   }
 }
 
-SSA_NRM::priority_t& SSA_NRM::choose_reaction()
+SSA_Direct::priority_t& SSA_Direct::choose_reaction()
 {
-  return m_heap.front();
+  const auto rn
+    = static_cast<reaction_rate_t>(m_rgen_e() * m_propensity.back().first);
+  auto it = std::upper_bound(m_propensity.begin(),
+                             m_propensity.end(),
+                             rn,
+                             [](const double lhs, const priority_t& rhs)
+                               -> bool { return lhs < rhs.first; });
+  if (it == m_propensity.end()) {
+    WCS_THROW("Failed to choose a reaction to fire");
+  }
+  return *it;
 }
 
-sim_time_t SSA_NRM::get_reaction_time(const SSA_NRM::priority_t& p)
+sim_time_t SSA_Direct::get_reaction_time(const SSA_Direct::priority_t& p)
 {
-  return p.first;
+  const reaction_rate_t r = p.first;
+  return ((r <= static_cast<reaction_rate_t>(0))?
+            wcs::Network::get_etime_ulimit() :
+            -static_cast<reaction_rate_t>(log(m_rgen_t())/r));
 }
 
 /**
@@ -97,9 +114,9 @@ sim_time_t SSA_NRM::get_reaction_time(const SSA_NRM::priority_t& p)
  * record how the species are updated, and which other reactions are
  * affected as a result.
  */
-bool SSA_NRM::fire_reaction(const priority_t& firing,
-                            std::vector<SSA_NRM::update_t>& updating_species,
-                            std::set<SSA_NRM::v_desc_t>& affected_reactions)
+bool SSA_Direct::fire_reaction(const priority_t& firing,
+                            std::vector<SSA_Direct::update_t>& updating_species,
+                            std::set<SSA_Direct::v_desc_t>& affected_reactions)
 {
   using s_prop_t = wcs::Species;
 
@@ -172,74 +189,42 @@ bool SSA_NRM::fire_reaction(const priority_t& firing,
  * updating species. Also, recompute the reaction time of those affected
  * and update the heap. This follows the next reaction meothod procedure.
  */
-void SSA_NRM::update_reactions(priority_t& firing,
-  const std::set<SSA_NRM::v_desc_t>& affected)
+void SSA_Direct::update_reactions(priority_t& firing,
+  const std::set<SSA_Direct::v_desc_t>& affected_reactions)
 {
   using r_prop_t = wcs::Reaction<v_desc_t>;
-  constexpr double unsigned_max = static_cast<double>(std::numeric_limits<unsigned>::max());
 
-  auto& next_time = firing.first;
+  // update the propensity of the firing reaction
   const auto vd_firing = firing.second;
-  const auto new_rate = m_net_ptr->set_reaction_rate(vd_firing);
+  size_t pidx_min = m_pindices.at(vd_firing);
+  (m_propensity.at(pidx_min)).first =  m_net_ptr->set_reaction_rate(vd_firing);
 
-  if (!m_net_ptr->check_reaction(vd_firing)) {
-    next_time = wcs::Network::get_etime_ulimit();
-  } else { // Update the rate of the reaction fired
-    const auto rn = unsigned_max/m_rgen();
-    next_time = (new_rate <= static_cast<reaction_rate_t>(0))?
-                   wcs::Network::get_etime_ulimit() :
-                   log(rn)/new_rate;
-    if (std::isnan(next_time)) {
-      next_time = wcs::Network::get_etime_ulimit();
-    }
+  // update the propensity of the rest of affected reactions
+  for (const auto& vd : affected_reactions) {
+    const size_t pidx = m_pindices.at(vd);
+    pidx_min = ((pidx < pidx_min)? pidx : pidx_min);
+    (m_propensity.at(pidx)).first =  m_net_ptr->set_reaction_rate(vd);
   }
 
-  std::set<v_desc_t> affected_reactions(affected);
+  constexpr auto zero_rate = static_cast<reaction_rate_t>(0.0);
+  reaction_rate_t sum = (pidx_min > 0ul)?
+                        (m_propensity.at(pidx_min-1)).first : zero_rate;
 
-  // update the event time of the rest of affected reactions
-  for (size_t hi = 1u; hi < m_heap.size(); ++ hi) {
-    auto& e = m_heap[hi];
-    // TODO: need a better facility to locate the affected reaction entry in
-    // the m_heap. red-black tree perhaps.
-    auto it_found = affected_reactions.find(e.second);
-    if (it_found == affected_reactions.end()) { // not found
-      continue;
-    }
+  const wcs::Network::graph_t& g = m_net_ptr->graph();
 
-    // Heap items are unique. No need to find again.
-    affected_reactions.erase(it_found);
-
-    auto& t_to_update = e.first;
-    const auto& rv_affected = m_net_ptr->graph()[e.second];
-    auto& rp_affected = rv_affected.property<r_prop_t>();
-    const auto rate_old = rp_affected.get_rate();
-    const auto rate_new = m_net_ptr->set_reaction_rate(e.second);
-
-    if (!m_net_ptr->check_reaction(e.second)) {
-      t_to_update = wcs::Network::get_etime_ulimit();
-      continue; // skip reaction time computation
-    }
-
-    if (rate_new <= static_cast<reaction_rate_t>(0)) {
-      t_to_update = wcs::Network::get_etime_ulimit();
-    } else if (rate_old <= static_cast<reaction_rate_t>(0) ||
-               t_to_update >= wcs::Network::get_etime_ulimit()) {
-      const auto rn = unsigned_max/m_rgen();
-      t_to_update = log(rn)/rate_new;
-    } else {
-      t_to_update = t_to_update * rate_old / rate_new;
-    }
-
-    if (std::isnan(t_to_update)) {
-      t_to_update = wcs::Network::get_etime_ulimit();
-    }
+  // update the cumulative propensity
+  for (size_t i = pidx_min; i < m_propensity.size(); ++ i) {
+    auto& prop = m_propensity.at(i);
+    const auto vd = prop.second;
+    const auto& rv = g[vd]; // reaction vertex
+    const auto& rp = rv.property<r_prop_t>(); // detailed vertex property data
+    sum += rp.get_rate(); // cumulative reaction propensity
+    prop.first = sum;
   }
-
-  std::make_heap(m_heap.begin(), m_heap.end(), SSA_NRM::later);
 }
 
 
-void SSA_NRM::init(std::shared_ptr<wcs::Network>& net_ptr,
+void SSA_Direct::init(std::shared_ptr<wcs::Network>& net_ptr,
                    const unsigned max_iter,
                    const double max_time,
                    const unsigned rng_seed,
@@ -257,23 +242,26 @@ void SSA_NRM::init(std::shared_ptr<wcs::Network>& net_ptr,
   m_cur_iter = 0u;
 
   { // initialize the random number generator
-    if (rng_seed == 0u)
-      m_rgen.set_seed();
-    else
-      m_rgen.set_seed(rng_seed);
+    if (rng_seed == 0u) {
+      m_rgen_e.set_seed();
+      m_rgen_t.set_seed();
+    } else {
+      m_rgen_e.set_seed(rng_seed);
+      m_rgen_t.set_seed((rng_seed << 5) | static_cast<unsigned>(0x0f));
+    }
 
-    constexpr unsigned uint_max = std::numeric_limits<unsigned>::max();
-    m_rgen.param(typename rng_t::param_type(100, uint_max-100));
+    m_rgen_e.param(typename rng_t::param_type(0.0, 1.0));
+    m_rgen_t.param(typename rng_t::param_type(0.0, 1.0));
   }
 
   if (m_enable_tracing) { // record initial state of the network
     m_trace.record_initial_condition(m_net_ptr);
   }
 
-  build_heap(); // prepare internal priority queue
+  build_propensity_list(); // prepare internal priority queue
 }
 
-std::pair<unsigned, sim_time_t> SSA_NRM::run()
+std::pair<unsigned, sim_time_t> SSA_Direct::run()
 {
   // species to update as a result of the reaction fired
   std::vector<update_t> updating_species;
@@ -287,7 +275,7 @@ std::pair<unsigned, sim_time_t> SSA_NRM::run()
   std::set<v_desc_t> affected_reactions;
 
   for (; m_cur_iter < m_max_iter; ++ m_cur_iter) {
-    if (m_heap.empty()) { // no reaction possible
+    if (m_propensity.empty()) { // no reaction possible
       break;
     }
 

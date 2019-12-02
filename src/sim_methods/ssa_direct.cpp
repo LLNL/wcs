@@ -227,8 +227,7 @@ void SSA_Direct::update_reactions(priority_t& firing,
 void SSA_Direct::init(std::shared_ptr<wcs::Network>& net_ptr,
                    const unsigned max_iter,
                    const double max_time,
-                   const unsigned rng_seed,
-                   const bool enable_tracing)
+                   const unsigned rng_seed)
 {
   if (!net_ptr) {
     WCS_THROW("Invalid pointer to the reaction network.");
@@ -237,7 +236,6 @@ void SSA_Direct::init(std::shared_ptr<wcs::Network>& net_ptr,
   m_net_ptr = net_ptr;
   m_max_time = max_time;
   m_max_iter = max_iter;
-  m_enable_tracing = enable_tracing;
   m_sim_time = static_cast<sim_time_t>(0);
   m_cur_iter = 0u;
 
@@ -246,17 +244,17 @@ void SSA_Direct::init(std::shared_ptr<wcs::Network>& net_ptr,
       m_rgen_e.set_seed();
       m_rgen_t.set_seed();
     } else {
-      m_rgen_e.set_seed(rng_seed);
-      m_rgen_t.set_seed((rng_seed << 5) | static_cast<unsigned>(0x0f));
+      rng_t seeder;
+      seeder.set_seed(rng_seed);
+      m_rgen_e.set_seed(seeder());
+      m_rgen_t.set_seed(seeder());
     }
 
     m_rgen_e.param(typename rng_t::param_type(0.0, 1.0));
     m_rgen_t.param(typename rng_t::param_type(0.0, 1.0));
   }
 
-  if (m_enable_tracing) { // record initial state of the network
-    m_trace.record_initial_condition(m_net_ptr);
-  }
+  Sim_Method::record_initial_state(m_net_ptr);
 
   build_propensity_list(); // prepare internal priority queue
 }
@@ -273,6 +271,8 @@ std::pair<unsigned, sim_time_t> SSA_Direct::run()
   // take the assumption for simplicity. However, if we consider compartments
   // with population/concentration limits, we need to reconsider.
   std::set<v_desc_t> affected_reactions;
+
+  bool is_recorded = true; // initial state recording done
 
   for (; m_cur_iter < m_max_iter; ++ m_cur_iter) {
     if (m_propensity.empty()) { // no reaction possible
@@ -294,17 +294,19 @@ std::pair<unsigned, sim_time_t> SSA_Direct::run()
       break;
     }
 
-    if (m_enable_tracing) {
-      m_trace.record_reaction(dt, firing.second);
-    }
+    is_recorded = check_to_record(dt, firing.second);
 
     update_reactions(firing, affected_reactions);
 
     m_sim_time += dt;
 
     if (m_sim_time >= m_max_time) {
+      if (!is_recorded) {
+        record_final_state(dt, firing.second);
+      }
       break;
     }
+    is_recorded = false;
   }
 
   return std::make_pair(m_cur_iter, m_sim_time);

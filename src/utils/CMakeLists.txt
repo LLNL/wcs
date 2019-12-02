@@ -7,6 +7,7 @@ set_full_path(THIS_DIR_HEADERS
   rngen_impl.hpp
   trace.hpp
   trace_ssa.hpp
+  samples.hpp
   write_graphviz.hpp
   )
 
@@ -15,6 +16,7 @@ set_full_path(THIS_DIR_SOURCES
   graph_factory.cpp
   trace.cpp
   trace_ssa.cpp
+  samples.cpp
   )
 
 # Add the subdirectories

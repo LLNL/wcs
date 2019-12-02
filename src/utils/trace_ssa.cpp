@@ -56,7 +56,7 @@ void TraceSSA::count_reaction(r_desc_t r)
 
 size_t TraceSSA::estimate_tmpstr_size() const
 {
-  return m_initial_counts.size()*10;
+  return m_initial_counts.size()*10 + m_reaction_counts.size()*10;
 }
 
 std::ostream& TraceSSA::print_stats(const sim_time_t sim_time,

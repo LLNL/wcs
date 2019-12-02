@@ -23,8 +23,7 @@ public:
   void init(std::shared_ptr<wcs::Network>& net_ptr,
             const unsigned max_iter,
             const double max_time,
-            const unsigned rng_seed,
-            const bool enable_tracing) override;
+            const unsigned rng_seed) override;
 
   std::pair<unsigned, wcs::sim_time_t> run() override;
 

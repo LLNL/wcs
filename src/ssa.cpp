@@ -14,7 +14,7 @@
 #include "sim_methods/ssa_direct.hpp"
 
 
-#define OPTIONS "dg:hi:o:s:t:m:"
+#define OPTIONS "dg:hi:o:s:t:m:r:"
 static const struct option longopts[] = {
     {"diag",     no_argument,        0, 'd'},
     {"graphviz", required_argument,  0, 'g'},
@@ -24,6 +24,7 @@ static const struct option longopts[] = {
     {"seed",     required_argument,  0, 's'},
     {"time",     required_argument,  0, 't'},
     {"method",   required_argument,  0, 'm'},
+    {"record",   required_argument,  0, 'r'},
     { 0, 0, 0, 0 },
 };
 
@@ -32,7 +33,10 @@ struct Config {
   : seed(0u), max_iter(10u),
     max_time(wcs::Network::get_etime_ulimit()),
     method(1),
-    tracing(false)
+    tracing(false),
+    sampling(false),
+    iter_interval(0u),
+    time_interval(0.0)
   {}
 
   void getopt(int& argc, char** &argv);
@@ -43,6 +47,9 @@ struct Config {
   wcs::sim_time_t max_time;
   int method;
   bool tracing;
+  bool sampling;
+  unsigned iter_interval;
+  wcs::sim_time_t time_interval;
 
   std::string infile;
   std::string outfile;
@@ -59,6 +66,7 @@ void Config::getopt(int& argc, char** &argv)
     switch (c) {
       case 'd': /* --diag */
         tracing = true;
+        sampling = false;
         break;
       case 'g': /* --graphviz */
         gvizfile = std::string(optarg);
@@ -83,6 +91,21 @@ void Config::getopt(int& argc, char** &argv)
         break;
       case 'm': /* --method */
         method = static_cast<int>(atoi(optarg));
+        break;
+      case 'r': /* --record */
+        sampling = true;
+        tracing = false;
+        {
+          if (optarg[0] == 'i') {
+            iter_interval = static_cast<unsigned>(atoi(&optarg[1]));
+          } else if (optarg[0] == 't') {
+            time_interval = static_cast<wcs::sim_time_t>(atof(&optarg[1]));
+          } else {
+            sampling = false;
+            std::cerr << "Unknown sampling interval: " << std::string(optarg)
+                      << std::endl;
+          }
+        }
         break;
       default:
         print_usage(argv[0], 1);
@@ -137,6 +160,10 @@ void Config::print_usage(const std::string exec, int code)
     "\n"
     "    -m, --method\n"
     "            Specify the SSA method: 0 = direct, 1 = next reaction (default).\n"
+    "\n"
+    "    -r, --record\n"
+    "            Specify whether to enable sampling at a time/step interval.\n"
+    "            (e.g. t5 for every 5 simulation seconds or i5 for every 5 steps).\n"
     "\n";
   exit(code);
 }
@@ -173,15 +200,36 @@ int main(int argc, char** argv)
     std::cerr << "Unknown SSA method (" << cfg.method << ')' << std::endl;
     return -1;
   }
-  ssa->init(rnet_ptr, cfg.max_iter, cfg.max_time, cfg.seed, cfg.tracing);
+  if (cfg.tracing) {
+    ssa->set_tracing();
+    std::cerr << "Enable tracing" << std::endl;
+  } else if (cfg.sampling) {
+    if (cfg.iter_interval > 0u) {
+      ssa->set_sampling(cfg.iter_interval);
+      std::cerr << "Enable sampling at " << cfg.iter_interval 
+                << " steps interval" << std::endl;
+    } else {
+      ssa->set_sampling(cfg.time_interval);
+      std::cerr << "Enable sampling at " << cfg.time_interval 
+                << " secs interval" << std::endl;
+    }
+  }
+  ssa->init(rnet_ptr, cfg.max_iter, cfg.max_time, cfg.seed);
   ssa->run();
 
-  if (!cfg.outfile.empty() && cfg.tracing) {
-    ssa->trace().write(cfg.outfile);
-  } else if (cfg.tracing) {
-    ssa->trace().write(std::cout);
-  }
-  if (!cfg.tracing) {
+  if (cfg.tracing) {
+    if (!cfg.outfile.empty()) {
+      ssa->trace().write(cfg.outfile);
+    } else {
+      ssa->trace().write(std::cout);
+    }
+  } else if (cfg.sampling) {
+    if (!cfg.outfile.empty()) {
+      ssa->samples().write(cfg.outfile);
+    } else {
+      ssa->samples().write(std::cout);
+    }
+  } else {
     std::cout << "Species   : " << rnet.show_species_labels("") << std::endl;
     std::cout << "FinalState: " << rnet.show_species_counts() << std::endl;
   }

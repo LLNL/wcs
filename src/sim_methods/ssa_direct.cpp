@@ -244,8 +244,12 @@ void SSA_Direct::init(std::shared_ptr<wcs::Network>& net_ptr,
       m_rgen_e.set_seed();
       m_rgen_t.set_seed();
     } else {
-      rng_t seeder;
+      using seeder_t = wcs::RNGen<std::uniform_int_distribution, unsigned>;
+      seeder_t seeder;
       seeder.set_seed(rng_seed);
+      constexpr unsigned uint_max = std::numeric_limits<unsigned>::max();
+      seeder.param(typename seeder_t::param_type(0, uint_max/2));
+
       m_rgen_e.set_seed(seeder());
       m_rgen_t.set_seed(seeder());
     }

@@ -10,6 +10,7 @@
 #include "utils/write_graphviz.hpp"
 #include "utils/rngen.hpp"
 #include "utils/trace_ssa.hpp"
+#include "utils/timer.hpp"
 #include "sim_methods/ssa_nrm.hpp"
 #include "sim_methods/ssa_direct.hpp"
 
@@ -215,7 +216,10 @@ int main(int argc, char** argv)
     }
   }
   ssa->init(rnet_ptr, cfg.max_iter, cfg.max_time, cfg.seed);
+  double t_start = wcs::get_time();
   ssa->run();
+  std::cout << "Wall clock time to run simulation: "
+            << wcs::get_time() - t_start << " (sec)" << std::endl;
 
   if (cfg.tracing) {
     if (!cfg.outfile.empty()) {

@@ -20,12 +20,12 @@ public:
   using s_prop_t = wcs::Species;
   using r_desc_t = v_desc_t;
   using s_desc_t = v_desc_t;
-  using entry_t = typename std::pair<sim_time_t, r_desc_t>;
-  using trace_t = std::list<entry_t>;
+  using tentry_t = typename std::pair<sim_time_t, r_desc_t>;
+  using trace_t = std::list<tentry_t>;
 
   virtual ~Trace();
   void record_reaction(const sim_time_t t, const r_desc_t r);
-  void write(const std::string filename);
+  virtual void write(const std::string filename);
   virtual std::ostream& write(std::ostream& os);
   void record_initial_condition(const std::shared_ptr<wcs::Network>& net_ptr);
   void pop_back();

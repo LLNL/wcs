@@ -7,8 +7,10 @@
 namespace wcs {
 
 using species_cnt_t = unsigned int;
+using species_cnt_diff_t = int;
 using reaction_rate_t = double;
 using sim_time_t = double;
+using stoic_t = int;
 
 template <typename G>
 std::ostream& write_graphviz_of_any_vertex_list(std::ostream& os, const G& g);

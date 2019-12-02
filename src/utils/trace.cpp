@@ -30,6 +30,7 @@ void Trace::record_initial_condition(const std::shared_ptr<wcs::Network>& net_pt
     const auto& sv = g[vd]; // vertex (property) of the species
     // detailed vertex property data of the species
     const auto& sp = sv.property<s_prop_t>();
+    //m_s_id_map[vd] = i; // done in build_index()
     m_initial_counts[i++] = sp.get_count();
   }
 }

@@ -11,7 +11,6 @@ namespace wcs {
 
 class Edge {
  public:
-  using stoic_t = int;
 
   Edge();
   Edge(stoic_t r, const std::string& lb);

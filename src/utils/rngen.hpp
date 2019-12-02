@@ -22,7 +22,7 @@ class RNGen {
 
  protected:
   unsigned m_seed;
-  std::default_random_engine m_gen;
+  std::mt19937 m_gen;
   distribution_t m_distribution;
 };
 

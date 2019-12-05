@@ -10,7 +10,7 @@
 % Y1 + Y2 -> 2*Y2    |  c2
 % Y2 -> Z            |  c3
 %--------------------------
-function [tplot, Yplot] = eqn38 ( Y0 )
+function [tplot, Y1plot, Y2plot] = eqn38 ( Y0 )
 M = 3;                  % Number of reaction pathways
 N = 2;                  % Number of molecular species considered
 

@@ -28,7 +28,7 @@ tplot = zeros(1);       % For plotting.
 t_stop = 5;
 n = 0;                  % Reaction counter.
 n_max = 1000;
-r_cnt = zeros(M);
+r_cnt = zeros(1, M);
 %% STEP 1
 while t < t_stop
     % Number of molecular reactant combinations available in current state.
@@ -64,5 +64,5 @@ while t < t_stop
     Yplot(n+1,:) = Y;
     tplot(n+1) = t;  
 end
-r_cnt
+disp(['reaction counts: ' num2str(r_cnt)]);
 end

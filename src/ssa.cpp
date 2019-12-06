@@ -81,7 +81,6 @@ void Config::getopt(int& argc, char** &argv)
         break;
       case 'o': /* --outfile */
         outfile = std::string(optarg);
-        tracing = true;
         break;
       case 's': /* --seed */
         seed = static_cast<unsigned>(atoi(optarg));
@@ -147,7 +146,7 @@ void Config::print_usage(const std::string exec, int code)
     "            Display this usage information\n"
     "\n"
     "    -o, --outfile\n"
-    "            Specify the tracing output file name. This enables tracing.\n"
+    "            Specify the output file name for tracing/sampling.\n"
     "\n"
     "    -s, --seed\n"
     "            Specify the seed for random number generator. Without this,\n"

@@ -10,7 +10,7 @@
 % Y1 + Y2 -> 2*Y2    |  c2
 % Y2 -> Z            |  c3
 %--------------------------
-function [tplot, Yplot] = eqn38 ( Y0 )
+function [tplot, Y1plot, Y2plot] = eqn38 ( Y0 )
 M = 3;                  % Number of reaction pathways
 N = 2;                  % Number of molecular species considered
 
@@ -30,7 +30,7 @@ t_max = 30;
 tplot = zeros(1);        % For plotting.
 n = 0;                   % Reaction counter.
 n_max = 1000000;
-r_cnt = zeros(M);
+r_cnt = zeros(1, M);
 
 %% STEP 1
 while t < t_max
@@ -80,5 +80,5 @@ while t < t_max
   Y2plot(n+1) = Y2;
   tplot(n+1) = t;
 end
-r_cnt
+disp(['reaction counts: ' num2str(r_cnt)]);
 end

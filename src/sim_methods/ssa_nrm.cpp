@@ -52,7 +52,7 @@ void SSA_NRM::build_heap()
       const auto& rv = g[vd]; // reaction vertex
       const auto& rp = rv.property<r_prop_t>(); // detailed vertex property data
       const auto rate = rp.get_rate(); // reaction rate
-      const auto rn = unsigned_max/m_rgen();
+      const auto rn = unsigned_max/m_rgen(); // inverse of a uniform RN U(0,1)
       const auto t = log(rn)/rate;
       m_heap.emplace_back(priority_t(t, vd));
     }
@@ -178,9 +178,15 @@ void SSA_NRM::update_reactions(priority_t& firing,
   using r_prop_t = wcs::Reaction<v_desc_t>;
   constexpr double unsigned_max = static_cast<double>(std::numeric_limits<unsigned>::max());
 
+  auto t_fired = firing.first;
   auto& next_time = firing.first;
   const auto vd_firing = firing.second;
   const auto new_rate = m_net_ptr->set_reaction_rate(vd_firing);
+
+  // TODO: use absolute time to avoid this loop
+  for (auto& r : m_heap) {
+    r.first -= t_fired;
+  }
 
   if (!m_net_ptr->check_reaction(vd_firing)) {
     next_time = wcs::Network::get_etime_ulimit();

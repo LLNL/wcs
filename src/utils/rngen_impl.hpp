@@ -1,3 +1,5 @@
+#include <type_traits>
+
 namespace wcs {
 
 template <template <typename> typename D, typename V>
@@ -21,7 +23,7 @@ inline void RNGen<D, V>::set_seed()
 }
 
 template <template <typename> typename D, typename V>
-inline void RNGen<D, V>::use_seed_seq(const wcs::seedseq_param_t& p)
+inline void RNGen<D, V>::use_seed_seq(const wcs::seed_seq_param_t& p)
 {
   m_sseq_used = true;
   m_sseq_param.clear();
@@ -57,6 +59,17 @@ template <template <typename> typename D, typename V>
 inline const typename RNGen<D, V>::distribution_t& RNGen<D, V>::distribution() const
 {
   return m_distribution;
+}
+
+template <template <typename> typename D, typename V>
+constexpr unsigned RNGen<D, V>::get_state_size()
+{
+  if constexpr (std::is_same<generator_type, std::mt19937>::value ) {
+    return generator_type::state_size;
+  } else if constexpr (std::is_same<generator_type, std::mt19937_64>::value ) {
+    return generator_type::state_size;
+  }
+  return 1u;
 }
 
 } // end of namespce wcs

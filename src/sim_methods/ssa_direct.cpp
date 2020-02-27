@@ -2,6 +2,7 @@
 #include "utils/exception.hpp"
 #include <algorithm> // upper_bound
 #include <cmath> // log
+#include "utils/seed.hpp"
 
 namespace wcs {
 /** \addtogroup wcs_reaction_network
@@ -244,14 +245,24 @@ void SSA_Direct::init(std::shared_ptr<wcs::Network>& net_ptr,
       m_rgen_e.set_seed();
       m_rgen_t.set_seed();
     } else {
-      using seeder_t = wcs::RNGen<std::uniform_int_distribution, unsigned>;
-      seeder_t seeder;
-      seeder.set_seed(rng_seed);
-      constexpr unsigned uint_max = std::numeric_limits<unsigned>::max();
-      seeder.param(typename seeder_t::param_type(0, uint_max/2));
+      seed_seq_param_t common_param_e
+        = make_seed_seq_input(1, rng_seed, std::string("SSA_Direct"));
+      seed_seq_param_t common_param_t
+        = make_seed_seq_input(2, rng_seed, std::string("SSA_Direct"));
 
-      m_rgen_e.set_seed(seeder());
-      m_rgen_t.set_seed(seeder());
+      std::vector<seed_seq_param_t> unique_params;
+      const size_t num_procs = 1ul;
+      const size_t my_rank = 0ul;
+
+      // make sure to avoid generating any duplicate seed sequence
+      gen_unique_seed_seq_params<rng_t::get_state_size()>(
+          num_procs, common_param_e, unique_params);
+      m_rgen_e.use_seed_seq(unique_params[my_rank]);
+
+      // make sure to avoid generating any duplicate seed sequence
+      gen_unique_seed_seq_params<rng_t::get_state_size()>(
+          num_procs, common_param_t, unique_params);
+      m_rgen_t.use_seed_seq(unique_params[my_rank]);
     }
 
     m_rgen_e.param(typename rng_t::param_type(0.0, 1.0));

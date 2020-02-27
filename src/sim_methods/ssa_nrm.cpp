@@ -261,10 +261,20 @@ void SSA_NRM::init(std::shared_ptr<wcs::Network>& net_ptr,
   m_cur_iter = 0u;
 
   { // initialize the random number generator
-    if (rng_seed == 0u)
+    if (rng_seed == 0u) {
       m_rgen.set_seed();
-    else
-      m_rgen.set_seed(rng_seed);
+    } else {
+      seed_seq_param_t common_param
+        = make_seed_seq_input(1, rng_seed, std::string("SSA_NRM"));
+
+      std::vector<seed_seq_param_t> unique_params;
+      const size_t num_procs = 1ul;
+      const size_t my_rank = 0ul;
+      // make sure to avoid generating any duplicate seed sequence
+      gen_unique_seed_seq_params<rng_t::get_state_size()>(
+          num_procs, common_param, unique_params);
+      m_rgen.use_seed_seq(unique_params[my_rank]);
+    }
 
     constexpr unsigned uint_max = std::numeric_limits<unsigned>::max();
     m_rgen.param(typename rng_t::param_type(100, uint_max-100));

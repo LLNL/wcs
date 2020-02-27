@@ -1,8 +1,8 @@
 #include <iostream>
 #include <getopt.h>
 #include <boost/filesystem.hpp>
-#include "write_graphviz.hpp"
-#include "graph_factory.hpp"
+#include "utils/write_graphviz.hpp"
+#include "utils/graph_factory.hpp"
 #include <fstream>
 
 

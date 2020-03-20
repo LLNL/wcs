@@ -81,8 +81,8 @@ int main(int argc, char** argv)
   if ((idx_sr < num_gen) && ( 0u < num_sr)) {
     std::cout << "\trepeat save/load " << num_sr << " times" << std::endl;
     for (unsigned int j = 0u; j < num_sr; j++) {
-      export_state(gen, buffer);
-      import_state(gen, buffer);
+      save_state(gen, buffer);
+      load_state(gen, buffer);
     }
   }
   const auto t2 = get_time();
@@ -118,12 +118,12 @@ int main(int argc, char** argv)
 
     std::stringstream ss;
     ss << "saving state: 0x" << std::hex << c << std::endl;
-    bool ok1 = export_state(c, buf);
-    bool ok2 = ok1 && import_state(d, buf);
+    bool ok1 = save_state(c, buf);
+    bool ok2 = ok1 && load_state(d, buf);
     if (!ok1) {
-      std::cout << "Fail to export state!" << std::endl;
+      std::cout << "Fail to save state!" << std::endl;
     } else if (!ok2) {
-      std::cout << "Fail to import state!" << std::endl;
+      std::cout << "Fail to load state!" << std::endl;
     }
     ss << "restored state: 0x" << std::hex << d << std::endl;
     std::cout << ss.str() << std::endl;

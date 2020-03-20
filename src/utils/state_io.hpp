@@ -57,12 +57,12 @@ S& operator>>(S& is, const bits_t<T&>& b)
 template<typename ObjT,
          typename CharT = char,
          typename Traits = std::char_traits<CharT> >
-bool export_state(const ObjT& obj, std::vector<CharT>& buffer);
+bool save_state(const ObjT& obj, std::vector<CharT>& buffer);
 
 template<typename ObjT,
          typename CharT = char,
          typename Traits = std::char_traits<CharT> >
-bool import_state(ObjT& obj, std::vector<CharT>& buffer);
+bool load_state(ObjT& obj, std::vector<CharT>& buffer);
 
 } // end of namespace wcs
 

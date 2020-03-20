@@ -6,12 +6,17 @@ namespace wcs {
 template<typename ObjT,
          typename CharT,
          typename Traits>
-bool export_state(const ObjT& obj, std::vector<CharT>& buffer) {
-/*
+bool save_state(const ObjT& obj, std::vector<CharT>& buffer) {
+  static_assert(std::is_arithmetic<T>::value &&
+                !std::is_same<T, bool>::value,
+                "Invalid vector element type");
+  /* Resize or reserve vector space to avoid overhead of reallocation
+     Especially when there are multiple items to pack and the sizes are
+     known in advance.
   if (buffer.size()*sizeof(CharT) < sizeof(obj)) {
     buffer.resize((sizeof(obj) + sizeof(CharT) - 1u)/sizeof(CharT));
   }
-*/
+  */
 
   ostreamvec<CharT, Traits> ostrmbuf(buffer);
   //streamvec<CharT, Traits> ostrmbuf(buffer);
@@ -25,7 +30,10 @@ bool export_state(const ObjT& obj, std::vector<CharT>& buffer) {
 template<typename ObjT,
          typename CharT,
          typename Traits>
-bool import_state(ObjT& obj, std::vector<CharT>& buffer) {
+bool load_state(ObjT& obj, std::vector<CharT>& buffer) {
+  static_assert(std::is_arithmetic<T>::value &&
+                !std::is_same<T, bool>::value,
+                "Invalid vector element type");
   istreamvec<CharT, Traits> istrmbuf(buffer);
   //streamvec<CharT, Traits> istrmbuf(buffer, true);
   std::basic_istream<CharT, Traits> iss(&istrmbuf);

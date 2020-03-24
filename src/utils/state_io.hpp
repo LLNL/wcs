@@ -1,6 +1,7 @@
 #ifndef __STATE_IO_HPP__
 #define __STATE_IO_HPP__
 #include "streamvec.hpp"
+#include "streambuff.hpp"
 #include <iostream>
 #include <type_traits>
 
@@ -62,7 +63,17 @@ bool save_state(const ObjT& obj, std::vector<CharT>& buffer);
 template<typename ObjT,
          typename CharT = char,
          typename Traits = std::char_traits<CharT> >
-bool load_state(ObjT& obj, std::vector<CharT>& buffer);
+bool load_state(ObjT& obj, const std::vector<CharT>& buffer);
+
+template<typename ObjT,
+         typename CharT = char,
+         typename Traits = std::char_traits<CharT> >
+bool save_state(const ObjT& obj, CharT* buffer);
+
+template<typename ObjT,
+         typename CharT = char,
+         typename Traits = std::char_traits<CharT> >
+bool load_state(ObjT& obj, const CharT* buffer);
 
 } // end of namespace wcs
 

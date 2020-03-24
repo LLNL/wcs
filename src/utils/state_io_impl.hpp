@@ -7,8 +7,8 @@ template<typename ObjT,
          typename CharT,
          typename Traits>
 bool save_state(const ObjT& obj, std::vector<CharT>& buffer) {
-  static_assert(std::is_arithmetic<T>::value &&
-                !std::is_same<T, bool>::value,
+  static_assert(std::is_arithmetic<CharT>::value &&
+                !std::is_same<CharT, bool>::value,
                 "Invalid vector element type");
   /* Resize or reserve vector space to avoid overhead of reallocation
      Especially when there are multiple items to pack and the sizes are
@@ -30,12 +30,48 @@ bool save_state(const ObjT& obj, std::vector<CharT>& buffer) {
 template<typename ObjT,
          typename CharT,
          typename Traits>
-bool load_state(ObjT& obj, std::vector<CharT>& buffer) {
-  static_assert(std::is_arithmetic<T>::value &&
-                !std::is_same<T, bool>::value,
+bool load_state(ObjT& obj, const std::vector<CharT>& buffer) {
+  static_assert(std::is_arithmetic<CharT>::value &&
+                !std::is_same<CharT, bool>::value,
                 "Invalid vector element type");
   istreamvec<CharT, Traits> istrmbuf(buffer);
   //streamvec<CharT, Traits> istrmbuf(buffer, true);
+  std::basic_istream<CharT, Traits> iss(&istrmbuf);
+
+  if (istrmbuf.size()*sizeof(CharT) < sizeof(ObjT)) {
+    return false;
+  }
+
+  iss >> bits(obj);
+
+  return iss.good();
+}
+
+template<typename ObjT,
+         typename CharT,
+         typename Traits>
+bool save_state(const ObjT& obj, CharT* buffer) {
+  static_assert(std::is_arithmetic<CharT>::value &&
+                !std::is_same<CharT, bool>::value,
+                "Invalid vector element type");
+  ostreambuff<CharT, Traits> ostrmbuf(buffer, sizeof(ObjT));
+  //streambuff<CharT, Traits> ostrmbuf(buffer);
+  std::basic_ostream<CharT, Traits> oss(&ostrmbuf);
+
+  oss << bits(obj);
+
+  return oss.good();
+}
+
+template<typename ObjT,
+         typename CharT,
+         typename Traits>
+bool load_state(ObjT& obj, const CharT* buffer) {
+  static_assert(std::is_arithmetic<CharT>::value &&
+                !std::is_same<CharT, bool>::value,
+                "Invalid vector element type");
+  istreambuff<CharT, Traits> istrmbuf(buffer, sizeof(ObjT));
+  //streambuff<CharT, Traits> istrmbuf(buffer, true);
   std::basic_istream<CharT, Traits> iss(&istrmbuf);
 
   if (istrmbuf.size()*sizeof(CharT) < sizeof(ObjT)) {

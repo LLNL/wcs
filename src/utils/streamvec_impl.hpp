@@ -40,6 +40,7 @@ std::ostream& ostreamvec<CharT, Traits>::print(std::ostream& os,
 {
   const auto sz = size();
   std::stringstream ss;
+  using std::operator<<;
 
   ss << std::hex
      << " pbase (0x" << reinterpret_cast<unsigned long long>(this->pbase())
@@ -130,6 +131,7 @@ std::ostream& istreamvec<CharT, Traits>::print(std::ostream& os,
 {
   const auto sz = size();
   std::stringstream ss;
+  using std::operator<<;
 
   ss << std::hex
      << " eback (0x" << reinterpret_cast<unsigned long long>(this->eback())
@@ -196,6 +198,7 @@ std::ostream& streamvec<CharT, Traits>::print(std::ostream& os,
 {
   const auto sz = size();
   std::stringstream ss;
+  using std::operator<<;
 
   ss << std::hex
      << " pbase (0x" << reinterpret_cast<unsigned long long>(this->pbase())

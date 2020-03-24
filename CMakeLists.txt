@@ -275,7 +275,7 @@ endif (WCS_HAS_EXPRTK)
 if (WCS_HAS_CEREAL)
   add_dependencies(wcs CEREAL-download)
   target_include_directories(wcs PUBLIC
-    $<BUILD_INTERFACE:${CEREAL_DIR}>
+    $<BUILD_INTERFACE:${CEREAL_DIR}/include>
     $<INSTALL_INTERFACE:${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_INCLUDEDIR}>)
 endif (WCS_HAS_CEREAL)
 
@@ -415,7 +415,7 @@ endif ()
 # TODO: either need to install the whole directory or not at all
 if (WCS_HAS_CEREAL)
   install(
-    FILES ${CEREAL_DIR}/${CEREAL_HEADER}
+    DIRECTORY "${CEREAL_DIR}/include/cereal"
     DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}")
 endif ()
 

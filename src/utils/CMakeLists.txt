@@ -9,6 +9,12 @@ set_full_path(THIS_DIR_HEADERS
   trace_ssa.hpp
   samples.hpp
   write_graphviz.hpp
+  streamvec.hpp
+  streamvec_impl.hpp
+  streambuff.hpp
+  streambuff_impl.hpp
+  state_io.hpp
+  state_io_impl.hpp
   )
 
 set_full_path(THIS_DIR_SOURCES

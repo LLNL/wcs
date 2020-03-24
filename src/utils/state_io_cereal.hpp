@@ -1,6 +1,13 @@
 #ifndef __STATE_IO_CEREAL_HPP__
 #define __STATE_IO_CEREAL_HPP__
 
+#if defined(WCS_HAS_CONFIG)
+#include "wcs_config.hpp"
+#else
+#error "no config"
+#endif
+
+#if defined(WCS_HAS_CEREAL)
 #include <cereal/archives/binary.hpp>
 #include <type_traits>
 #include "state_io.hpp" // is_trivially_copyable
@@ -51,5 +58,6 @@ void load_state(T& state, std::istream& is)
 }
 
 } // end of namespace wcs
+#endif // WCS_HAS_CEREAL
 
 #endif // __STATE_IO_CEREAL_HPP__

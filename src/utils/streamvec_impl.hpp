@@ -29,13 +29,7 @@ size_t ostreamvec<CharT, Traits>::size() const
 }
 
 template<typename CharT, typename Traits>
-size_t ostreamvec<CharT, Traits>::capacity_avail() const
-{
-  return buf.size() - size();
-}
-
-template<typename CharT, typename Traits>
-size_t ostreamvec<CharT, Traits>::capacity_total() const
+size_t ostreamvec<CharT, Traits>::capacity() const
 {
   return buf.size();
 }
@@ -97,7 +91,7 @@ std::streamsize ostreamvec<CharT, Traits>::xsputn(
   const ostreamvec<CharT, Traits>::char_type* s,
   std::streamsize count)
 {
-  if (static_cast<size_t>(count) > capacity_avail()) {
+  if (static_cast<size_t>(count) + size() > capacity()) {
     reserve(size() + static_cast<size_t>(count));
   }
   return std::basic_streambuf<CharT, Traits>::xsputn(s, count);
@@ -169,7 +163,7 @@ streamvec<CharT, Traits>::streamvec(
   auto const p_end = p + sz;
 
   if (with_initial_data) {
-    this->setg(p, p_end, p_end); // set eback, gptr, and egptr
+    this->setg(p, p, p_end); // set eback, gptr, and egptr
     this->setp(p, p_end); // set pbase and epptr
     this->pbump(sz); // set pptr
   } else {
@@ -191,13 +185,7 @@ size_t streamvec<CharT, Traits>::size() const
 }
 
 template<typename CharT, typename Traits>
-size_t streamvec<CharT, Traits>::capacity_avail() const
-{
-  return buf.size() - size();
-}
-
-template<typename CharT, typename Traits>
-size_t streamvec<CharT, Traits>::capacity_total() const
+size_t streamvec<CharT, Traits>::capacity() const
 {
   return buf.size();
 }
@@ -276,7 +264,7 @@ std::streamsize streamvec<CharT, Traits>::xsputn(
   const streamvec<CharT, Traits>::char_type* s,
   std::streamsize count)
 {
-  if (static_cast<size_t>(count) > capacity_avail()) {
+  if (static_cast<size_t>(count) + size() > capacity()) {
     reserve(size() + static_cast<size_t>(count));
   }
   this->setg(this->eback(), this->gptr(), this->pptr() + count);

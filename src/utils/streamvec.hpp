@@ -47,18 +47,10 @@ class ostreamvec : public std::basic_streambuf<CharT, Traits>
   size_t size() const;
 
   /**
-   * Return the amount of data that can be further accomodated without
-   * reallocating the buffer (i.e., resizing the external buffer).
-   * If the amount of data to add is larger than this, reserve() should
-   * be called to increase the buffer size.
-   */
-  size_t capacity_avail() const;
-
-  /**
    * Return the total capacity of the underlying buffer (size of the external
    * vector).
    */
-  size_t capacity_total() const;
+  size_t capacity() const;
 
   /// Shows the state of the buffer for debugging purposes
   std::ostream& print(std::ostream& os, bool show_content = false) const;
@@ -164,18 +156,10 @@ class streamvec : public std::basic_streambuf<CharT, Traits>
   size_t size() const;
 
   /**
-   * Return the amount of data that can be further accomodated without
-   * reallocating the buffer (i.e., resizing the external buffer).
-   * If the amount of data to add is larger than this, reserve() should
-   * be called to increase the buffer size.
-   */
-  size_t capacity_avail() const;
-
-  /**
    * Return the total capacity of the underlying buffer (size of the external
    * vector).
    */
-  size_t capacity_total() const;
+  size_t capacity() const;
 
   /// Shows the state of the buffer for debugging purposes
   std::ostream& print(std::ostream& os, bool show_content = false) const;

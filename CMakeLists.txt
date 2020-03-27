@@ -104,6 +104,8 @@ option(WCS_WITH_SBML "Enable SBML library" OFF)
 
 option(WCS_WITH_EXPRTK "Include ExprTk" OFF)
 
+option(WCS_WITH_CEREAL "Include Cereal" ON)
+
 option(WCS_WITH_VTUNE
   "Link the Intel VTune profiling library" OFF)
 
@@ -201,6 +203,10 @@ if (WCS_WITH_EXPRTK)
   endif (WCS_WITH_SBML)
 endif (WCS_WITH_EXPRTK)
 
+if (WCS_WITH_CEREAL)
+  include(SetupCereal)
+endif (WCS_WITH_CEREAL)
+
 if (WCS_WITH_VTUNE)
   find_package(VTune MODULE)
 
@@ -265,6 +271,13 @@ if (WCS_HAS_EXPRTK)
     $<BUILD_INTERFACE:${EXPRTK_DIR}>
     $<INSTALL_INTERFACE:${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_INCLUDEDIR}>)
 endif (WCS_HAS_EXPRTK)
+
+if (WCS_HAS_CEREAL)
+  add_dependencies(wcs CEREAL-download)
+  target_include_directories(wcs PUBLIC
+    $<BUILD_INTERFACE:${CEREAL_DIR}/include>
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_INCLUDEDIR}>)
+endif (WCS_HAS_CEREAL)
 
 if (WCS_HAS_VTUNE)
   target_link_libraries(wcs PUBLIC ${VTUNE_STATIC_LIB})
@@ -399,6 +412,13 @@ if (WCS_HAS_EXPRTK)
     DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}")
 endif ()
 
+# TODO: either need to install the whole directory or not at all
+if (WCS_HAS_CEREAL)
+  install(
+    DIRECTORY "${CEREAL_DIR}/include/cereal"
+    DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}")
+endif ()
+
 # Install contributor list, license, readme
 install(
   FILES #"${PROJECT_SOURCE_DIR}/CONTRIBUTORS"
@@ -463,6 +483,7 @@ append_str_tf(_str
   WCS_HAS_SUNDIALS
   WCS_HAS_SBML
   WCS_HAS_EXPRTK
+  WCS_HAS_CEREAL
   WCS_HAS_CATCH2
   WCS_HAS_VTUNE
   WCS_HAS_DOXYGEN)

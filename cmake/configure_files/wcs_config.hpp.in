@@ -13,6 +13,7 @@
 #cmakedefine WCS_HAS_SUNDIALS
 #cmakedefine WCS_HAS_SBML
 #cmakedefine WCS_HAS_EXPRTK
+#cmakedefine WCS_HAS_CEREAL
 #cmakedefine WCS_HAS_CATCH2
 #cmakedefine WCS_HAS_VTUNE
 

@@ -101,9 +101,9 @@ SSA_Direct::priority_t& SSA_Direct::choose_reaction()
   return *it;
 }
 
-sim_time_t SSA_Direct::get_reaction_time(const SSA_Direct::priority_t& p)
+sim_time_t SSA_Direct::get_reaction_time()
 {
-  const reaction_rate_t r = p.first;
+  const reaction_rate_t r = m_propensity.back().first;
   return ((r <= static_cast<reaction_rate_t>(0))?
             wcs::Network::get_etime_ulimit() :
             -static_cast<reaction_rate_t>(log(m_rgen_t())/r));
@@ -297,8 +297,8 @@ std::pair<unsigned, sim_time_t> SSA_Direct::run()
     updating_species.clear();
     affected_reactions.clear();
 
+    const sim_time_t dt = get_reaction_time();
     auto& firing = choose_reaction();
-    const sim_time_t dt = get_reaction_time(firing);
 
     if ((dt == std::numeric_limits<sim_time_t>::infinity()) ||
         (dt >= wcs::Network::get_etime_ulimit())) {

@@ -42,9 +42,13 @@ protected:
                      std::set<v_desc_t>& affected_reactions);
   void update_reactions(priority_t& firing, const std::set<v_desc_t>& affected);
   void undo_species_updates(const std::vector<update_t>& updates) const;
+  bool undo_reaction(const priority_t& to_undo,
+                     std::vector<update_t>& reverting_species,
+                     std::set<v_desc_t>& affected_reactions);
 
 protected:
-  propensisty_list_t m_propensity; ///< Event propensity list
+  /// Cumulative propensity of reactions events
+  propensisty_list_t m_propensity;
   rng_t m_rgen_e; ///< RNG for events
   rng_t m_rgen_t; ///< RNG for event times
   /// map from vertex descriptor to propensity

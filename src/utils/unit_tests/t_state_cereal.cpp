@@ -154,6 +154,45 @@ void use_streamvec(int n = 1)
   }
 }
 
+void use_streambuff(int n = 1)
+{
+  // Pre-allocate the buffer such that it can accomodate the whole state
+  constexpr size_t state_size = sizeof(MyClass::x) + sizeof(MyClass::y)
+                              + sizeof(MyClass::z) + sizeof(MyClass2::a)
+                              + sizeof(MyClass::gen);
+  uint64_t v = 1ull;
+  char* buf = new char [state_size];
+
+  for (int i = 0; i < n ; i++)
+  {
+    v *= 10;
+    {
+      wcs::ostreambuff<char> ostrmbuf(buf, state_size);
+      std::ostream os(&ostrmbuf);
+
+      std::cout << i << " save ==================" << std::endl;
+      MyClass m {v, 3.14, static_cast<char>('a'+ (char)i)};
+      m.m.a = 4;
+      m.init();
+      m.print();
+      save_state(m, os);
+      m.show_4rns();
+    }
+    std::cout << "buf size: " << state_size << std::endl;
+    {
+      wcs::istreambuff<char> istrmbuf(buf, state_size);
+      std::istream is(&istrmbuf);
+
+      std::cout << i << " load ------------------" << std::endl;
+      MyClass mm;
+      load_state(mm, is);
+      mm.print();
+      mm.show_4rns();
+    }
+  }
+  delete [] buf;
+}
+
 #define CHECK_CUSTOM_SERIALIZABLE(T) \
   std::cout << std::boolalpha << #T << ' ' \
             << IS_CUSTOM_CEREALIZABLE(T) << std::endl;
@@ -165,6 +204,7 @@ int main()
 
   use_stringstream();
   use_streamvec();
+  use_streambuff();
 
   CHECK_CUSTOM_SERIALIZABLE(MyClass2);
   CHECK_CUSTOM_SERIALIZABLE(MyClass::generator_t);

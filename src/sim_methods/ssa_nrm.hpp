@@ -37,8 +37,13 @@ protected:
   bool fire_reaction(const priority_t& firing,
                      std::vector<update_t>& updating_species,
                      std::set<v_desc_t>& affected_reactions);
+  void reset_reaction_time(const v_desc_t& vd, wcs::sim_time_t& rt);
+  void adjust_reaction_time(const v_desc_t& vd, wcs::sim_time_t& rt);
   void update_reactions(priority_t& firing, const std::set<v_desc_t>& affected);
   void undo_species_updates(const std::vector<update_t>& updates) const;
+  bool undo_reaction(const priority_t& to_undo,
+                     std::vector<update_t>& reverting_species,
+                     std::set<v_desc_t>& affected_reactions);
 
 protected:
   priority_queue_t m_heap;

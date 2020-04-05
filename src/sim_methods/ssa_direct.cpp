@@ -1,8 +1,18 @@
-#include "sim_methods/ssa_direct.hpp"
-#include "utils/exception.hpp"
+#if defined(WCS_HAS_CONFIG)
+#include "wcs_config.hpp"
+#else
+#error "no config"
+#endif
+
 #include <algorithm> // upper_bound
 #include <cmath> // log
+#include "sim_methods/ssa_direct.hpp"
+#include "utils/exception.hpp"
 #include "utils/seed.hpp"
+
+#if defined(WCS_HAS_CEREAL)
+#include "utils/state_io_cereal.hpp"
+#endif // WCS_HAS_CEREAL
 
 namespace wcs {
 /** \addtogroup wcs_reaction_network
@@ -67,7 +77,7 @@ void SSA_Direct::build_propensity_list()
 
 /// Undo the species updates applied during incomplete reaction processing.
 void SSA_Direct::undo_species_updates(
-  const std::vector<SSA_Direct::update_t>& updates) const
+  const SSA_Direct::update_list_t& updates) const
 {
   bool ok = true;
   const wcs::Network::graph_t& g = m_net_ptr->graph();
@@ -117,8 +127,8 @@ sim_time_t SSA_Direct::get_reaction_time(const SSA_Direct::priority_t& p)
  * affected as a result.
  */
 bool SSA_Direct::fire_reaction(const priority_t& firing,
-                            std::vector<SSA_Direct::update_t>& updating_species,
-                            std::set<SSA_Direct::v_desc_t>& affected_reactions)
+       SSA_Direct::update_list_t& updating_species,
+       SSA_Direct::affected_reactions_t& affected_reactions)
 {
   using s_prop_t = wcs::Species;
 
@@ -128,6 +138,9 @@ bool SSA_Direct::fire_reaction(const priority_t& firing,
 
   // The BGL vertex descriptor of the curren reaction
   const auto vd_firing = firing.second;
+
+  updating_species.clear();
+  affected_reactions.clear();
 
   // reactant species
   for (const auto ei_in :
@@ -200,7 +213,7 @@ bool SSA_Direct::fire_reaction(const priority_t& firing,
  * and update the heap. This follows the next reaction meothod procedure.
  */
 void SSA_Direct::update_reactions(priority_t& firing,
-  const std::set<SSA_Direct::v_desc_t>& affected_reactions)
+  const SSA_Direct::affected_reactions_t& affected_reactions)
 {
   using r_prop_t = wcs::Reaction<v_desc_t>;
 
@@ -286,7 +299,7 @@ void SSA_Direct::init(std::shared_ptr<wcs::Network>& net_ptr,
 std::pair<unsigned, sim_time_t> SSA_Direct::run()
 {
   // species to update as a result of the reaction fired
-  std::vector<update_t> updating_species;
+  update_list_t updating_species;
 
   // Any other reaction that takes any of species being updated as a result of
   // the current reaction as a reactant is affected. This assumes that species
@@ -294,7 +307,7 @@ std::pair<unsigned, sim_time_t> SSA_Direct::run()
   // that produce any of the updated species are affected as well. Here, we
   // take the assumption for simplicity. However, if we consider compartments
   // with population/concentration limits, we need to reconsider.
-  std::set<v_desc_t> affected_reactions;
+  affected_reactions_t affected_reactions;
 
   bool is_recorded = true; // initial state recording done
 
@@ -302,9 +315,6 @@ std::pair<unsigned, sim_time_t> SSA_Direct::run()
     if (m_propensity.empty()) { // no reaction possible
       break;
     }
-
-    updating_species.clear();
-    affected_reactions.clear();
 
     auto& firing = choose_reaction();
     const sim_time_t dt = get_reaction_time(firing);
@@ -342,8 +352,8 @@ std::pair<unsigned, sim_time_t> SSA_Direct::run()
  * affected.
  */
 bool SSA_Direct::undo_reaction(const priority_t& to_undo,
-       std::vector<SSA_Direct::update_t>& reverting_species,
-       std::set<SSA_Direct::v_desc_t>& affected_reactions)
+       SSA_Direct::update_list_t& reverting_species,
+       SSA_Direct::affected_reactions_t& affected_reactions)
 {
   using s_prop_t = wcs::Species;
 
@@ -353,6 +363,9 @@ bool SSA_Direct::undo_reaction(const priority_t& to_undo,
 
   // The BGL vertex descriptor of the curren reaction
   const auto vd_undo = to_undo.second;
+
+  reverting_species.clear();
+  affected_reactions.clear();
 
   // reactant species
   for (const auto ei_in :

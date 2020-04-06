@@ -1,8 +1,19 @@
 #ifndef __WCS_UTILS_RNGEN_HPP__
 #define __WCS_UTILS_RNGEN_HPP__
+
+#if defined(WCS_HAS_CONFIG)
+#include "wcs_config.hpp"
+#else
+#error "no config"
+#endif
+
 #include <random>
 #include <chrono>
 #include "utils/seed.hpp"
+
+#if defined(WCS_HAS_CEREAL)
+#include <cereal/archives/binary.hpp>
+#endif // WCS_HAS_CEREAL
 
 namespace wcs {
 
@@ -33,6 +44,11 @@ class RNGen {
   const distribution_t& distribution() const;
   //// Return the length of the generator state in words
   static constexpr unsigned get_state_size();
+
+  /// Allow read-write acces to the internal generator engine
+  generator_type& engine();
+  /// Allow read-only acces to the internal generator engine
+  const generator_type& engine() const;
 
  protected:
   /**

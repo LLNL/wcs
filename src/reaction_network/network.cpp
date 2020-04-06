@@ -124,6 +124,14 @@ reaction_rate_t Network::set_reaction_rate(const Network::v_desc_t r) const
   return rprop.calc_rate(params)/denominator;
 }
 
+reaction_rate_t Network::get_reaction_rate(const Network::v_desc_t r) const
+{
+  using r_prop_t = wcs::Reaction<v_desc_t>;
+  const auto& rv = m_graph[r]; // vertex (property) of the reaction
+  const auto& rp = rv.property<r_prop_t>(); // detailed vertex property data
+  return rp.get_rate();
+}
+
 void Network::sort_species()
 {
   const auto& g = m_graph;

@@ -139,7 +139,15 @@ mark_as_advanced(WCS_WARNINGS_AS_ERRORS)
 set(CMAKE_SKIP_BUILD_RPATH  FALSE)
 set(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)
 set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
-set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib")
+set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}")
+
+# the RPATH to be used when installing, but only if it's not a system directory
+list(FIND CMAKE_PLATFORM_IMPLICIT_LINK_DIRECTORIES
+     "${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}" isSystemDir)
+if("${isSystemDir}" STREQUAL "-1")
+    set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}")
+endif("${isSystemDir}" STREQUAL "-1")
+
 
 # Get installation directories -- these get used in various places;
 # best to just make them available
@@ -242,6 +250,8 @@ endif (WCS_WITH_UNIT_TESTING)
 # Build WCS
 ################################################################
 
+cmake_policy(SET CMP0079 NEW)
+
 # Add WCS source files
 add_subdirectory(src)
 
@@ -275,7 +285,7 @@ endif (WCS_HAS_EXPRTK)
 if (WCS_HAS_CEREAL)
   add_dependencies(wcs CEREAL-download)
   target_include_directories(wcs PUBLIC
-    $<BUILD_INTERFACE:${CEREAL_DIR}>
+    $<BUILD_INTERFACE:${CEREAL_HEADER_DIR}>
     $<INSTALL_INTERFACE:${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_INCLUDEDIR}>)
 endif (WCS_HAS_CEREAL)
 
@@ -289,6 +299,87 @@ if (WCS_WITH_UNIT_TESTING)
     $<BUILD_INTERFACE:${CATCH2_INCLUDE_DIR}>
     $<INSTALL_INTERFACE:${CMAKE_INSTALL_PREFIX}/catch2/include>)
 endif (WCS_WITH_UNIT_TESTING)
+
+
+################################################################
+# Add executables
+################################################################
+
+# RPATH setup
+set(CMAKE_SKIP_BUILD_RPATH  FALSE)
+set(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)
+set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
+set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}")
+#https://stackoverflow.com/questions/54464929/cmake-install-rpath-use-link-path-without-any-effect
+unset (LIBRARY_PATH)
+
+# add executable
+add_executable( reaction-bin src/reaction.cpp )
+target_include_directories(reaction-bin PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}>
+  $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/src>
+  $<INSTALL_INTERFACE:${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_INCLUDEDIR}>)
+
+target_link_libraries(reaction-bin PRIVATE wcs)
+set_target_properties(reaction-bin PROPERTIES OUTPUT_NAME reaction)
+set_target_properties(reaction-bin PROPERTIES CMAKE_INSTALL_RPATH
+                      "${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}")
+
+add_executable( ssa-bin src/ssa.cpp )
+target_include_directories(ssa-bin PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}>
+  $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/src>
+  $<INSTALL_INTERFACE:${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_INCLUDEDIR}>)
+
+target_link_libraries(ssa-bin PRIVATE wcs)
+set_target_properties(ssa-bin PROPERTIES OUTPUT_NAME ssa)
+set_target_properties(ssa-bin PROPERTIES CMAKE_INSTALL_RPATH
+                      "${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}")
+
+add_executable( graphml2dot-bin src/utils/graphml2dot.cpp )
+target_link_libraries(graphml2dot-bin PRIVATE wcs)
+set_target_properties(graphml2dot-bin PROPERTIES OUTPUT_NAME graphml2dot)
+
+list(APPEND WCS_UTILS_TARGETS graphml2dot-bin)
+
+if (WCS_HAS_SBML)
+  add_executable( readSBML-bin src/utils/readSBML.cpp )
+  target_compile_definitions(readSBML-bin PRIVATE WCS_HAS_CONFIG)
+  target_include_directories(readSBML-bin
+    PRIVATE $<TARGET_PROPERTY:wcs,INTERFACE_INCLUDE_DIRECTORIES>)
+  target_link_libraries(readSBML-bin PRIVATE SBML::SBML)
+  set_target_properties(readSBML-bin PROPERTIES OUTPUT_NAME readSBML)
+  list(APPEND WCS_UTILS_TARGETS readSBML-bin)
+endif (WCS_HAS_SBML)
+
+# Install the binaries
+install(
+  TARGETS  reaction-bin ssa-bin
+  EXPORT   WCSTargets
+  RUNTIME  DESTINATION ${CMAKE_INSTALL_BINDIR}
+  ARCHIVE  DESTINATION ${CMAKE_INSTALL_LIBDIR}
+  LIBRARY  DESTINATION ${CMAKE_INSTALL_LIBDIR}
+  INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+  )
+
+install(
+  TARGETS  ${WCS_UTILS_TARGETS}
+  EXPORT   WCSTargets
+  RUNTIME  DESTINATION ${CMAKE_INSTALL_BINDIR}
+  ARCHIVE  DESTINATION ${CMAKE_INSTALL_LIBDIR}
+  LIBRARY  DESTINATION ${CMAKE_INSTALL_LIBDIR}
+  INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+  )
+
+# Install
+install(DIRECTORY src/utils/unit_tests/examples
+  DESTINATION ${CMAKE_INSTALL_DATADIR})
+
+# Install the relevant prototext
+#install(DIRECTORY src/utils/unit_tests/examples
+#  DESTINATION ${CMAKE_INSTALL_DATADIR}/examples)
+
+
 
 # Write the configure file
 configure_file(
@@ -336,7 +427,7 @@ write_basic_package_version_file(
   COMPATIBILITY SameMajorVersion)
 
 # This is for the build tree
-set(INCLUDE_INSTALL_DIRS 
+set(INCLUDE_INSTALL_DIRS
   "${CMAKE_SOURCE_DIR}/src"
   "${CMAKE_SOURCE_DIR}/src/reaction_network"
   "${CMAKE_SOURCE_DIR}/src/sim_methods"
@@ -360,6 +451,7 @@ configure_package_config_file(cmake/configure_files/WCSConfig.cmake.in
   "${CMAKE_BINARY_DIR}/WCSConfig.cmake.install"
   INSTALL_DESTINATION "${CMAKE_INSTALL_DIR}"
   PATH_VARS INCLUDE_INSTALL_DIRS LIB_INSTALL_DIR)
+
 
 # Install library
 install(
@@ -415,7 +507,7 @@ endif ()
 # TODO: either need to install the whole directory or not at all
 if (WCS_HAS_CEREAL)
   install(
-    DIRECTORY "${CEREAL_DIR}"
+    DIRECTORY "${CEREAL_HEADER_DIR}/cereal"
     DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}")
 endif ()
 

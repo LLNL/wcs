@@ -80,6 +80,7 @@ class Network {
   void load(const std::string graphml_filename);
   void init();
   reaction_rate_t set_reaction_rate(const v_desc_t r) const;
+  reaction_rate_t get_reaction_rate(const v_desc_t r) const;
 
   size_t get_num_vertices() const;
   size_t get_num_species() const;

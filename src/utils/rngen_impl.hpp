@@ -72,4 +72,16 @@ constexpr unsigned RNGen<D, V>::get_state_size()
   return 1u;
 }
 
+template <template <typename> typename D, typename V>
+inline typename RNGen<D, V>::generator_type& RNGen<D, V>::engine()
+{
+  return m_gen;
+}
+
+template <template <typename> typename D, typename V>
+inline const typename RNGen<D, V>::generator_type& RNGen<D, V>::engine() const
+{
+  return m_gen;
+}
+
 } // end of namespce wcs

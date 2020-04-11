@@ -1,19 +1,32 @@
 #ifndef __WCS_UTILS_RNGEN_HPP__
 #define __WCS_UTILS_RNGEN_HPP__
 
+#include <random>
+#include <chrono>
+
 #if defined(WCS_HAS_CONFIG)
 #include "wcs_config.hpp"
 #else
 #error "no config"
 #endif
 
-#include <random>
-#include <chrono>
-#include "utils/seed.hpp"
-
 #if defined(WCS_HAS_CEREAL)
+#include <cereal/types/vector.hpp>
 #include <cereal/archives/binary.hpp>
+#include "utils/state_io_cereal.hpp"
+ENABLE_CUSTOM_CEREAL (std::minstd_rand);
+ENABLE_CUSTOM_CEREAL (std::minstd_rand0);
+ENABLE_CUSTOM_CEREAL (std::mt19937)
+ENABLE_CUSTOM_CEREAL (std::mt19937_64)
+ENABLE_CUSTOM_CEREAL (std::uniform_int_distribution<unsigned long long>)
+ENABLE_CUSTOM_CEREAL (std::uniform_int_distribution<long long>)
+ENABLE_CUSTOM_CEREAL (std::uniform_int_distribution<uint32_t>)
+ENABLE_CUSTOM_CEREAL (std::uniform_int_distribution<int>)
+ENABLE_CUSTOM_CEREAL (std::uniform_real_distribution<double>)
+ENABLE_CUSTOM_CEREAL (std::uniform_real_distribution<float>)
 #endif // WCS_HAS_CEREAL
+
+#include "utils/seed.hpp"
 
 namespace wcs {
 
@@ -49,6 +62,16 @@ class RNGen {
   generator_type& engine();
   /// Allow read-only acces to the internal generator engine
   const generator_type& engine() const;
+
+#if defined(WCS_HAS_CEREAL)
+  template <class Archive>
+  void serialize( Archive & ar )
+  {
+    ar(m_seed, m_sseq_used, m_sseq_param, m_gen, m_distribution);
+    //ar(m_seed, m_sseq_used, m_gen, m_distribution);
+  }
+  friend class cereal::access;
+#endif // defined(WCS_HAS_CEREAL)
 
  protected:
   /**

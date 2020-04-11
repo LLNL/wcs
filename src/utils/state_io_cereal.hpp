@@ -9,31 +9,30 @@
 
 #if defined(WCS_HAS_CEREAL)
 #include <cereal/archives/binary.hpp>
-#include <type_traits>
-#include "state_io.hpp" // is_trivially_copyable
+#include "traits.hpp" // is_trivially_copyable
 
-#define IS_CUSTOM_CEREALIZABLE(T) \
-            (!std::is_arithmetic<T>::value && \
-              std::is_trivially_copyable<T>::value)
-
-namespace cereal
+namespace wcs {
+template <typename T>
+constexpr bool is_custom_bin_cerealizable()
 {
-  //! Saving for trivially copyable types to binary
-  template<class T> inline
-  typename std::enable_if<IS_CUSTOM_CEREALIZABLE(T), void>::type
-  CEREAL_SAVE_FUNCTION_NAME(BinaryOutputArchive & ar, T const & t)
-  {
-    ar.saveBinary(std::addressof(t), sizeof(t));
-  }
+  return (!std::is_arithmetic<T>::value &&
+           std::is_trivially_copyable<T>::value);
+}
+} // end of namespace wcs
 
-  //! Loading for trivially copyable types from binary
-  template<class T> inline
-  typename std::enable_if<IS_CUSTOM_CEREALIZABLE(T), void>::type
-  CEREAL_LOAD_FUNCTION_NAME(BinaryInputArchive & ar, T & t)
-  {
-    ar.loadBinary(std::addressof(t), sizeof(t));
-  }
-} // end of namespace cereal
+#define ENABLE_CUSTOM_CEREAL(T) \
+namespace cereal { \
+  inline std::enable_if_t<wcs::is_custom_bin_cerealizable<T>(), void> \
+  CEREAL_SAVE_FUNCTION_NAME(BinaryOutputArchive & ar, T const & t) \
+  { \
+    ar.saveBinary(std::addressof(t), sizeof(t)); \
+  } \
+  inline std::enable_if_t<wcs::is_custom_bin_cerealizable<T>(), void> \
+  CEREAL_LOAD_FUNCTION_NAME(BinaryInputArchive & ar, T & t) \
+  { \
+    ar.loadBinary(std::addressof(t), sizeof(t)); \
+  } \
+}
 
 namespace wcs {
 

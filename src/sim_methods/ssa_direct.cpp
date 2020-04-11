@@ -33,12 +33,12 @@ bool SSA_Direct::greater(const priority_t& v1, const priority_t& v2) {
 
 /// Allow access to the internal random number generator for events
 SSA_Direct::rng_t& SSA_Direct::rgen_e() {
-  return m_rgen_e;
+  return m_rgen_evt;
 }
 
 /// Allow access to the internal random number generator for event times
 SSA_Direct::rng_t& SSA_Direct::rgen_t() {
-  return m_rgen_t;
+  return m_rgen_tm;
 }
 
 /**
@@ -100,7 +100,7 @@ void SSA_Direct::undo_species_updates(
 SSA_Direct::priority_t& SSA_Direct::choose_reaction()
 {
   const auto rn
-    = static_cast<reaction_rate_t>(m_rgen_e() * m_propensity.back().first);
+    = static_cast<reaction_rate_t>(m_rgen_evt() * m_propensity.back().first);
   auto it = std::upper_bound(m_propensity.begin(),
                              m_propensity.end(),
                              rn,
@@ -117,7 +117,7 @@ sim_time_t SSA_Direct::get_reaction_time(const SSA_Direct::priority_t& p)
   const reaction_rate_t r = p.first;
   return ((r <= static_cast<reaction_rate_t>(0))?
             wcs::Network::get_etime_ulimit() :
-            -static_cast<reaction_rate_t>(log(m_rgen_t())/r));
+            -static_cast<reaction_rate_t>(log(m_rgen_tm())/r));
 }
 
 /**
@@ -264,8 +264,8 @@ void SSA_Direct::init(std::shared_ptr<wcs::Network>& net_ptr,
 
   { // initialize the random number generator
     if (rng_seed == 0u) {
-      m_rgen_e.set_seed();
-      m_rgen_t.set_seed();
+      m_rgen_evt.set_seed();
+      m_rgen_tm.set_seed();
     } else {
       seed_seq_param_t common_param_e
         = make_seed_seq_input(1, rng_seed, std::string("SSA_Direct"));
@@ -279,16 +279,16 @@ void SSA_Direct::init(std::shared_ptr<wcs::Network>& net_ptr,
       // make sure to avoid generating any duplicate seed sequence
       gen_unique_seed_seq_params<rng_t::get_state_size()>(
           num_procs, common_param_e, unique_params);
-      m_rgen_e.use_seed_seq(unique_params[my_rank]);
+      m_rgen_evt.use_seed_seq(unique_params[my_rank]);
 
       // make sure to avoid generating any duplicate seed sequence
       gen_unique_seed_seq_params<rng_t::get_state_size()>(
           num_procs, common_param_t, unique_params);
-      m_rgen_t.use_seed_seq(unique_params[my_rank]);
+      m_rgen_tm.use_seed_seq(unique_params[my_rank]);
     }
 
-    m_rgen_e.param(typename rng_t::param_type(0.0, 1.0));
-    m_rgen_t.param(typename rng_t::param_type(0.0, 1.0));
+    m_rgen_evt.param(typename rng_t::param_type(0.0, 1.0));
+    m_rgen_tm.param(typename rng_t::param_type(0.0, 1.0));
   }
 
   Sim_Method::record_initial_state(m_net_ptr);

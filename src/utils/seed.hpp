@@ -1,5 +1,6 @@
 #ifndef __WCS_UTILS_SEED_HPP__
 #define __WCS_UTILS_SEED_HPP__
+
 #include <vector>
 #include <unordered_set>
 #include <array>
@@ -31,7 +32,8 @@ namespace std
     };
 }
 
-namespace wcs {
+namespace wcs
+{
 
 /**
  * The seed_seq constructor takes an initialization list of any integer type.

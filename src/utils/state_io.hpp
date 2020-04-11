@@ -1,16 +1,9 @@
 #ifndef __STATE_IO_HPP__
 #define __STATE_IO_HPP__
+#include <iostream>
 #include "streamvec.hpp"
 #include "streambuff.hpp"
-#include <iostream>
-#include <type_traits>
-
-#if defined(__GLIBCXX__) && __GLIBCXX__ < 20150801
-namespace std {
-template <typename T>
-struct is_trivially_copyable : integral_constant<bool, __has_trivial_copy(T)> {};
-}
-#endif
+#include "traits.hpp"
 
 namespace wcs {
 

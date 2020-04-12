@@ -9,6 +9,9 @@
 
 #if defined(WCS_HAS_CEREAL)
 #include <cereal/archives/binary.hpp>
+#include <iostream>
+#include "streamvec.hpp"
+#include "streambuff.hpp"
 #include "traits.hpp" // is_trivially_copyable
 
 namespace wcs {

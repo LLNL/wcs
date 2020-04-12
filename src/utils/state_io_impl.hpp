@@ -3,6 +3,39 @@
 
 namespace wcs {
 
+template<typename S, typename T>
+S& operator<<(S &os, const bits_t<T&>& b)
+{
+  if constexpr (is_vector<T>::value) {
+    const typename T::size_type sz = b.v.size();
+    os.write(reinterpret_cast<const typename S::char_type*>(&sz), sizeof(sz));
+    if (sz > 0ul) {
+      os.write(reinterpret_cast<const typename S::char_type*>(b.v.data()),
+               sz*sizeof(typename T::value_type));
+    }
+  } else {
+    os.write(reinterpret_cast<const typename S::char_type*>(&b.v), sizeof(T));
+  }
+  return os;
+}
+
+template<typename S, typename T>
+S& operator>>(S& is, const bits_t<T&>& b)
+{
+  if constexpr (is_vector<T>::value) {
+    typename T::size_type sz = 0ul;
+    is.read(reinterpret_cast<typename S::char_type*>(&sz), sizeof(sz));
+    b.v.resize(sz);
+    if (sz > 0ul) {
+      is.read(reinterpret_cast<typename S::char_type*>(b.v.data()),
+              sz*sizeof(typename T::value_type));
+    }
+  } else {
+    is.read(reinterpret_cast<typename S::char_type*>(&b.v), sizeof(T));
+  }
+  return is;
+}
+
 template<typename ObjT,
          typename CharT,
          typename Traits>

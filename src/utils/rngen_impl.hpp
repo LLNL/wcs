@@ -1,4 +1,5 @@
 #include <type_traits>
+#include <cassert>
 
 namespace wcs {
 
@@ -82,6 +83,48 @@ template <template <typename> typename D, typename V>
 inline const typename RNGen<D, V>::generator_type& RNGen<D, V>::engine() const
 {
   return m_gen;
+}
+
+template <template <typename> typename D, typename V>
+template <typename S>
+inline bool RNGen<D, V>::check_bits_compatibility(const S& s)
+{
+  using c_t = typename S::char_type;
+  using t_t = typename S::traits_type;
+  const auto bp = s.rdbuf();
+
+  if ((dynamic_cast<const streamvec<c_t, t_t>*>(bp) != nullptr) ||
+      (dynamic_cast<const istreamvec<c_t, t_t>*>(bp) != nullptr) ||
+      (dynamic_cast<const ostreamvec<c_t, t_t>*>(bp) != nullptr) ||
+      (dynamic_cast<const streambuff<c_t, t_t>*>(bp) != nullptr) ||
+      (dynamic_cast<const istreambuff<c_t, t_t>*>(bp) != nullptr) ||
+      (dynamic_cast<const ostreambuff<c_t, t_t>*>(bp) != nullptr) ||
+      (dynamic_cast<const std::basic_stringstream<c_t, t_t>*>(bp) != nullptr) ||
+      (dynamic_cast<const std::basic_istringstream<c_t, t_t>*>(bp) != nullptr) ||
+      (dynamic_cast<const std::basic_ostringstream<c_t, t_t>*>(bp) != nullptr))
+  {
+    return true;
+  }
+
+  return false;
+}
+
+template <template <typename> typename D, typename V>
+template <typename S>
+inline S& RNGen<D, V>::save_bits(S& os) const
+{
+  assert (check_bits_compatibility(os));
+  os << bits(m_seed) << bits(m_sseq_used) << bits(m_sseq_param) << bits(m_gen) << bits(m_distribution);
+  return os;
+}
+
+template <template <typename> typename D, typename V>
+template <typename S>
+inline S& RNGen<D, V>::load_bits(S& is)
+{
+  assert (check_bits_compatibility(is));
+  is >> bits(m_seed) >> bits(m_sseq_used) >> bits(m_sseq_param) >> bits(m_gen) >> bits(m_distribution);
+  return is;
 }
 
 } // end of namespce wcs

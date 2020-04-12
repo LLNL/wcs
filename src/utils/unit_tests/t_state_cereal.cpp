@@ -3,6 +3,7 @@
 #include <random>
 #include "utils/seed.hpp"
 #include "utils/state_io_cereal.hpp"
+ENABLE_CUSTOM_CEREAL (std::minstd_rand);
 
 using namespace wcs;
 
@@ -10,6 +11,12 @@ struct MyClass2
 {
   int a;
   MyClass2() : a(0) {}
+
+  template<class Archive>
+  void serialize(Archive & archive)
+  {
+    archive(a);
+  }
 };
 
 struct MyClass
@@ -193,10 +200,6 @@ void use_streambuff(int n = 1)
   delete [] buf;
 }
 
-#define CHECK_CUSTOM_SERIALIZABLE(T) \
-  std::cout << std::boolalpha << #T << ' ' \
-            << IS_CUSTOM_CEREALIZABLE(T) << std::endl;
-
 int main()
 {
 
@@ -206,8 +209,8 @@ int main()
   use_streamvec();
   use_streambuff();
 
-  CHECK_CUSTOM_SERIALIZABLE(MyClass2);
-  CHECK_CUSTOM_SERIALIZABLE(MyClass::generator_t);
-  CHECK_CUSTOM_SERIALIZABLE(double);
+  is_custom_bin_cerealizable<MyClass2>();
+  is_custom_bin_cerealizable<MyClass::generator_t>();
+  is_custom_bin_cerealizable<double>();
   return 0;
 }

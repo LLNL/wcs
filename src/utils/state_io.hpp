@@ -16,36 +16,64 @@ namespace wcs {
  * https://stackoverflow.com/questions/1559254/are-there-binary-memory-streams-in-c
  */
 template<typename T> struct bits_t {
+  using value_type = typename std::remove_reference<T>::type;
   T v;
 };
 
+/// Return wrapper struct bits_t of a trivially copyable type
 template <typename T>
-typename std::enable_if<std::is_trivially_copyable<T>::value, bits_t<T&> >::type
+typename std::enable_if<
+  !is_vector<T>::value &&
+  std::is_trivially_copyable<T>::value,
+  bits_t<T&> >::type
 bits(T &v)
 {
   return bits_t<T&>{v};
 }
 
+/// Return wrapper struct bits_t of a trivially copyable read-only type
 template <typename T>
-typename std::enable_if<std::is_trivially_copyable<T>::value, bits_t<const T&> >::type
+typename std::enable_if<
+  !is_vector<T>::value &&
+  std::is_trivially_copyable<T>::value,
+  bits_t<const T&> >::type
 bits(const T& v)
 {
   return bits_t<const T&>{v};
 }
 
-template<typename S, typename T>
-S& operator<<(S &os, const bits_t<T&>& b)
+/// Return wrapper struct bits_t of the vector of a trivially copyable type
+template <typename T>
+typename std::enable_if<
+  is_vector<T>::value &&
+  !is_bool<typename T::value_type>::value &&
+  std::is_trivially_copyable<typename T::value_type>::value,
+  bits_t<T&> >::type
+bits(T &v)
 {
-  os.write(reinterpret_cast<const typename S::char_type*>(&b.v), sizeof(T));
-  return os;
+  return bits_t<T&>{v};
 }
 
-template<typename S, typename T>
-S& operator>>(S& is, const bits_t<T&>& b)
+/** Return wrapper struct bits_t of the vector of trivially copyable read-only
+ *  type */
+template <typename T>
+inline typename std::enable_if<
+  is_vector<T>::value &&
+  !is_bool<typename T::value_type>::value &&
+  std::is_trivially_copyable<typename T::value_type>::value,
+  bits_t<const T&> >::type
+bits(const T& v)
 {
-  is.read(reinterpret_cast<typename S::char_type*>(&b.v), sizeof(T));
-  return is;
+  return bits_t<const T&>{v};
 }
+
+/// Output data wrapped in bits_t struct into the given stream
+template<typename S, typename T>
+S& operator<<(S &os, const bits_t<T&>& b);
+
+/// Load the data from the given stream into data space wrapped in bits_t struct
+template<typename S, typename T>
+S& operator>>(S& is, const bits_t<T&>& b);
 
 
 template<typename ObjT,

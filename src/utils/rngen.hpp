@@ -26,6 +26,7 @@ ENABLE_CUSTOM_CEREAL (std::uniform_real_distribution<double>)
 ENABLE_CUSTOM_CEREAL (std::uniform_real_distribution<float>)
 #endif // WCS_HAS_CEREAL
 
+#include "utils/state_io.hpp"
 #include "utils/seed.hpp"
 
 namespace wcs {
@@ -73,6 +74,10 @@ class RNGen {
   friend class cereal::access;
 #endif // defined(WCS_HAS_CEREAL)
 
+  template<typename S> static bool check_bits_compatibility(const S&);
+  template<typename S> S& save_bits(S &os) const;
+  template<typename S> S& load_bits(S &is);
+
  protected:
   /**
    * seed value when a single seed value is used or the master seed
@@ -86,7 +91,6 @@ class RNGen {
   generator_type m_gen;
   distribution_t m_distribution;
 };
-
 } // end of namespce wcs
 
 #include "rngen_impl.hpp"

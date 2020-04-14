@@ -43,6 +43,7 @@ if (NOT CMAKE_CXX_STANDARD OR CMAKE_CXX_STANDARD EQUAL 98
     OR CMAKE_CXX_STANDARD EQUAL 11)
   set(CMAKE_CXX_STANDARD 17)
   set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
+  set(CMAKE_CXX_EXTENSIONS ON)
 endif ()
 
 # This will help define some targets later
@@ -161,12 +162,18 @@ include(SetupCXX)
 
 # Required dependencies
 
-if(DEFINED ENV{BOOST_ROOT})
-    message(STATUS "BOOST_ROOT: " $ENV{BOOST_ROOT})
+if (DEFINED BOOST_ROOT)
+    message(STATUS "BOOST_ROOT: " ${BOOST_ROOT})
     set(Boost_NO_SYSTEM_PATHS ON)
-endif()
+else ()
+    if (DEFINED ENV{BOOST_ROOT})
+        message(STATUS "ENV BOOST_ROOT: " $ENV{BOOST_ROOT})
+        set(Boost_NO_SYSTEM_PATHS ON)
+    endif ()
+endif ()
 
 find_package(Boost
+    #         HINTS ${BOOST_ROOT} $ENV{BOOST_ROOT}
              REQUIRED COMPONENTS
              graph regex filesystem system)
 
@@ -234,8 +241,11 @@ endif (WCS_WITH_VTUNE)
 
 if (WCS_WITH_UNIT_TESTING)
   include(SetupCatch2)
-  # Now that Catch2 has been found, start adding the unit tests
   include(CTest)
+
+  # Now that Catch2 has been found, start adding the unit tests
+  # subdirectory addtion has been moved to the CMakeList.txt of each
+  # upper directory of unit test directories
   #add_subdirectory(src/reaction_network/unit_test)
   #add_subdirectory(src/utils/unit_test)
 
@@ -297,7 +307,7 @@ if (WCS_WITH_UNIT_TESTING)
   add_dependencies(wcs CATCH2)
   target_include_directories(wcs PUBLIC
     $<BUILD_INTERFACE:${CATCH2_INCLUDE_DIR}>
-    $<INSTALL_INTERFACE:${CMAKE_INSTALL_PREFIX}/catch2/include>)
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_INCLUDEDIR}/catch2>)
 endif (WCS_WITH_UNIT_TESTING)
 
 
@@ -352,6 +362,20 @@ if (WCS_HAS_SBML)
   list(APPEND WCS_UTILS_TARGETS readSBML-bin)
 endif (WCS_HAS_SBML)
 
+# Build tests
+add_executable( t_state_rngen-bin src/utils/unit_tests/t_state_rngen.cpp )
+target_include_directories(t_state_rngen-bin PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}>
+  $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/src>
+  $<INSTALL_INTERFACE:${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_INCLUDEDIR}>)
+
+target_link_libraries(t_state_rngen-bin PRIVATE wcs)
+set_target_properties(t_state_rngen-bin PROPERTIES OUTPUT_NAME t_state_rngen)
+set_target_properties(t_state_rngen-bin PROPERTIES CMAKE_INSTALL_RPATH
+                      "${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}")
+
+list(APPEND WCS_UNIT_TEST_TARGETS t_state_rngen-bin)
+
 # Install the binaries
 install(
   TARGETS  reaction-bin ssa-bin
@@ -370,6 +394,16 @@ install(
   LIBRARY  DESTINATION ${CMAKE_INSTALL_LIBDIR}
   INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
   )
+
+install(
+  TARGETS  ${WCS_UNIT_TEST_TARGETS}
+  EXPORT   WCSTargets
+  RUNTIME  DESTINATION ${CMAKE_INSTALL_PREFIX}/tests/unit
+  ARCHIVE  DESTINATION ${CMAKE_INSTALL_LIBDIR}
+  LIBRARY  DESTINATION ${CMAKE_INSTALL_LIBDIR}
+  INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+  )
+
 
 # Install
 install(DIRECTORY src/utils/unit_tests/examples

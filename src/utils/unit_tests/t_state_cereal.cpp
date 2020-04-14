@@ -1,9 +1,21 @@
+#if defined(WCS_HAS_CONFIG)
+#include "wcs_config.hpp"
+#else
+#error "no config"
+#endif
+
+#if defined(WCS_HAS_CEREAL)
 #include <iostream>
 #include <sstream>
 #include <random>
 #include "utils/seed.hpp"
 #include "utils/state_io_cereal.hpp"
 ENABLE_CUSTOM_CEREAL (std::minstd_rand);
+
+#if defined(WCS_HAS_CATCH2)
+#include <cstddef>
+#include "catch2/catch.hpp"
+#endif // defined(WCS_HAS_CATCH2)
 
 using namespace wcs;
 
@@ -214,3 +226,4 @@ int main()
   is_custom_bin_cerealizable<double>();
   return 0;
 }
+#endif // !defined(WCS_HAS_CEREAL)

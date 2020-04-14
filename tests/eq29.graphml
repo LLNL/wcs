@@ -34,6 +34,8 @@
             <data key="v_label">Y</data>
             <data key="v_type">1</data>
             <data key="s_count">3000</data>
+            <!-- Replace the above line with the one below for batch runs -->
+            <!-- <data key="s_count">@Y0@</data> -->
         </node>
         <node id="s_Z">
             <data key="v_label">Z</data>
@@ -53,7 +55,10 @@
         <node id="r_2">
             <data key="v_label">r2</data>
             <data key="v_type">2</data>
-            <data key="r_rate">r_const * [Y] * ([Y] - 1) / 2</data>
+            <!-- <data key="r_rate">r_const * [Y] * ([Y] - 1) / 2</data> -->
+            <!-- look at how Network::set_reaction_rate() handles the reactant
+                 species of a stoichiometry greater than 1 -->
+            <data key="r_rate">r_const * [Y]</data>
             <data key="r_const">0.005</data>
             <!-- Y + Y -> Z -->
         </node>
@@ -65,7 +70,9 @@
         </edge>
 
         <!-- Y + Y -> Z -->
-        <edge id="r_2_r1" source="s_Y" target="r_2"/>
+        <edge id="r_2_r1" source="s_Y" target="r_2">
+            <data key="e_stoic">2</data>
+        </edge>
         <edge id="r_2_p1" source="r_2" target="s_Z"/>
 
     </graph>

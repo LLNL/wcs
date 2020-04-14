@@ -43,10 +43,6 @@ SSA_NRM::rng_t& SSA_NRM::rgen() {
  */
 void SSA_NRM::build_heap()
 {
-  using r_prop_t = wcs::Reaction<v_desc_t>;
-
-  const wcs::Network::graph_t& g = m_net_ptr->graph();
-
   m_heap.clear();
   m_heap.reserve(m_net_ptr->get_num_reactions()+10);
   constexpr double unsigned_max = static_cast<double>(std::numeric_limits<unsigned>::max());
@@ -59,9 +55,7 @@ void SSA_NRM::build_heap()
     if (!m_net_ptr->check_reaction(vd)) {
       m_heap.emplace_back(priority_t(wcs::Network::get_etime_ulimit(), vd));
     } else {
-      const auto& rv = g[vd]; // reaction vertex
-      const auto& rp = rv.property<r_prop_t>(); // detailed vertex property data
-      const auto rate = rp.get_rate(); // reaction rate
+      const auto rate = m_net_ptr->get_reaction_rate(vd); // reaction rate
       const auto rn = unsigned_max/m_rgen(); // inverse of a uniform RN U(0,1)
       const auto t = log(rn)/rate;
       m_heap.emplace_back(priority_t(t, vd));

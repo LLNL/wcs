@@ -33,7 +33,7 @@ public:
 
   std::pair<unsigned, sim_time_t> run() override;
 
-  static bool greater(const priority_t& v1, const priority_t& v2);
+  static bool less(const priority_t& v1, const priority_t& v2);
 
   rng_t& rgen_e();
   rng_t& rgen_t();
@@ -41,7 +41,7 @@ public:
 protected:
   void build_propensity_list();
   priority_t& choose_reaction();
-  sim_time_t get_reaction_time(const priority_t& p);
+  sim_time_t get_reaction_time();
   bool fire_reaction(const priority_t& firing,
                      update_list_t& updating_species,
                      affected_reactions_t& affected_reactions);

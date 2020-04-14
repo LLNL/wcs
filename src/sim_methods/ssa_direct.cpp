@@ -24,11 +24,11 @@ SSA_Direct::SSA_Direct()
 SSA_Direct::~SSA_Direct() {}
 
 /**
- * Defines the priority queue ordering by the event time of entries
+ * Defines the priority queue ordering by the event propensity
  * (in ascending order).
  */
-bool SSA_Direct::greater(const priority_t& v1, const priority_t& v2) {
-  return (v1.first > v2.first);
+bool SSA_Direct::less(const priority_t& v1, const priority_t& v2) {
+  return (v1.first < v2.first);
 }
 
 /// Allow access to the internal random number generator for events
@@ -47,11 +47,8 @@ SSA_Direct::rng_t& SSA_Direct::rgen_t() {
  */
 void SSA_Direct::build_propensity_list()
 {
-  using r_prop_t = wcs::Reaction<v_desc_t>;
-
-  const wcs::Network::graph_t& g = m_net_ptr->graph();
-
   m_propensity.clear();
+  m_pindices.clear();
   const size_t num_reactions = m_net_ptr->get_num_reactions()+1;
   m_propensity.reserve(num_reactions);
   m_pindices.reserve(num_reactions);
@@ -60,19 +57,25 @@ void SSA_Direct::build_propensity_list()
   // For each reaction, check if the reaction condition is met:
   // i.e., a sufficient number of reactants considering the stoichiometry
 
-  reaction_rate_t sum = zero_rate;
   for (const auto& vd : m_net_ptr->reaction_list())
   {
-    if (m_net_ptr->check_reaction(vd)) {
-      const auto& rv = g[vd]; // reaction vertex
-      const auto& rp = rv.property<r_prop_t>(); // detailed vertex property data
-      sum += rp.get_rate(); // cumulative reaction propensity
-    }
-
-    m_pindices.insert(std::make_pair(vd, m_propensity.size()));
-    m_propensity.emplace_back(priority_t(sum, vd));
+    const auto rate = m_net_ptr->get_reaction_rate(vd);
+    m_propensity.emplace_back(priority_t(rate, vd));
   }
-  //std::stable_sort(m_propensity.begin(), m_propensity.end(), SSA_Direct::greater);
+
+  std::stable_sort(m_propensity.begin(), m_propensity.end(), SSA_Direct::less);
+
+  reaction_rate_t sum = zero_rate;
+  size_t i = 0ul;
+  for (auto& p : m_propensity)
+  {
+    auto& rate = p.first;
+    const auto& vd = p.second;
+    sum += rate;
+    rate = sum;
+
+    m_pindices.insert(std::make_pair(vd, i++));
+  }
 }
 
 /// Undo the species updates applied during incomplete reaction processing.
@@ -112,9 +115,11 @@ SSA_Direct::priority_t& SSA_Direct::choose_reaction()
   return *it;
 }
 
-sim_time_t SSA_Direct::get_reaction_time(const SSA_Direct::priority_t& p)
+sim_time_t SSA_Direct::get_reaction_time()
 {
-  const reaction_rate_t r = p.first;
+  const reaction_rate_t r = m_propensity.empty()?
+                              static_cast<reaction_rate_t>(0) :
+                              (m_propensity.back().first);
   return ((r <= static_cast<reaction_rate_t>(0))?
             wcs::Network::get_etime_ulimit() :
             -static_cast<reaction_rate_t>(log(m_rgen_tm())/r));
@@ -316,8 +321,8 @@ std::pair<unsigned, sim_time_t> SSA_Direct::run()
       break;
     }
 
+    const sim_time_t dt = get_reaction_time();
     auto& firing = choose_reaction();
-    const sim_time_t dt = get_reaction_time(firing);
 
     if ((dt == std::numeric_limits<sim_time_t>::infinity()) ||
         (dt >= wcs::Network::get_etime_ulimit())) {

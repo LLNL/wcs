@@ -45,7 +45,8 @@ bool save_state(const ObjT& obj, std::vector<CharT>& buffer) {
                 "Invalid vector element type");
   /* Resize or reserve vector space to avoid overhead of reallocation
      Especially when there are multiple items to pack and the sizes are
-     known in advance.
+     known in advance. For ostreamvec, the vector is considered empty
+     even if the size is larger than 0.
   if (buffer.size()*sizeof(CharT) < sizeof(obj)) {
     buffer.resize((sizeof(obj) + sizeof(CharT) - 1u)/sizeof(CharT));
   }

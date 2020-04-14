@@ -77,6 +77,7 @@ class RNGen {
   template<typename S> static bool check_bits_compatibility(const S&);
   template<typename S> S& save_bits(S &os) const;
   template<typename S> S& load_bits(S &is);
+  size_t byte_size() const;
 
  protected:
   /**

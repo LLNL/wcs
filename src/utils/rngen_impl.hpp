@@ -99,9 +99,7 @@ inline bool RNGen<D, V>::check_bits_compatibility(const S& s)
       (dynamic_cast<const streambuff<c_t, t_t>*>(bp) != nullptr) ||
       (dynamic_cast<const istreambuff<c_t, t_t>*>(bp) != nullptr) ||
       (dynamic_cast<const ostreambuff<c_t, t_t>*>(bp) != nullptr) ||
-      (dynamic_cast<const std::basic_stringstream<c_t, t_t>*>(bp) != nullptr) ||
-      (dynamic_cast<const std::basic_istringstream<c_t, t_t>*>(bp) != nullptr) ||
-      (dynamic_cast<const std::basic_ostringstream<c_t, t_t>*>(bp) != nullptr))
+      (dynamic_cast<const std::basic_stringbuf<c_t, t_t>*>(bp) != nullptr))
   {
     return true;
   }
@@ -125,6 +123,14 @@ inline S& RNGen<D, V>::load_bits(S& is)
   assert (check_bits_compatibility(is));
   is >> bits(m_seed) >> bits(m_sseq_used) >> bits(m_sseq_param) >> bits(m_gen) >> bits(m_distribution);
   return is;
+}
+
+template <template <typename> typename D, typename V>
+inline size_t RNGen<D, V>::byte_size() const
+{
+  return (sizeof(m_seed) + sizeof(m_sseq_used) +
+          m_sseq_param.size() * sizeof(seed_seq_param_t::value_type) +
+          sizeof(m_gen) + sizeof(m_distribution));
 }
 
 } // end of namespce wcs

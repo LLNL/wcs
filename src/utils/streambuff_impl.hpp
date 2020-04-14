@@ -85,7 +85,7 @@ size_t istreambuff<CharT, Traits>::size() const
 
 template<typename CharT, typename Traits>
 std::ostream& istreambuff<CharT, Traits>::print(std::ostream& os,
-                                               bool show_content) const
+                                                bool show_content) const
 {
   const auto sz = size();
   std::stringstream ss;

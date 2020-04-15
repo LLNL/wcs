@@ -74,12 +74,21 @@ endif ()
 
 # Special handling if we're compiling with Clang's address sanitizer
 if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-   if (CMAKE_BUILD_TYPE MATCHES Debug)
-     wcs_check_and_append_flag(CMAKE_CXX_FLAGS
-       -fsanitize=address -fno-omit-frame-pointer -fsanitize-recover=address)
-   else()
-     wcs_check_and_append_flag(CMAKE_CXX_FLAGS -fno-omit-frame-pointer)
-   endif ()
+  if (USE_CLANG_LIBCXX)
+    wcs_check_and_append_flag(CMAKE_CXX_FLAGS "--stdlib=libc++")
+  else (USE_CLANG_LIBCXX)
+    if (USE_GCC_LIBCXX)
+      wcs_check_and_append_flag(CMAKE_CXX_FLAGS
+        "--gcc-toolchain=/usr/tce/packages/gcc/gcc-${GCC_TOOLCHAIN_VER}")
+    endif (USE_GCC_LIBCXX)
+  endif (USE_CLANG_LIBCXX)
+
+  if (CMAKE_BUILD_TYPE MATCHES Debug)
+    wcs_check_and_append_flag(CMAKE_CXX_FLAGS
+      -fsanitize=address -fno-omit-frame-pointer -fsanitize-recover=address)
+  else()
+    wcs_check_and_append_flag(CMAKE_CXX_FLAGS -fno-omit-frame-pointer)
+  endif ()
 endif ()
 
 # Turn off some annoying warnings

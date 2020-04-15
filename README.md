@@ -20,22 +20,43 @@
    `system`.
    To build with other pre-existing installation of boost, set the environment
    variable `BOOST_ROOT` or pass `-DBOOST_ROOT=<path-to-boost>`
-   to cmake. To run the executable, you might need to add `${BOOST_ROOT}/lib`
-   to the `LD_LIBRARY_PATH`
-   - Guide specific to Livermore Computing (LC) platforms:
-     Currently, there are three versions of boost available on TOSS3 systems.
-     The one under the default system path, another under
-     `/usr/tce/packages/boost/boost-1.69.0-mvapich2-2.2-gcc-4.9.3`, and finally
-     the one under `/usr/tce/packages/boost/boost-1.66.0-mvapich2-2.2-gcc-6.1.0`
+   to cmake. An example path to boost on LC is
+   `/usr/tce/packages/boost/boost-1.69.0-mvapich2-2.3-gcc-8.1.0`.
+   To run the executable, add `${BOOST_ROOT}/lib` to the `LD_LIBRARY_PATH` as
+   needed
 
-     The first one does not work well with the compiler choices above.
-     The second one works well with the aforementioned clang version, and the
-     third with that of gcc. This has to do with the compatibility between the
-     compiler used to build the boost library and the one chosen for this project.
+ + **Guide specific to using clang on Livermore Computing (LC) platforms**
+   Currently, to use clang on Livermore Computing (LC) platforms with
+   the libraries compiled with gcc (e.g. boost), make sure the c++ standard
+   library is compatible. On LC, clang by default is paired with c++ standard
+   library from gcc/4.9.3. To avoid incompatibility issue,
+
+   0) On LC systems, use the user libraries compiled with gcc/4.9.3.
+      On other platforms, it depends on how clang is configure there.
+   1) Make clang use the c++ standard library from the same version of gcc
+      as that used for building user libraries to link.
+      e.g., clang++ --gcc-toolchain=/usr/tce/packages/gcc/gcc-8.1.0/ ...
+   2) Or use clang's c++ standard library.
+      i.e., clang++ --stdlib=libc++ ...
+
+   Choose either `USE_GCC_LIBCXX` for option 1 or `USE_CLANG_LIBCXX` for
+   option 2 if needed.
+   If neither is chosen, the build relies on the system default, which is,
+   on LC, with `USE_GCC_LIBCXX` on and `GCC_TOOLCHAIN_VER` set to "4.9.3".
+   If both are on, `USE_GCC_LIBCXX` is turned off. When `USE_GCC_LIBCXX`
+   is on, `GCC_TOOLCHAIN_VER` can be set accordingly (e.g., "8.1.0").
+
  + **cmake 3.12 or later**
    This requirement mostly comes from the compatibility between the cmake
    module `find_package()`, and the version of boost used. An older version
    might still work with some warnings.
+
+ + [**Cereal**](https://uscilab.github.io/cereal)
+   We rely on Cereal serialization library to enable state packing and
+   unpacking of which needs arises under various circumstances including
+   messaging, rollback, migration, and checkpointing. Cereal is a c++
+   header-only library. No pre-installation is required as it is
+   automatically downloaded and made available.
 
 ## Future requirements:
  + **Charm++ and Charades (ROSS over Charm++)**

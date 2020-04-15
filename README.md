@@ -27,20 +27,23 @@
 
  + **Guide specific to using clang on Livermore Computing (LC) platforms**
    Currently, to use clang on Livermore Computing (LC) platforms with
-   the libraries compiled with gcc (e.g. boost), make sure the c++ standard
-   library is compatible. On LC, clang by default is paired with c++ standard
+   the libraries compiled with gcc, make sure the c++ standard library
+   is compatible. On LC, clang by default is paired with c++ standard
    library from gcc/4.9.3. To avoid incompatibility issue,
 
-   0) On LC systems, use the user libraries compiled with gcc/4.9.3.
-      On other platforms, it depends on how clang is configure there.
+   0) Use the user libraries compiled with the system default compiler.
+      On many of LC platforms, it is currently gcc/4.9.3. On others,
+      it depends on how clang is configure there.
    1) Make clang use the c++ standard library from the same version of gcc
       as that used for building user libraries to link.
       e.g., clang++ --gcc-toolchain=/usr/tce/packages/gcc/gcc-8.1.0/ ...
-   2) Or use clang's c++ standard library.
+   2) Use clang's c++ standard library. Recompile user libraries in the
+      same way as needed.
       i.e., clang++ --stdlib=libc++ ...
 
    Choose either `USE_GCC_LIBCXX` for option 1 or `USE_CLANG_LIBCXX` for
-   option 2 if needed.
+   option 2 if needed. Usually, option 1 works best. Option 0 does not work
+   well especially with Catch2 due to the incomplete support for C++17.
    If neither is chosen, the build relies on the system default, which is,
    on LC, with `USE_GCC_LIBCXX` on and `GCC_TOOLCHAIN_VER` set to "4.9.3".
    If both are on, `USE_GCC_LIBCXX` is turned off. When `USE_GCC_LIBCXX`

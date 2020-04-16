@@ -160,6 +160,9 @@ bool SSA_Direct::fire_reaction(const priority_t& firing,
 
     auto& sp_updating = sv_updating.property<s_prop_t>();
     const auto stoichio = g[ei_in].get_stoichiometry_ratio();
+    if (stoichio == static_cast<stoic_t>(0)) {
+      continue;
+    }
     if (!sp_updating.dec_count(stoichio)) { // State update
       std::string err = "Not enough reactants of " + sv_updating.get_label()
                       + "[" + std::to_string(sp_updating.get_count())
@@ -191,6 +194,9 @@ bool SSA_Direct::fire_reaction(const priority_t& firing,
 
     auto& sp_updating = sv_updating.property<s_prop_t>();
     const auto stoichio = g[ei_out].get_stoichiometry_ratio();
+    if (stoichio == static_cast<stoic_t>(0)) {
+      continue;
+    }
     if (!sp_updating.inc_count(stoichio)) { // State update
       std::string err = "Can not produce more of " + sv_updating.get_label()
                       + "[" + std::to_string(sp_updating.get_count())
@@ -385,6 +391,9 @@ bool SSA_Direct::undo_reaction(const priority_t& to_undo,
 
     auto& sp_reverting = sv_reverting.property<s_prop_t>();
     const auto stoichio = g[ei_in].get_stoichiometry_ratio();
+    if (stoichio == static_cast<stoic_t>(0)) {
+      continue;
+    }
     if (!sp_reverting.inc_count(stoichio)) { // State update
       std::string err = "Unable to undo the decrement of reactant "
                       + sv_reverting.get_label()
@@ -417,6 +426,9 @@ bool SSA_Direct::undo_reaction(const priority_t& to_undo,
 
     auto& sp_reverting = sv_reverting.property<s_prop_t>();
     const auto stoichio = g[ei_out].get_stoichiometry_ratio();
+    if (stoichio == static_cast<stoic_t>(0)) {
+      continue;
+    }
     if (!sp_reverting.dec_count(stoichio)) { // State update
       std::string err = "Unable to undo the production of "
                       + sv_reverting.get_label()

@@ -85,6 +85,7 @@ inline void Reaction<VD>::set_rate_inputs(const std::map<std::string, rdriver_t>
   for(auto &e : species_involved ) {
       std::string var_str = e.first;
       m_rate_inputs[i] = e.second;
+      // Need to remap if the m_params reallocates
       m_sym_table.add_variable( var_str, m_params[i] );
       i++;
   }
@@ -99,7 +100,17 @@ template <typename VD>
 reaction_rate_t Reaction<VD>::calc_rate(std::vector<reaction_rate_t> params)
 {
   // GG: This copy could be avoided by directly linking species count to sym_table
-  m_params = params;
+  if (m_params.size() != params.size()) {
+    using std::operator<<;
+    WCS_THROW("The number of involved species differs from what is expected");
+    // If params is larger than m_params, m_params will reallocate its data.
+    // Then, the symbol table needs to reset, and re-registered.
+    // If it is smaller, some values are missing, and the symbol table may
+    // not make sense at all.
+  }
+  // The order of parameters is the same as the one in the return of
+  // get_rate_inputs()
+  m_params.assign(params.begin(), params.end());
   m_rate = m_expr.value();
   return m_rate;
 }

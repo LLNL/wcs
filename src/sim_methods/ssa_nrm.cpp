@@ -126,6 +126,9 @@ bool SSA_NRM::fire_reaction(
 
     auto& sp_updating = sv_updating.property<s_prop_t>();
     const auto stoichio = g[ei_in].get_stoichiometry_ratio();
+    if (stoichio == static_cast<stoic_t>(0)) {
+      continue;
+    }
     if (!sp_updating.dec_count(stoichio)) { // State update
       std::string err = "Not enough reactants of " + sv_updating.get_label()
                       + "[" + std::to_string(sp_updating.get_count())
@@ -153,6 +156,9 @@ bool SSA_NRM::fire_reaction(
 
     auto& sp_updating = sv_updating.property<s_prop_t>();
     const auto stoichio = g[ei_out].get_stoichiometry_ratio();
+    if (stoichio == static_cast<stoic_t>(0)) {
+      continue;
+    }
     if (!sp_updating.inc_count(stoichio)) { // State update
       std::string err = "Can not produce more of " + sv_updating.get_label()
                       + "[" + std::to_string(sp_updating.get_count())
@@ -431,6 +437,9 @@ bool SSA_NRM::undo_reaction(const SSA_NRM::v_desc_t vd_undo,
 
     auto& sp_updating = sv_updating.property<s_prop_t>();
     const auto stoichio = g[ei_in].get_stoichiometry_ratio();
+    if (stoichio == static_cast<stoic_t>(0)) {
+      continue;
+    }
     if (!sp_updating.inc_count(stoichio)) { // State update
       std::string err = "Unable to undo the decrement of reactant "
                       + sv_updating.get_label()
@@ -463,6 +472,9 @@ bool SSA_NRM::undo_reaction(const SSA_NRM::v_desc_t vd_undo,
 
     auto& sp_updating = sv_updating.property<s_prop_t>();
     const auto stoichio = g[ei_out].get_stoichiometry_ratio();
+    if (stoichio == static_cast<stoic_t>(0)) {
+      continue;
+    }
     if (!sp_updating.dec_count(stoichio)) { // State update
       std::string err = "Unable to undo the production of "
                       + sv_updating.get_label()

@@ -59,7 +59,8 @@ void traverse(const wcs::Network& rnet)
 
   std::cout << "\n\nReactions:\n";
   for(const auto& vd : rnet.reaction_list()) {
-    using directed_category = typename boost::graph_traits<wcs::Network::graph_t>::directed_category;
+    using directed_category
+      = typename boost::graph_traits<wcs::Network::graph_t>::directed_category;
     constexpr bool is_bidirectional 
       = std::is_same<directed_category, boost::bidirectional_tag>::value;
 
@@ -76,11 +77,14 @@ void traverse(const wcs::Network& rnet)
     if constexpr (is_bidirectional) {
       std::cout << " from a set of reactants";
       for(const auto vi_in : boost::make_iterator_range(boost::in_edges(vd, g))) {
-        std::cout << ' ' << g[boost::source(vi_in, g)].get_label();
+        const auto& sv = g[boost::source(vi_in, g)];
+        const auto& sp = sv.property<s_prop_t>();
+        std::cout << ' ' << sv.get_label() << " [" << sp.get_count() << "]";
       }
     }
 
-    std::cout << std::endl << "    by the rate " << rp.get_rate() << " = " << rp.get_rate_formula() << std::endl;
+    std::cout << std::endl << "    by the rate " << rp.get_rate()
+              << " <= {" << rp.get_rate_formula() << "}" << std::endl;
   }
 }
 

@@ -1,7 +1,18 @@
-#include "sim_methods/ssa_direct.hpp"
-#include "utils/exception.hpp"
+#if defined(WCS_HAS_CONFIG)
+#include "wcs_config.hpp"
+#else
+#error "no config"
+#endif
+
 #include <algorithm> // upper_bound
 #include <cmath> // log
+#include "sim_methods/ssa_direct.hpp"
+#include "utils/exception.hpp"
+#include "utils/seed.hpp"
+
+#if defined(WCS_HAS_CEREAL)
+#include "utils/state_io_cereal.hpp"
+#endif // WCS_HAS_CEREAL
 
 namespace wcs {
 /** \addtogroup wcs_reaction_network
@@ -13,21 +24,21 @@ SSA_Direct::SSA_Direct()
 SSA_Direct::~SSA_Direct() {}
 
 /**
- * Defines the priority queue ordering by the event time of entries
+ * Defines the priority queue ordering by the event propensity
  * (in ascending order).
  */
-bool SSA_Direct::greater(const priority_t& v1, const priority_t& v2) {
-  return (v1.first > v2.first);
+bool SSA_Direct::less(const priority_t& v1, const priority_t& v2) {
+  return (v1.first < v2.first);
 }
 
 /// Allow access to the internal random number generator for events
 SSA_Direct::rng_t& SSA_Direct::rgen_e() {
-  return m_rgen_e;
+  return m_rgen_evt;
 }
 
 /// Allow access to the internal random number generator for event times
 SSA_Direct::rng_t& SSA_Direct::rgen_t() {
-  return m_rgen_t;
+  return m_rgen_tm;
 }
 
 /**
@@ -36,11 +47,8 @@ SSA_Direct::rng_t& SSA_Direct::rgen_t() {
  */
 void SSA_Direct::build_propensity_list()
 {
-  using r_prop_t = wcs::Reaction<v_desc_t>;
-
-  const wcs::Network::graph_t& g = m_net_ptr->graph();
-
   m_propensity.clear();
+  m_pindices.clear();
   const size_t num_reactions = m_net_ptr->get_num_reactions()+1;
   m_propensity.reserve(num_reactions);
   m_pindices.reserve(num_reactions);
@@ -49,23 +57,30 @@ void SSA_Direct::build_propensity_list()
   // For each reaction, check if the reaction condition is met:
   // i.e., a sufficient number of reactants considering the stoichiometry
 
-  reaction_rate_t sum = zero_rate;
   for (const auto& vd : m_net_ptr->reaction_list())
   {
-    if (m_net_ptr->check_reaction(vd)) {
-      const auto& rv = g[vd]; // reaction vertex
-      const auto& rp = rv.property<r_prop_t>(); // detailed vertex property data
-      sum += rp.get_rate(); // cumulative reaction propensity
-    }
-
-    m_pindices.insert(std::make_pair(vd, m_propensity.size()));
-    m_propensity.emplace_back(priority_t(sum, vd));
+    const auto rate = m_net_ptr->get_reaction_rate(vd);
+    m_propensity.emplace_back(priority_t(rate, vd));
   }
-  //std::stable_sort(m_propensity.begin(), m_propensity.end(), SSA_Direct::greater);
+
+  std::stable_sort(m_propensity.begin(), m_propensity.end(), SSA_Direct::less);
+
+  reaction_rate_t sum = zero_rate;
+  size_t i = 0ul;
+  for (auto& p : m_propensity)
+  {
+    auto& rate = p.first;
+    const auto& vd = p.second;
+    sum += rate;
+    rate = sum;
+
+    m_pindices.insert(std::make_pair(vd, i++));
+  }
 }
 
 /// Undo the species updates applied during incomplete reaction processing.
-void SSA_Direct::undo_species_updates(const std::vector<SSA_Direct::update_t>& updates) const
+void SSA_Direct::undo_species_updates(
+  const SSA_Direct::update_list_t& updates) const
 {
   bool ok = true;
   const wcs::Network::graph_t& g = m_net_ptr->graph();
@@ -88,7 +103,7 @@ void SSA_Direct::undo_species_updates(const std::vector<SSA_Direct::update_t>& u
 SSA_Direct::priority_t& SSA_Direct::choose_reaction()
 {
   const auto rn
-    = static_cast<reaction_rate_t>(m_rgen_e() * m_propensity.back().first);
+    = static_cast<reaction_rate_t>(m_rgen_evt() * m_propensity.back().first);
   auto it = std::upper_bound(m_propensity.begin(),
                              m_propensity.end(),
                              rn,
@@ -100,12 +115,14 @@ SSA_Direct::priority_t& SSA_Direct::choose_reaction()
   return *it;
 }
 
-sim_time_t SSA_Direct::get_reaction_time(const SSA_Direct::priority_t& p)
+sim_time_t SSA_Direct::get_reaction_time()
 {
-  const reaction_rate_t r = p.first;
+  const reaction_rate_t r = m_propensity.empty()?
+                              static_cast<reaction_rate_t>(0) :
+                              (m_propensity.back().first);
   return ((r <= static_cast<reaction_rate_t>(0))?
             wcs::Network::get_etime_ulimit() :
-            -static_cast<reaction_rate_t>(log(m_rgen_t())/r));
+            -static_cast<reaction_rate_t>(log(m_rgen_tm())/r));
 }
 
 /**
@@ -115,8 +132,8 @@ sim_time_t SSA_Direct::get_reaction_time(const SSA_Direct::priority_t& p)
  * affected as a result.
  */
 bool SSA_Direct::fire_reaction(const priority_t& firing,
-                            std::vector<SSA_Direct::update_t>& updating_species,
-                            std::set<SSA_Direct::v_desc_t>& affected_reactions)
+       SSA_Direct::update_list_t& updating_species,
+       SSA_Direct::affected_reactions_t& affected_reactions)
 {
   using s_prop_t = wcs::Species;
 
@@ -127,8 +144,13 @@ bool SSA_Direct::fire_reaction(const priority_t& firing,
   // The BGL vertex descriptor of the curren reaction
   const auto vd_firing = firing.second;
 
+  updating_species.clear();
+  affected_reactions.clear();
+
   // reactant species
-  for (const auto ei_in : boost::make_iterator_range(boost::in_edges(vd_firing, g))) {
+  for (const auto ei_in :
+       boost::make_iterator_range(boost::in_edges(vd_firing, g)))
+  {
     const auto vd_updating = boost::source(ei_in, g);
     const auto& sv_updating = g[vd_updating];
     if constexpr (wcs::Vertex::_num_vertex_types_  > 3) {
@@ -138,6 +160,9 @@ bool SSA_Direct::fire_reaction(const priority_t& firing,
 
     auto& sp_updating = sv_updating.property<s_prop_t>();
     const auto stoichio = g[ei_in].get_stoichiometry_ratio();
+    if (stoichio == static_cast<stoic_t>(0)) {
+      continue;
+    }
     if (!sp_updating.dec_count(stoichio)) { // State update
       std::string err = "Not enough reactants of " + sv_updating.get_label()
                       + "[" + std::to_string(sp_updating.get_count())
@@ -147,7 +172,9 @@ bool SSA_Direct::fire_reaction(const priority_t& firing,
     }
     updating_species.emplace_back(std::make_pair(vd_updating, -stoichio));
 
-    for (const auto vi_affected : boost::make_iterator_range(boost::out_edges(vd_updating, g))) {
+    for (const auto vi_affected :
+         boost::make_iterator_range(boost::out_edges(vd_updating, g)))
+    {
       const auto vd_affected = boost::target(vi_affected, g);
       if (vd_affected == vd_firing) continue;
       affected_reactions.insert(vd_affected);
@@ -155,7 +182,9 @@ bool SSA_Direct::fire_reaction(const priority_t& firing,
   }
 
   // product species
-  for (const auto ei_out : boost::make_iterator_range(boost::out_edges(vd_firing, g))) {
+  for (const auto ei_out :
+       boost::make_iterator_range(boost::out_edges(vd_firing, g)))
+  {
     const auto vd_updating = boost::target(ei_out, g);
     const auto& sv_updating = g[vd_updating];
     if constexpr (wcs::Vertex::_num_vertex_types_  > 3) {
@@ -165,6 +194,9 @@ bool SSA_Direct::fire_reaction(const priority_t& firing,
 
     auto& sp_updating = sv_updating.property<s_prop_t>();
     const auto stoichio = g[ei_out].get_stoichiometry_ratio();
+    if (stoichio == static_cast<stoic_t>(0)) {
+      continue;
+    }
     if (!sp_updating.inc_count(stoichio)) { // State update
       std::string err = "Can not produce more of " + sv_updating.get_label()
                       + "[" + std::to_string(sp_updating.get_count())
@@ -174,7 +206,9 @@ bool SSA_Direct::fire_reaction(const priority_t& firing,
     }
     updating_species.emplace_back(std::make_pair(vd_updating, stoichio));
 
-    for (const auto vi_affected : boost::make_iterator_range(boost::out_edges(vd_updating, g))) {
+    for (const auto vi_affected :
+         boost::make_iterator_range(boost::out_edges(vd_updating, g)))
+    {
       const auto vd_affected = boost::target(vi_affected, g);
       if (vd_affected == vd_firing) continue;
       affected_reactions.insert(vd_affected);
@@ -190,7 +224,7 @@ bool SSA_Direct::fire_reaction(const priority_t& firing,
  * and update the heap. This follows the next reaction meothod procedure.
  */
 void SSA_Direct::update_reactions(priority_t& firing,
-  const std::set<SSA_Direct::v_desc_t>& affected_reactions)
+  const SSA_Direct::affected_reactions_t& affected_reactions)
 {
   using r_prop_t = wcs::Reaction<v_desc_t>;
 
@@ -241,21 +275,31 @@ void SSA_Direct::init(std::shared_ptr<wcs::Network>& net_ptr,
 
   { // initialize the random number generator
     if (rng_seed == 0u) {
-      m_rgen_e.set_seed();
-      m_rgen_t.set_seed();
+      m_rgen_evt.set_seed();
+      m_rgen_tm.set_seed();
     } else {
-      using seeder_t = wcs::RNGen<std::uniform_int_distribution, unsigned>;
-      seeder_t seeder;
-      seeder.set_seed(rng_seed);
-      constexpr unsigned uint_max = std::numeric_limits<unsigned>::max();
-      seeder.param(typename seeder_t::param_type(0, uint_max/2));
+      seed_seq_param_t common_param_e
+        = make_seed_seq_input(1, rng_seed, std::string("SSA_Direct"));
+      seed_seq_param_t common_param_t
+        = make_seed_seq_input(2, rng_seed, std::string("SSA_Direct"));
 
-      m_rgen_e.set_seed(seeder());
-      m_rgen_t.set_seed(seeder());
+      std::vector<seed_seq_param_t> unique_params;
+      const size_t num_procs = 1ul;
+      const size_t my_rank = 0ul;
+
+      // make sure to avoid generating any duplicate seed sequence
+      gen_unique_seed_seq_params<rng_t::get_state_size()>(
+          num_procs, common_param_e, unique_params);
+      m_rgen_evt.use_seed_seq(unique_params[my_rank]);
+
+      // make sure to avoid generating any duplicate seed sequence
+      gen_unique_seed_seq_params<rng_t::get_state_size()>(
+          num_procs, common_param_t, unique_params);
+      m_rgen_tm.use_seed_seq(unique_params[my_rank]);
     }
 
-    m_rgen_e.param(typename rng_t::param_type(0.0, 1.0));
-    m_rgen_t.param(typename rng_t::param_type(0.0, 1.0));
+    m_rgen_evt.param(typename rng_t::param_type(0.0, 1.0));
+    m_rgen_tm.param(typename rng_t::param_type(0.0, 1.0));
   }
 
   Sim_Method::record_initial_state(m_net_ptr);
@@ -266,7 +310,7 @@ void SSA_Direct::init(std::shared_ptr<wcs::Network>& net_ptr,
 std::pair<unsigned, sim_time_t> SSA_Direct::run()
 {
   // species to update as a result of the reaction fired
-  std::vector<update_t> updating_species;
+  update_list_t updating_species;
 
   // Any other reaction that takes any of species being updated as a result of
   // the current reaction as a reactant is affected. This assumes that species
@@ -274,7 +318,7 @@ std::pair<unsigned, sim_time_t> SSA_Direct::run()
   // that produce any of the updated species are affected as well. Here, we
   // take the assumption for simplicity. However, if we consider compartments
   // with population/concentration limits, we need to reconsider.
-  std::set<v_desc_t> affected_reactions;
+  affected_reactions_t affected_reactions;
 
   bool is_recorded = true; // initial state recording done
 
@@ -283,11 +327,8 @@ std::pair<unsigned, sim_time_t> SSA_Direct::run()
       break;
     }
 
-    updating_species.clear();
-    affected_reactions.clear();
-
+    const sim_time_t dt = get_reaction_time();
     auto& firing = choose_reaction();
-    const sim_time_t dt = get_reaction_time(firing);
 
     if ((dt == std::numeric_limits<sim_time_t>::infinity()) ||
         (dt >= wcs::Network::get_etime_ulimit())) {
@@ -314,6 +355,100 @@ std::pair<unsigned, sim_time_t> SSA_Direct::run()
   }
 
   return std::make_pair(m_cur_iter, m_sim_time);
+}
+
+/**
+ * Undo the state update done by the previous the reaction executed.
+ * In addition, record which the species are restored, and which reactions are
+ * affected.
+ */
+bool SSA_Direct::undo_reaction(const priority_t& to_undo,
+       SSA_Direct::update_list_t& reverting_species,
+       SSA_Direct::affected_reactions_t& affected_reactions)
+{
+  using s_prop_t = wcs::Species;
+
+  // Reactions do not change the connectivity, but only change the property
+  // data, which are allocated outside of BGL graph, but only linked to it.
+  const wcs::Network::graph_t& g = m_net_ptr->graph();
+
+  // The BGL vertex descriptor of the curren reaction
+  const auto vd_undo = to_undo.second;
+
+  reverting_species.clear();
+  affected_reactions.clear();
+
+  // reactant species
+  for (const auto ei_in :
+       boost::make_iterator_range(boost::in_edges(vd_undo, g)))
+  {
+    const auto vd_reverting = boost::source(ei_in, g);
+    const auto& sv_reverting = g[vd_reverting];
+    if constexpr (wcs::Vertex::_num_vertex_types_  > 3) {
+      // in case that there are other type of vertices than species or reaction
+      if (sv_reverting.get_type() != wcs::Vertex::_species_) continue;
+    }
+
+    auto& sp_reverting = sv_reverting.property<s_prop_t>();
+    const auto stoichio = g[ei_in].get_stoichiometry_ratio();
+    if (stoichio == static_cast<stoic_t>(0)) {
+      continue;
+    }
+    if (!sp_reverting.inc_count(stoichio)) { // State update
+      std::string err = "Unable to undo the decrement of reactant "
+                      + sv_reverting.get_label()
+                      + "[" + std::to_string(sp_reverting.get_count())
+                      + "] of reaction " + g[vd_undo].get_label();
+      WCS_THROW(err);
+      return false;
+    }
+    reverting_species.emplace_back(std::make_pair(vd_reverting, stoichio));
+
+    for (const auto vi_affected :
+         boost::make_iterator_range(boost::out_edges(vd_reverting, g)))
+    {
+      const auto vd_affected = boost::target(vi_affected, g);
+      if (vd_affected == vd_undo) continue;
+      affected_reactions.insert(vd_affected);
+    }
+  }
+
+  // product species
+  for (const auto ei_out :
+       boost::make_iterator_range(boost::out_edges(vd_undo, g)))
+  {
+    const auto vd_reverting = boost::target(ei_out, g);
+    const auto& sv_reverting = g[vd_reverting];
+    if constexpr (wcs::Vertex::_num_vertex_types_  > 3) {
+      // in case that there are other type of vertices than species or reaction
+      if (sv_reverting.get_type() != wcs::Vertex::_species_) continue;
+    }
+
+    auto& sp_reverting = sv_reverting.property<s_prop_t>();
+    const auto stoichio = g[ei_out].get_stoichiometry_ratio();
+    if (stoichio == static_cast<stoic_t>(0)) {
+      continue;
+    }
+    if (!sp_reverting.dec_count(stoichio)) { // State update
+      std::string err = "Unable to undo the production of "
+                      + sv_reverting.get_label()
+                      + "[" + std::to_string(sp_reverting.get_count())
+                      + "] by reaction " + g[vd_undo].get_label();
+      WCS_THROW(err);
+      return false;
+    }
+    reverting_species.emplace_back(std::make_pair(vd_reverting, -stoichio));
+
+    for (const auto vi_affected :
+         boost::make_iterator_range(boost::out_edges(vd_reverting, g)))
+    {
+      const auto vd_affected = boost::target(vi_affected, g);
+      if (vd_affected == vd_undo) continue;
+      affected_reactions.insert(vd_affected);
+    }
+  }
+
+  return true;
 }
 
 /**@}*/

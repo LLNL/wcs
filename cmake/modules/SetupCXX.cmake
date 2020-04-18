@@ -42,8 +42,9 @@ endif ()
 
 # Initialize C++ flags
 wcs_check_and_append_flag(CMAKE_CXX_FLAGS
-  -fPIC -g -Wall -Wextra -Wno-unused-parameter -Wnon-virtual-dtor -Wshadow
-  -Wno-deprecated-declarations)
+  -fPIC -g -Wall -Wextra -Wno-unused-parameter -Wnon-virtual-dtor
+  -Wno-deprecated-declarations -std=c++17)
+  #taking out -Wshadow as ExprTK generates too much warnings
 
 # Disable all optimization in debug for better viewing under debuggers
 # (cmake already adds -g)
@@ -73,12 +74,21 @@ endif ()
 
 # Special handling if we're compiling with Clang's address sanitizer
 if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-   if (CMAKE_BUILD_TYPE MATCHES Debug)
-     wcs_check_and_append_flag(CMAKE_CXX_FLAGS
-       -fsanitize=address -fno-omit-frame-pointer -fsanitize-recover=address)
-   else()
-     wcs_check_and_append_flag(CMAKE_CXX_FLAGS -fno-omit-frame-pointer)
-   endif ()
+  if (USE_CLANG_LIBCXX)
+    wcs_check_and_append_flag(CMAKE_CXX_FLAGS "--stdlib=libc++")
+  else (USE_CLANG_LIBCXX)
+    if (USE_GCC_LIBCXX)
+      wcs_check_and_append_flag(CMAKE_CXX_FLAGS
+        "--gcc-toolchain=/usr/tce/packages/gcc/gcc-${GCC_TOOLCHAIN_VER}")
+    endif (USE_GCC_LIBCXX)
+  endif (USE_CLANG_LIBCXX)
+
+  if (CMAKE_BUILD_TYPE MATCHES Debug)
+    wcs_check_and_append_flag(CMAKE_CXX_FLAGS
+      -fsanitize=address -fno-omit-frame-pointer -fsanitize-recover=address)
+  else()
+    wcs_check_and_append_flag(CMAKE_CXX_FLAGS -fno-omit-frame-pointer)
+  endif ()
 endif ()
 
 # Turn off some annoying warnings

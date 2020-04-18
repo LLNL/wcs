@@ -35,6 +35,8 @@ class Reaction : public ReactionBase {
 #if !defined(WCS_HAS_SBML) && defined(WCS_HAS_EXPRTK)
   void set_products(const std::map<std::string, rdriver_t>& products);
   reaction_rate_t calc_rate(std::vector<reaction_rate_t> params) override;
+  void show_compile_error() const;
+  bool detect_composite() const;
 #endif // !defined(WCS_HAS_SBML) && defined(WCS_HAS_EXPRTK)
 
  protected:
@@ -48,6 +50,7 @@ class Reaction : public ReactionBase {
   exprtk::symbol_table<reaction_rate_t> m_sym_table;
   exprtk::parser<reaction_rate_t> m_parser;
   exprtk::expression<reaction_rate_t> m_expr;
+  bool m_is_composite;
 #endif // !defined(WCS_HAS_SBML) && defined(WCS_HAS_EXPRTK)
 
  protected:

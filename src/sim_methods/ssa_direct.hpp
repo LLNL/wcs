@@ -12,12 +12,17 @@ namespace wcs {
 class SSA_Direct : public Sim_Method {
 public:
   using rng_t = wcs::RNGen<std::uniform_real_distribution, double>;
+  using v_desc_t = Sim_Method::v_desc_t;
   using priority_t = std::pair<reaction_rate_t, v_desc_t>;
   using propensisty_list_t = std::vector<priority_t>;
+  /** Type for the list of reactions that share any of the species with the
+   *  firing reaction */
+  using affected_reactions_t = std::set<v_desc_t>;
 
   /** Type for keeping track of species updates to facilitate undoing
    *  reaction processing.  */
   using update_t = std::pair<v_desc_t, stoic_t>;
+  using update_list_t = std::vector<update_t>;
 
   SSA_Direct();
   ~SSA_Direct() override;
@@ -28,7 +33,7 @@ public:
 
   std::pair<unsigned, sim_time_t> run() override;
 
-  static bool greater(const priority_t& v1, const priority_t& v2);
+  static bool less(const priority_t& v1, const priority_t& v2);
 
   rng_t& rgen_e();
   rng_t& rgen_t();
@@ -36,17 +41,21 @@ public:
 protected:
   void build_propensity_list();
   priority_t& choose_reaction();
-  sim_time_t get_reaction_time(const priority_t& p);
+  sim_time_t get_reaction_time();
   bool fire_reaction(const priority_t& firing,
-                     std::vector<update_t>& updating_species,
-                     std::set<v_desc_t>& affected_reactions);
-  void update_reactions(priority_t& firing, const std::set<v_desc_t>& affected);
-  void undo_species_updates(const std::vector<update_t>& updates) const;
+                     update_list_t& updating_species,
+                     affected_reactions_t& affected_reactions);
+  void update_reactions(priority_t& firing, const affected_reactions_t& affected);
+  void undo_species_updates(const update_list_t& updates) const;
+  bool undo_reaction(const priority_t& to_undo,
+                     update_list_t& reverting_species,
+                     affected_reactions_t& affected_reactions);
 
 protected:
-  propensisty_list_t m_propensity; ///< Event propensity list
-  rng_t m_rgen_e; ///< RNG for events
-  rng_t m_rgen_t; ///< RNG for event times
+  /// Cumulative propensity of reactions events
+  propensisty_list_t m_propensity;
+  rng_t m_rgen_evt; ///< RNG for events
+  rng_t m_rgen_tm; ///< RNG for event times
   /// map from vertex descriptor to propensity
   std::unordered_map<v_desc_t, size_t> m_pindices;
 };

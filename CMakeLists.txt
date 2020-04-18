@@ -43,6 +43,7 @@ if (NOT CMAKE_CXX_STANDARD OR CMAKE_CXX_STANDARD EQUAL 98
     OR CMAKE_CXX_STANDARD EQUAL 11)
   set(CMAKE_CXX_STANDARD 17)
   set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
+  set(CMAKE_CXX_EXTENSIONS ON)
 endif ()
 
 # This will help define some targets later
@@ -104,6 +105,8 @@ option(WCS_WITH_SBML "Enable SBML library" OFF)
 
 option(WCS_WITH_EXPRTK "Include ExprTk" OFF)
 
+option(WCS_WITH_CEREAL "Include Cereal" ON)
+
 option(WCS_WITH_VTUNE
   "Link the Intel VTune profiling library" OFF)
 
@@ -137,7 +140,53 @@ mark_as_advanced(WCS_WARNINGS_AS_ERRORS)
 set(CMAKE_SKIP_BUILD_RPATH  FALSE)
 set(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)
 set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
-set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib")
+set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}")
+
+# the RPATH to be used when installing, but only if it's not a system directory
+list(FIND CMAKE_PLATFORM_IMPLICIT_LINK_DIRECTORIES
+     "${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}" isSystemDir)
+if("${isSystemDir}" STREQUAL "-1")
+    set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}")
+endif("${isSystemDir}" STREQUAL "-1")
+
+#  Setup specific to using clang on Livermore Computing (LC) platforms
+#
+#  Currently, to use clang on Livermore Computing (LC) platforms with
+#  the libraries compiled with gcc (e.g. boost), make sure the c++ standard
+#  library is compatible. On LC, clang by default is paired with c++ standard
+#  library from gcc/4.9.3. To avoid incompatibility issue,
+#
+#  0) Use the user libraries compiled with the system default compiler.
+#     On many of LC platforms, it is currently gcc/4.9.3. On others,
+#     it depends on how clang is configure there.
+#  1) Make clang use the c++ standard library from the same version of gcc
+#     as that used for building user libraries to link.
+#     e.g., clang++ --gcc-toolchain=/usr/tce/packages/gcc/gcc-8.1.0/ ...
+#  2) Use clang's c++ standard library. Recompile user libraries in the
+#     same way as needed.
+#     i.e., clang++ --stdlib=libc++ ...
+#
+#  Choose either `USE_GCC_LIBCXX` for option 1 or `USE_CLANG_LIBCXX` for
+#  option 2 if needed. Usually, option 1 works best. Option 0 does not work
+#  well especially with Catch2 due to the incomplete support for C++17.
+#  If neither is chosen, the build relies on the system default, which is
+#  on LC with `USE_GCC_LIBCXX` on and `GCC_TOOLCHAIN_VER` set to "4.9.3".
+#  If both are on, `USE_GCC_LIBCXX` is turned off. When `USE_GCC_LIBCXX`
+#  is on, `GCC_TOOLCHAIN_VER` can be set accordingly (e.g., "8.1.0").
+
+option (USE_CLANG_LIBCXX OFF)
+option (USE_GCC_LIBCXX ON)
+
+if (USE_CLANG_LIBCXX)
+    set (USE_GCC_LIBCXX OFF)
+endif (USE_CLANG_LIBCXX)
+
+if (USE_GCC_LIBCXX)
+    set(GCC_TOOLCHAIN_VER "4.9.3" CACHE STRING
+        "GCC_TOOLCHAIN_VER chosen by the user at CMake configure time")
+    set_property(CACHE GCC_TOOLCHAIN_VER PROPERTY STRINGS
+                 "4.9.3" "6.1.0" "7.1.0" "7.3.0" "8.1.0")
+endif ()
 
 # Get installation directories -- these get used in various places;
 # best to just make them available
@@ -151,12 +200,18 @@ include(SetupCXX)
 
 # Required dependencies
 
-if(DEFINED ENV{BOOST_ROOT})
-    message(STATUS "BOOST_ROOT: " $ENV{BOOST_ROOT})
+if (DEFINED BOOST_ROOT)
+    message(STATUS "BOOST_ROOT: " ${BOOST_ROOT})
     set(Boost_NO_SYSTEM_PATHS ON)
-endif()
+else ()
+    if (DEFINED ENV{BOOST_ROOT})
+        message(STATUS "ENV BOOST_ROOT: " $ENV{BOOST_ROOT})
+        set(Boost_NO_SYSTEM_PATHS ON)
+    endif ()
+endif ()
 
 find_package(Boost
+    #         HINTS ${BOOST_ROOT} $ENV{BOOST_ROOT}
              REQUIRED COMPONENTS
              graph regex filesystem system)
 
@@ -201,6 +256,10 @@ if (WCS_WITH_EXPRTK)
   endif (WCS_WITH_SBML)
 endif (WCS_WITH_EXPRTK)
 
+if (WCS_WITH_CEREAL)
+  include(SetupCereal)
+endif (WCS_WITH_CEREAL)
+
 if (WCS_WITH_VTUNE)
   find_package(VTune MODULE)
 
@@ -220,8 +279,11 @@ endif (WCS_WITH_VTUNE)
 
 if (WCS_WITH_UNIT_TESTING)
   include(SetupCatch2)
-  # Now that Catch2 has been found, start adding the unit tests
   include(CTest)
+
+  # Now that Catch2 has been found, start adding the unit tests
+  # subdirectory addtion has been moved to the CMakeList.txt of each
+  # upper directory of unit test directories
   #add_subdirectory(src/reaction_network/unit_test)
   #add_subdirectory(src/utils/unit_test)
 
@@ -235,6 +297,8 @@ endif (WCS_WITH_UNIT_TESTING)
 ################################################################
 # Build WCS
 ################################################################
+
+cmake_policy(SET CMP0079 NEW)
 
 # Add WCS source files
 add_subdirectory(src)
@@ -266,6 +330,13 @@ if (WCS_HAS_EXPRTK)
     $<INSTALL_INTERFACE:${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_INCLUDEDIR}>)
 endif (WCS_HAS_EXPRTK)
 
+if (WCS_HAS_CEREAL)
+  add_dependencies(wcs CEREAL-download)
+  target_include_directories(wcs PUBLIC
+    $<BUILD_INTERFACE:${CEREAL_HEADER_DIR}>
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_INCLUDEDIR}>)
+endif (WCS_HAS_CEREAL)
+
 if (WCS_HAS_VTUNE)
   target_link_libraries(wcs PUBLIC ${VTUNE_STATIC_LIB})
 endif ()
@@ -274,8 +345,112 @@ if (WCS_WITH_UNIT_TESTING)
   add_dependencies(wcs CATCH2)
   target_include_directories(wcs PUBLIC
     $<BUILD_INTERFACE:${CATCH2_INCLUDE_DIR}>
-    $<INSTALL_INTERFACE:${CMAKE_INSTALL_PREFIX}/catch2/include>)
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_INCLUDEDIR}/catch2>)
 endif (WCS_WITH_UNIT_TESTING)
+
+################################################################
+# Add executables
+################################################################
+
+# RPATH setup
+set(CMAKE_SKIP_BUILD_RPATH  FALSE)
+set(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)
+set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
+set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}")
+#https://stackoverflow.com/questions/54464929/cmake-install-rpath-use-link-path-without-any-effect
+unset (LIBRARY_PATH)
+
+# add executable
+add_executable( reaction-bin src/reaction.cpp )
+target_include_directories(reaction-bin PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}>
+  $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/src>
+  $<INSTALL_INTERFACE:${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_INCLUDEDIR}>)
+
+target_link_libraries(reaction-bin PRIVATE wcs)
+set_target_properties(reaction-bin PROPERTIES OUTPUT_NAME reaction)
+set_target_properties(reaction-bin PROPERTIES CMAKE_INSTALL_RPATH
+                      "${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}")
+
+add_executable( ssa-bin src/ssa.cpp )
+target_include_directories(ssa-bin PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}>
+  $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/src>
+  $<INSTALL_INTERFACE:${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_INCLUDEDIR}>)
+
+target_link_libraries(ssa-bin PRIVATE wcs)
+set_target_properties(ssa-bin PROPERTIES OUTPUT_NAME ssa)
+set_target_properties(ssa-bin PROPERTIES CMAKE_INSTALL_RPATH
+                      "${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}")
+
+add_executable( graphml2dot-bin src/utils/graphml2dot.cpp )
+target_link_libraries(graphml2dot-bin PRIVATE wcs)
+set_target_properties(graphml2dot-bin PROPERTIES OUTPUT_NAME graphml2dot)
+
+list(APPEND WCS_UTILS_TARGETS graphml2dot-bin)
+
+if (WCS_HAS_SBML)
+  add_executable( readSBML-bin src/utils/readSBML.cpp )
+  target_compile_definitions(readSBML-bin PRIVATE WCS_HAS_CONFIG)
+  target_include_directories(readSBML-bin
+    PRIVATE $<TARGET_PROPERTY:wcs,INTERFACE_INCLUDE_DIRECTORIES>)
+  target_link_libraries(readSBML-bin PRIVATE SBML::SBML)
+  set_target_properties(readSBML-bin PROPERTIES OUTPUT_NAME readSBML)
+  list(APPEND WCS_UTILS_TARGETS readSBML-bin)
+endif (WCS_HAS_SBML)
+
+# Build tests
+add_executable( t_state_rngen-bin src/utils/unit_tests/t_state_rngen.cpp )
+target_include_directories(t_state_rngen-bin PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}>
+  $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/src>
+  $<INSTALL_INTERFACE:${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_INCLUDEDIR}>)
+
+target_link_libraries(t_state_rngen-bin PRIVATE wcs)
+set_target_properties(t_state_rngen-bin PROPERTIES OUTPUT_NAME t_state_rngen)
+set_target_properties(t_state_rngen-bin PROPERTIES CMAKE_INSTALL_RPATH
+                      "${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}")
+
+list(APPEND WCS_UNIT_TEST_TARGETS t_state_rngen-bin)
+
+# Install the binaries
+install(
+  TARGETS  reaction-bin ssa-bin
+  EXPORT   WCSTargets
+  RUNTIME  DESTINATION ${CMAKE_INSTALL_BINDIR}
+  ARCHIVE  DESTINATION ${CMAKE_INSTALL_LIBDIR}
+  LIBRARY  DESTINATION ${CMAKE_INSTALL_LIBDIR}
+  INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+  )
+
+install(
+  TARGETS  ${WCS_UTILS_TARGETS}
+  EXPORT   WCSTargets
+  RUNTIME  DESTINATION ${CMAKE_INSTALL_BINDIR}
+  ARCHIVE  DESTINATION ${CMAKE_INSTALL_LIBDIR}
+  LIBRARY  DESTINATION ${CMAKE_INSTALL_LIBDIR}
+  INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+  )
+
+install(
+  TARGETS  ${WCS_UNIT_TEST_TARGETS}
+  EXPORT   WCSTargets
+  RUNTIME  DESTINATION ${CMAKE_INSTALL_PREFIX}/tests/unit
+  ARCHIVE  DESTINATION ${CMAKE_INSTALL_LIBDIR}
+  LIBRARY  DESTINATION ${CMAKE_INSTALL_LIBDIR}
+  INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+  )
+
+
+# Install
+install(DIRECTORY src/utils/unit_tests/examples
+  DESTINATION ${CMAKE_INSTALL_DATADIR})
+
+# Install the relevant prototext
+#install(DIRECTORY src/utils/unit_tests/examples
+#  DESTINATION ${CMAKE_INSTALL_DATADIR}/examples)
+
+
 
 # Write the configure file
 configure_file(
@@ -323,7 +498,7 @@ write_basic_package_version_file(
   COMPATIBILITY SameMajorVersion)
 
 # This is for the build tree
-set(INCLUDE_INSTALL_DIRS 
+set(INCLUDE_INSTALL_DIRS
   "${CMAKE_SOURCE_DIR}/src"
   "${CMAKE_SOURCE_DIR}/src/reaction_network"
   "${CMAKE_SOURCE_DIR}/src/sim_methods"
@@ -347,6 +522,7 @@ configure_package_config_file(cmake/configure_files/WCSConfig.cmake.in
   "${CMAKE_BINARY_DIR}/WCSConfig.cmake.install"
   INSTALL_DESTINATION "${CMAKE_INSTALL_DIR}"
   PATH_VARS INCLUDE_INSTALL_DIRS LIB_INSTALL_DIR)
+
 
 # Install library
 install(
@@ -396,6 +572,13 @@ install(
 if (WCS_HAS_EXPRTK)
   install(
     FILES ${EXPRTK_DIR}/${EXPRTK_HEADER}
+    DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}")
+endif ()
+
+# TODO: either need to install the whole directory or not at all
+if (WCS_HAS_CEREAL)
+  install(
+    DIRECTORY "${CEREAL_HEADER_DIR}/cereal"
     DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}")
 endif ()
 
@@ -463,6 +646,7 @@ append_str_tf(_str
   WCS_HAS_SUNDIALS
   WCS_HAS_SBML
   WCS_HAS_EXPRTK
+  WCS_HAS_CEREAL
   WCS_HAS_CATCH2
   WCS_HAS_VTUNE
   WCS_HAS_DOXYGEN)

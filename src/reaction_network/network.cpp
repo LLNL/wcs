@@ -101,7 +101,9 @@ reaction_rate_t Network::set_reaction_rate(const Network::v_desc_t r) const
   std::vector<reaction_rate_t> params;
   // GG: rate constant is part of the Reaction object
   params.reserve(ri.size()+1u); // reserve space for species count and rate constant
+  #if defined(WCS_HAS_SBML) || !defined(WCS_HAS_EXPRTK)
   auto denominator = static_cast<stoic_t>(1);
+  #endif
 
   for (auto driver : ri) { // add species counts here and the rate constant will be appended later
     const auto& s = m_graph[driver.first].checked_property<Species>();
@@ -112,16 +114,38 @@ reaction_rate_t Network::set_reaction_rate(const Network::v_desc_t r) const
     // In the example, the reaction rate is computed as [X]([X]-1)/2
     // TODO: move this logic into ReactionBase::set_rate_fn()
     species_cnt_t n = s.get_count();
-    for (stoic_t i = static_cast<stoic_t>(0); i < num_same ; ++i) {
-      denominator *= (num_same - i);
+    if (num_same == static_cast<stoic_t>(0)) {
+        // This is a parameter that the reaction rate is dependent on but
+        // not modified by the reaction (i.e., neither reactant nor product)
+        params.push_back(static_cast<reaction_rate_t>(n));
+    } else {
+    #if !defined(WCS_HAS_SBML) && defined(WCS_HAS_EXPRTK)
       params.push_back(static_cast<reaction_rate_t>(n));
-      if (n <= static_cast<species_cnt_t>(0)) {
-        break;
+    #else
+      for (stoic_t i = static_cast<stoic_t>(0); i < num_same ; ++i) {
+        denominator *= (num_same - i);
+        params.push_back(static_cast<reaction_rate_t>(n));
+        if (n <= static_cast<species_cnt_t>(0)) {
+          break;
+        }
+        -- n;
       }
-      -- n;
+    #endif
     }
   }
-  return rprop.calc_rate(params)/denominator;
+  #if defined(WCS_HAS_SBML) || !defined(WCS_HAS_EXPRTK)
+  params.push_back(static_cast<reaction_rate_t>(1.0/
+                     static_cast<reaction_rate_t>(denominator)));
+  #endif
+  return rprop.calc_rate(params);
+}
+
+reaction_rate_t Network::get_reaction_rate(const Network::v_desc_t r) const
+{
+  using r_prop_t = wcs::Reaction<v_desc_t>;
+  const auto& rv = m_graph[r]; // vertex (property) of the reaction
+  const auto& rp = rv.property<r_prop_t>(); // detailed vertex property data
+  return rp.get_rate();
 }
 
 void Network::sort_species()

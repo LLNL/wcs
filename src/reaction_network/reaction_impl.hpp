@@ -79,8 +79,9 @@ inline void Reaction<VD>::set_rate_inputs(const std::map<std::string, rdriver_t>
 template <typename VD>
 inline void Reaction<VD>::set_rate_inputs(const std::map<std::string, rdriver_t>& species_involved)
 {
-  m_rate_inputs = std::vector<rdriver_t>( species_involved.size() );
-  m_params = std::vector<reaction_rate_t>( species_involved.size() );
+  const auto num_inputs = species_involved.size();
+  m_rate_inputs = std::vector<rdriver_t>( num_inputs );
+  m_params.resize(num_inputs);
   size_t i = 0;
   for(auto &e : species_involved ) {
       std::string var_str = e.first;
@@ -89,11 +90,17 @@ inline void Reaction<VD>::set_rate_inputs(const std::map<std::string, rdriver_t>
       m_sym_table.add_variable( var_str, m_params[i] );
       i++;
   }
+  m_sym_table.add_variable("m_rate", m_rate);
   m_sym_table.add_constant("r_const", m_rate_const);
   m_sym_table.add_constants();
 
+  m_is_composite = detect_composite();
+
   m_expr.register_symbol_table(m_sym_table);
-  m_parser.compile(m_rate_formula, m_expr);
+  if (!m_parser.compile(m_rate_formula, m_expr)) {
+    show_compile_error();
+    return;
+  }
 }
 
 template <typename VD>
@@ -111,7 +118,14 @@ reaction_rate_t Reaction<VD>::calc_rate(std::vector<reaction_rate_t> params)
   // The order of parameters is the same as the one in the return of
   // get_rate_inputs()
   m_params.assign(params.begin(), params.end());
-  m_rate = m_expr.value();
+
+  if (!m_is_composite) {
+    m_rate = m_expr.value();
+  } else {
+    m_rate = 0.0;
+    m_expr.value();
+  }
+
   return m_rate;
 }
 
@@ -120,6 +134,47 @@ inline void Reaction<VD>::set_products(const std::map<std::string, rdriver_t>& p
 {
   for( auto &e: products )
       m_products.push_back( e.second );
+}
+
+template <typename VD>
+inline void Reaction<VD>::show_compile_error () const
+{
+  using std::operator<<;
+
+  std::string err =
+    "Error: " + m_parser.error() + "\tExpression: " + this->m_rate_formula;
+  std::cerr << err << std::endl;
+
+  for (size_t i = 0u; i < m_parser.error_count(); ++i)
+  {
+     exprtk::parser_error::type error = m_parser.get_error(i);
+     std::string errmsg
+       = "Error: " + std::to_string(i)
+       + "\tPosition: " + std::to_string(error.token.position)
+       + "\tType: [" + exprtk::parser_error::to_str(error.mode) + ']'
+       + "\tMsg: " + error.diagnostic
+       + "\tExpression: " + m_rate_formula;
+     std::cerr << errmsg << std::endl;
+  }
+}
+
+template <typename VD>
+inline bool Reaction<VD>::detect_composite() const
+{
+  static const std::string whitespaces(" \t\f\v\n\r");
+  const auto pos1 = m_rate_formula.find_last_of (";");
+  const auto head = m_rate_formula.substr(0, pos1);
+  const auto tail = m_rate_formula.substr(pos1+1);
+  const auto pos2 = tail.find_last_not_of(whitespaces);
+  const auto pos3 = head.find_first_of(";");
+  const auto pos4 = head.find_last_not_of(whitespaces);
+  return ( pos1 != std::string::npos ) &&
+         ( ( pos2 != std::string::npos ) ||
+           ( ( pos3 != std::string::npos ) &&
+             ( pos4 != std::string::npos ) &&
+             ( pos3 < pos4)
+           )
+         );
 }
 #else
 template <typename VD>

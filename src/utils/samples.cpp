@@ -1,4 +1,5 @@
 #include "utils/samples.hpp"
+#include "utils/to_string.hpp"
 
 namespace wcs {
 /** \addtogroup wcs_utils
@@ -24,11 +25,14 @@ void Samples::record_initial_condition(const std::shared_ptr<wcs::Network>& net_
     //m_s_id_map[vd] = i; // done in build_index()
     m_initial_counts[i++] = sp.get_count();
   }
+
+  num_events = static_cast<sim_iter_t>(0u);
 }
 
 void Samples::record_reaction(const Samples::r_desc_t r)
 {
   m_r_diffs[r] ++;
+  num_events ++;
 }
 
 void Samples::take_sample(const sim_time_t t)
@@ -107,8 +111,14 @@ void Samples::build_index_maps()
  */
 std::ostream& Samples::write_header(std::ostream& os, size_t num_reactions) const
 { // write the header to show the species labels and the initial population
-  std::string ostr("Time: ");
-  ostr.reserve(ostr.size() + m_net_ptr->get_num_species()*20);
+  const auto num_species = m_net_ptr->get_num_species();
+  
+  std::string ostr = "num_species = " + std::to_string(num_species)
+                   + "\tnum_reactions = " + std::to_string(num_reactions)
+                   + "\tnum_events = " + std::to_string(num_events)
+                   + "\nTime: ";
+
+  ostr.reserve(ostr.size() + num_species*cnt_digits + num_reactions*2 + 1);
 
   ostr += m_net_ptr->show_species_labels("")
         + m_net_ptr->show_reaction_labels("")
@@ -146,8 +156,10 @@ std::ostream& Samples::print_stats(const sim_time_t sim_time,
                                   std::string& tmpstr,
                                   std::ostream& os) const
 {
-  tmpstr = std::to_string(sim_time);
-  tmpstr.reserve(species.size()*10 + reactions.size()*10);
+  tmpstr = to_string_in_scientific(sim_time);
+  const size_t tstr_sz = tmpstr.size();
+  tmpstr.reserve(tstr_sz + 2 +
+                 species.size()*cnt_digits + reactions.size()*cnt_digits);
 
   for (const auto scnt : species) {
     tmpstr += '\t' + std::to_string(scnt);

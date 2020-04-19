@@ -29,11 +29,11 @@ public:
   SSA_NRM();
   ~SSA_NRM() override;
   void init(std::shared_ptr<wcs::Network>& net_ptr,
-            const unsigned max_iter,
-            const double max_time,
+            const sim_iter_t max_iter,
+            const sim_time_t max_time,
             const unsigned rng_seed) override;
 
-  std::pair<unsigned, wcs::sim_time_t> run() override;
+  std::pair<sim_iter_t, sim_time_t> run() override;
 
   static bool later(const priority_t& v1, const priority_t& v2);
   rng_t& rgen();

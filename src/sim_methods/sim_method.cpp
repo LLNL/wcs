@@ -7,15 +7,15 @@ namespace wcs {
 
 Sim_Method::Sim_Method()
 : m_net_ptr(nullptr),
-  m_max_iter(0u),
+  m_max_iter(static_cast<sim_iter_t>(0u)),
   m_max_time(static_cast<sim_time_t>(0)),
-  m_cur_iter(0u),
+  m_cur_iter(static_cast<sim_iter_t>(0u)),
   m_sim_time(static_cast<sim_time_t>(0)),
   m_enable_tracing(false),
   m_enable_sampling(false),
-  m_sample_iter_interval(0u),
+  m_sample_iter_interval(static_cast<sim_iter_t>(0u)),
   m_sample_time_interval(static_cast<sim_time_t>(0)),
-  m_next_sample_iter(0u),
+  m_next_sample_iter(static_cast<sim_iter_t>(0u)),
   m_next_sample_time(static_cast<sim_time_t>(0)),
   dt_sample(static_cast<sim_time_t>(0))
 {
@@ -49,10 +49,10 @@ void Sim_Method::set_sampling(const sim_time_t time_interval)
   m_enable_sampling = true;
   m_sample_time_interval = time_interval;
   m_next_sample_time = m_sim_time + time_interval;
-  m_next_sample_iter = std::numeric_limits<iter_t>::max();
+  m_next_sample_iter = std::numeric_limits<sim_iter_t>::max();
 }
 
-void Sim_Method::set_sampling(const Sim_Method::iter_t iter_interval)
+void Sim_Method::set_sampling(const sim_iter_t iter_interval)
 {
   m_enable_tracing = false;
   m_enable_sampling = true;

@@ -1,4 +1,5 @@
 #include "utils/trace_ssa.hpp"
+#include "utils/to_string.hpp"
 
 namespace wcs {
 /** \addtogroup wcs_utils
@@ -28,13 +29,21 @@ void TraceSSA::build_index_maps()
  */
 std::ostream& TraceSSA::write_header(std::ostream& os) const
 { // write the header to show the species labels and the initial population
-  std::string ostr("Time: ");
-  ostr.reserve(ostr.size() + m_net_ptr->get_num_species()*20);
+  const auto num_species = m_net_ptr->get_num_species();
+  const auto num_reactions = m_net_ptr->get_num_reactions();
+
+  std::string ostr = "num_species = " + std::to_string(num_species)
+                   + "\tnum_reactions = " + std::to_string(num_reactions)
+                   + "\tnum_events = " + std::to_string(m_trace.size())
+                   + "\nTime: ";
 
   ostr += m_net_ptr->show_species_labels("")
         + "\tReaction"
         + m_net_ptr->show_reaction_labels("")
         + '\n' + std::to_string(0.000000);
+
+  ostr.reserve(ostr.size() + m_net_ptr->get_num_species()*cnt_digits
+                           + m_reaction_counts.size()*cnt_digits + 4);
 
   // write the initial population
   for (const auto scnt : m_initial_counts) {
@@ -56,7 +65,8 @@ void TraceSSA::count_reaction(r_desc_t r)
 
 size_t TraceSSA::estimate_tmpstr_size() const
 {
-  return m_initial_counts.size()*10 + m_reaction_counts.size()*10;
+  return m_initial_counts.size()*cnt_digits +
+         m_reaction_counts.size()*cnt_digits;
 }
 
 std::ostream& TraceSSA::print_stats(const sim_time_t sim_time,
@@ -65,8 +75,9 @@ std::ostream& TraceSSA::print_stats(const sim_time_t sim_time,
                                     std::string& tmpstr,
                                     std::ostream& os) const
 {
-  tmpstr = std::to_string(sim_time);
-  tmpstr.reserve(estimate_tmpstr_size());
+  tmpstr = to_string_in_scientific(sim_time);
+  const size_t tstr_sz = tmpstr.size();
+  tmpstr.reserve(tstr_sz + 2 + estimate_tmpstr_size());
 
   for (const auto scnt : species) {
     tmpstr += '\t' + std::to_string(scnt);

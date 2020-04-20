@@ -1,0 +1,125 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<graphml xmlns="http://graphml.graphdrawing.org/xmlns">
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://graphml.graphdrawing.org/xmlns
+        http://graphml.graphdrawing.org/xmlns/1.1/graphml.xsd">
+
+    <!-- vertex (species and reactions) attributes -->
+    <key id="v_label" for="node" attr.name="v_label" attr.type="string"/>
+    <key id="v_type" for="node" attr.name="v_type" attr.type="int"/>
+    <key id="s_count" for="node" attr.name="s_count" attr.type="int">
+      <default>0</default>
+    </key>
+    <key id="r_const" for="node" attr.name="r_const" attr.type="double">
+      <default>1.0</default>
+    </key>
+    <key id="r_rate" for="node" attr.name="r_rate" attr.type="string"/>
+
+    <!-- edge attributes -->
+    <key id="e_label" for="edge" attr.name="e_label" attr.type="string"/>
+    <key id="e_stoic" for="edge" attr.name="e_stoic" attr.type="int">
+        <default>1</default>
+    </key>
+
+    <graph id="simple" edgedefault="directed">
+
+        <!-- species -->
+        <node id="s_L">
+            <data key="v_label">L</data>
+            <data key="v_type">1</data>
+            <data key="s_count">10</data>
+        </node>
+        <node id="s_R">
+            <data key="v_label">R</data>
+            <data key="v_type">1</data>
+            <data key="s_count">10</data>
+        </node>
+        <node id="s_LR">
+            <data key="v_label">LR</data>
+            <data key="v_type">1</data>
+            <data key="s_count">1</data>
+        </node>
+        <node id="s_pLR">
+            <data key="v_label">pLR</data>
+            <data key="v_type">1</data>
+            <data key="s_count">1</data>
+        </node>
+        <node id="s_RR">
+            <data key="v_label">RR</data>
+            <data key="v_type">1</data>
+            <data key="s_count">1</data>
+        </node>
+
+        <!-- reactions -->
+        <node id="r_1">
+            <data key="v_label">r1</data>
+            <data key="v_type">2</data>
+            <data key="r_rate">r_const * [L] * [R]</data>
+            <data key="r_const">0.2</data>
+            <!-- L+R -> LR -->
+        </node>
+        <node id="r_2">
+            <data key="v_label">r2</data>
+            <data key="v_type">2</data>
+            <data key="r_rate">r_const * [LR]</data>
+            <!-- LR -> L+R -->
+        </node>
+        <node id="r_3">
+            <data key="v_label">r3</data>
+            <data key="v_type">2</data>
+            <data key="r_rate">r_const * [R]</data>
+            <!-- R+R -> RR -->
+        </node>
+        <node id="r_4">
+            <data key="v_label">r4</data>
+            <data key="v_type">2</data>
+            <data key="r_rate">r_const * [RR]</data>
+            <!-- RR -> R+R -->
+        </node>
+        <node id="r_5">
+            <data key="v_label">r5</data>
+            <data key="v_type">2</data>
+            <data key="r_rate">r_const * [LR]</data>
+            <!-- LR -> pLR -->
+        </node>
+        <node id="r_6">
+            <data key="v_label">r6</data>
+            <data key="v_type">2</data>
+            <data key="r_rate">r_const * [pLR]</data>
+            <!-- pLR -> LR -->
+        </node>
+
+
+        <!-- L+R -> LR -->
+        <edge id="r_1_r1" source="s_L" target="r_1"/>
+        <edge id="r_1_r2" source="s_R" target="r_1"/>
+        <edge id="r_1_p1" source="r_1" target="s_LR"/>
+
+        <!-- LR -> L+R -->
+        <edge id="r_2_r1" source="s_LR" target="r_2"/>
+        <edge id="r_2_p1" source="r_2" target="s_L"/>
+        <edge id="r_2_p2" source="r_2" target="s_R"/>
+
+        <!-- R+R -> RR -->
+        <edge id="r_3_r1" source="s_R" target="r_3">
+            <data key="e_stoic">2</data>
+        </edge>
+        <edge id="r_3_p1" source="r_3" target="s_RR"/>
+
+        <!-- RR -> R+R -->
+        <edge id="r_4_r1" source="s_RR" target="r_4"/>
+        <edge id="r_4_p1" source="r_4" target="s_R">
+            <data key="e_stoic">2</data>
+        </edge>
+
+        <!-- LR -> pLR -->
+        <edge id="r_5_r1" source="s_LR" target="r_5"/>
+        <edge id="r_5_p1" source="r_5" target="s_pLR"/>
+
+        <!-- pLR -> LR -->
+        <edge id="r_6_r1" source="s_pLR" target="r_6"/>
+        <edge id="r_6_p1" source="r_6" target="s_LR"/>
+
+    </graph>
+</graphml>
+

@@ -61,7 +61,7 @@ print("""
 print("""
         <!-- species -->""")
 
-defaultVolume = 1/float(constants['Cytoplasm'])/1e6;
+defaultVolume = 6.0221409e+23*float(constants['Cytoplasm'])/1e6;
 if defaultVolume > 10000000:
     defaultVolume = defaultVolume / 1000
 

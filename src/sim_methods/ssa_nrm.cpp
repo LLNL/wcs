@@ -45,7 +45,8 @@ void SSA_NRM::build_heap()
 {
   m_heap.clear();
   m_heap.reserve(m_net_ptr->get_num_reactions()+10);
-  constexpr double unsigned_max = static_cast<double>(std::numeric_limits<unsigned>::max());
+  constexpr sim_time_t unsigned_max
+    = static_cast<sim_time_t>(std::numeric_limits<unsigned>::max());
 
   // For each reaction, check if the reaction condition is met:
   // i.e., a sufficient number of reactants
@@ -180,8 +181,8 @@ bool SSA_NRM::fire_reaction(
 
 void SSA_NRM::reset_reaction_time(const v_desc_t& vd, wcs::sim_time_t& rt)
 {
-  constexpr double unsigned_max
-    = static_cast<double>(std::numeric_limits<unsigned>::max());
+  constexpr sim_time_t unsigned_max
+    = static_cast<sim_time_t>(std::numeric_limits<unsigned>::max());
 
   const auto new_rate = m_net_ptr->set_reaction_rate(vd);
 
@@ -202,8 +203,8 @@ void SSA_NRM::reset_reaction_time(const v_desc_t& vd, wcs::sim_time_t& rt)
 void SSA_NRM::adjust_reaction_time(const v_desc_t& vd, wcs::sim_time_t& rt)
 {
   using r_prop_t = wcs::Reaction<v_desc_t>;
-  constexpr double unsigned_max
-    = static_cast<double>(std::numeric_limits<unsigned>::max());
+  constexpr sim_time_t unsigned_max
+    = static_cast<sim_time_t>(std::numeric_limits<unsigned>::max());
 
   const auto& rv_affected = m_net_ptr->graph()[vd];
   auto& rp_affected = rv_affected.property<r_prop_t>();
@@ -314,8 +315,8 @@ void SSA_NRM::revert_reaction_updates(
 
 
 void SSA_NRM::init(std::shared_ptr<wcs::Network>& net_ptr,
-                   const unsigned max_iter,
-                   const double max_time,
+                   const sim_iter_t max_iter,
+                   const sim_time_t max_time,
                    const unsigned rng_seed)
 {
   if (!net_ptr) {
@@ -353,7 +354,7 @@ void SSA_NRM::init(std::shared_ptr<wcs::Network>& net_ptr,
   build_heap(); // prepare internal priority queue
 }
 
-std::pair<unsigned, sim_time_t> SSA_NRM::run()
+std::pair<sim_iter_t, sim_time_t> SSA_NRM::run()
 {
   // species to update as a result of the reaction fired
   update_list_t updating_species;

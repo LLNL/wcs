@@ -20,12 +20,11 @@ public:
   using samples_t = wcs::Samples;
   using sim_time_t = wcs::sim_time_t;
   using reaction_rate_t = wcs::reaction_rate_t;
-  using iter_t = unsigned int;
 
   Sim_Method();
   virtual ~Sim_Method();
   virtual void init(std::shared_ptr<wcs::Network>& net_ptr,
-                    const iter_t max_iter,
+                    const sim_iter_t max_iter,
                     const double max_time,
                     const unsigned rng_seed) = 0;
 
@@ -36,7 +35,7 @@ public:
   /// Enable sampling to record state at every given time interval
   void set_sampling(const sim_time_t time_interval);
   /// Enable sampling to record state at every given iteration interval
-  void set_sampling(const iter_t iter_interval);
+  void set_sampling(const sim_iter_t iter_interval);
   /// Disable sampling
   void unset_sampling();
 
@@ -50,7 +49,7 @@ public:
   /// Record the state at current step as needed
   bool check_to_record(const sim_time_t dt, const v_desc_t rv);
 
-  virtual std::pair<iter_t, sim_time_t> run() = 0;
+  virtual std::pair<sim_iter_t, sim_time_t> run() = 0;
 
   /// Allow access to the internal tracer
   trace_t& trace();
@@ -65,25 +64,25 @@ protected:
    */
   std::shared_ptr<wcs::Network> m_net_ptr;
 
-  iter_t m_max_iter;
-  double m_max_time;
+  sim_iter_t m_max_iter; ///< Upper bound on simulation iteration
+  sim_time_t m_max_time; ///< Upper bound on simulation time
 
-  iter_t m_cur_iter;
-  sim_time_t m_sim_time;
+  sim_iter_t m_cur_iter; ///< Current simulation iteration
+  sim_time_t m_sim_time; ///< Current simulation time
 
-  bool m_enable_tracing;
-  bool m_enable_sampling;
+  bool m_enable_tracing; ///< Whether to enable tracing
+  bool m_enable_sampling; ///< Whether to enable sampling
 
-  iter_t m_sample_iter_interval;
+  sim_iter_t m_sample_iter_interval;
   sim_time_t m_sample_time_interval;
 
-  iter_t m_next_sample_iter;
-  sim_time_t m_next_sample_time;
+  sim_iter_t m_next_sample_iter; ///< Next iteration to sample
+  sim_time_t m_next_sample_time; ///< Next time to sample
 
-  trace_t m_trace; ///< used for tracing and sampling
-  samples_t m_samples; ///< used for tracing and sampling
+  trace_t m_trace; ///< Tracing record
+  samples_t m_samples; ///< Sampling record
 
-  sim_time_t dt_sample;
+  sim_time_t dt_sample; ///< time elapsed since the last sample
 };
 
 /**@}*/

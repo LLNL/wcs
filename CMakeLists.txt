@@ -441,15 +441,9 @@ install(
   INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
   )
 
-
 # Install
-install(DIRECTORY src/utils/unit_tests/examples
+install(FILES tests/simple.graphml
   DESTINATION ${CMAKE_INSTALL_DATADIR})
-
-# Install the relevant prototext
-#install(DIRECTORY src/utils/unit_tests/examples
-#  DESTINATION ${CMAKE_INSTALL_DATADIR}/examples)
-
 
 
 # Write the configure file

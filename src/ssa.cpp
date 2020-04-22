@@ -44,12 +44,12 @@ struct Config {
   void print_usage(const std::string exec, int code);
 
   unsigned seed;
-  unsigned max_iter;
+  wcs::sim_iter_t max_iter;
   wcs::sim_time_t max_time;
   int method;
   bool tracing;
   bool sampling;
-  unsigned iter_interval;
+  wcs::sim_iter_t iter_interval;
   wcs::sim_time_t time_interval;
 
   std::string infile;
@@ -76,7 +76,7 @@ void Config::getopt(int& argc, char** &argv)
         print_usage(argv[0], 0);
         break;
       case 'i': /* --iter */
-        max_iter = static_cast<unsigned>(atoi(optarg));
+        max_iter = static_cast<wcs::sim_iter_t>(atoi(optarg));
         is_iter_set = true;
         break;
       case 'o': /* --outfile */
@@ -97,7 +97,7 @@ void Config::getopt(int& argc, char** &argv)
         tracing = false;
         {
           if (optarg[0] == 'i') {
-            iter_interval = static_cast<unsigned>(atoi(&optarg[1]));
+            iter_interval = static_cast<wcs::sim_iter_t>(atoi(&optarg[1]));
           } else if (optarg[0] == 't') {
             time_interval = static_cast<wcs::sim_time_t>(atof(&optarg[1]));
           } else {

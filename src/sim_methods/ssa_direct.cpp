@@ -259,7 +259,7 @@ void SSA_Direct::update_reactions(priority_t& firing,
 
 
 void SSA_Direct::init(std::shared_ptr<wcs::Network>& net_ptr,
-                   const unsigned max_iter,
+                   const sim_iter_t max_iter,
                    const double max_time,
                    const unsigned rng_seed)
 {
@@ -271,7 +271,7 @@ void SSA_Direct::init(std::shared_ptr<wcs::Network>& net_ptr,
   m_max_time = max_time;
   m_max_iter = max_iter;
   m_sim_time = static_cast<sim_time_t>(0);
-  m_cur_iter = 0u;
+  m_cur_iter = static_cast<sim_iter_t>(0u);
 
   { // initialize the random number generator
     if (rng_seed == 0u) {
@@ -307,7 +307,7 @@ void SSA_Direct::init(std::shared_ptr<wcs::Network>& net_ptr,
   build_propensity_list(); // prepare internal priority queue
 }
 
-std::pair<unsigned, sim_time_t> SSA_Direct::run()
+std::pair<sim_iter_t, sim_time_t> SSA_Direct::run()
 {
   // species to update as a result of the reaction fired
   update_list_t updating_species;

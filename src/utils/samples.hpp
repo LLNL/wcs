@@ -76,6 +76,9 @@ protected:
 
   /// List of samples
   samples_t m_samples;
+
+  /// Number of events
+  sim_iter_t num_events;
 };
 
 /**@}*/

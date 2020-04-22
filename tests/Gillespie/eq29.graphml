@@ -33,7 +33,7 @@
         <node id="s_Y">
             <data key="v_label">Y</data>
             <data key="v_type">1</data>
-            <data key="s_count">3000</data>
+            <data key="s_count">1000</data>
             <!-- Replace the above line with the one below for batch runs -->
             <!-- <data key="s_count">@Y0@</data> -->
         </node>

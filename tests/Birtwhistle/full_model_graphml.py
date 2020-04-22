@@ -80,9 +80,9 @@ print("""
 
 for (rxnName, rate) in rxnRates.items():
     actualRate = '\n'
-    for ccc in dependentConstants[rxnName]:
-        actualRate += ccc+' := '+constants[ccc]+';\n'
-    actualRate += rate
+    for ccc in set(dependentConstants[rxnName]):
+        actualRate += 'var '+ccc+' := '+constants[ccc]+';\n'
+    actualRate += 'm_rate := '+rate+';'
     print("""
         <node id="r_%(rxnName)s">
             <data key="v_label">%(rxnName)s</data>

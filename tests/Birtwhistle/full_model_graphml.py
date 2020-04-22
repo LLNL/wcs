@@ -120,6 +120,7 @@ if 1:
             <edge id="r_%(rxn)s_d%(c)s" source="s_%(species)s" target="r_%(rxn)s">
                <data key="e_stoic">0</data>
             </edge>''' % {'rxn':rxnName, 'species': dep, 'c': count})
+            count += 1
 
 print("""
 

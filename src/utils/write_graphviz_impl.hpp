@@ -8,7 +8,8 @@
 #include <algorithm>
 #include <type_traits>
 #include <unordered_map>
-
+#include "utils/detect_methods.hpp"
+#include "utils/to_string.hpp"
 
 namespace wcs {
 /** \addtogroup wcs_utils
@@ -74,20 +75,34 @@ std::ostream& write_graphviz(std::ostream& os, const G& g, const VIdxMap& v_idx_
     using e_desc_t = typename boost::graph_traits<G>::edge_descriptor;
 
     constexpr const char* edge_delimiter = directed? "->" : "--";
-
-    std::function<void (const e_desc_t&)> edge_writer
-      = [&] (const e_desc_t& e) {
-        os << "  " << get_v_index(v_idx_map, boost::source(e, g))
-           << edge_delimiter
-           << get_v_index(v_idx_map, boost::target(e, g))
-           << " [taillabel=\"" << g[e].get_stoichiometry_ratio() << "\"];"
-           << std::endl;
-      };
-
     typename boost::graph_traits<G>::edge_iterator ei, ei_end;
-    boost::tie(ei, ei_end) = boost::edges(g);
 
-    std::for_each(ei, ei_end, edge_writer);
+    if constexpr (has_get_weight<decltype(g[*ei])>::value) {
+      std::function<void (const e_desc_t&)> edge_writer
+        = [&] (const e_desc_t& e) {
+          os << "  " << get_v_index(v_idx_map, boost::source(e, g))
+             << edge_delimiter
+             << get_v_index(v_idx_map, boost::target(e, g))
+             << " [taillabel=\"" << g[e].get_stoichiometry_ratio()
+             << "\", weight=" << to_string_in_scientific(g[e].get_weight())
+             << "];" << std::endl;
+        };
+
+      boost::tie(ei, ei_end) = boost::edges(g);
+      std::for_each(ei, ei_end, edge_writer);
+    } else {
+      std::function<void (const e_desc_t&)> edge_writer
+        = [&] (const e_desc_t& e) {
+          os << "  " << get_v_index(v_idx_map, boost::source(e, g))
+             << edge_delimiter
+             << get_v_index(v_idx_map, boost::target(e, g))
+             << " [taillabel=\"" << g[e].get_stoichiometry_ratio()
+             << "\"];" << std::endl;
+        };
+
+      boost::tie(ei, ei_end) = boost::edges(g);
+      std::for_each(ei, ei_end, edge_writer);
+    }
   }
 
   os << "}" << std::endl;

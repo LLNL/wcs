@@ -8,6 +8,7 @@ set_full_path(THIS_DIR_HEADERS
   vertex.hpp
   vertex_flat.hpp
   edge.hpp
+  edge_weighted.hpp
   network.hpp
   )
 
@@ -18,6 +19,7 @@ set_full_path(THIS_DIR_SOURCES
   vertex.cpp
   vertex_flat.cpp
   edge.cpp
+  edge_weighted.cpp
   network.cpp
   )
 

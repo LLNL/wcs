@@ -19,6 +19,7 @@ set_full_path(THIS_DIR_HEADERS
   trace_ssa.hpp
   traits.hpp
   write_graphviz.hpp
+  write_graphviz_impl.hpp
   )
 
 set_full_path(THIS_DIR_SOURCES

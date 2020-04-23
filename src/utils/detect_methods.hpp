@@ -14,20 +14,22 @@ namespace wcs {
  * space. The check is done at compile time incurring no run-time overhead.
  */
 template <typename Graph, typename Size = size_t>
-struct has_reserve_for_vertex_list {
-  template <typename G, typename S>
-  static constexpr
-  decltype(std::declval<G>().m_vertices.reserve(std::declval<S>()), bool())
-  test_reserve(int) {
-    return true;
-  }
+struct has_reserve_for_vertex_list
+{
+ private:
+  typedef std::true_type yes;
+  typedef std::false_type no;
 
   template <typename G, typename S>
-  static constexpr bool test_reserve(...) {
-    return false;
-  }
+  static auto test(int) ->
+    decltype(std::declval<G>().m_vertices.reserve(std::declval<S>()), yes());
 
-  static constexpr bool value = test_reserve<Graph, Size>(int());
+  template <typename G, typename S>
+  static no test(...);
+
+ public:
+  using type = decltype(test<Graph, Size>(0));
+  static constexpr bool value = std::is_same<type, yes>::value;
 };
 
 /**

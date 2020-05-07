@@ -132,8 +132,14 @@ reaction_rate_t Reaction<VD>::calc_rate(std::vector<reaction_rate_t> params)
   if (!m_is_composite) {
     m_rate = m_expr.value();
   } else {
-    m_rate = 0.0;
+    m_rate = static_cast<reaction_rate_t>(0.0);
     m_expr.value();
+  }
+  // Depending on the species population, reaction rate formula can evaluate
+  // to a negative value. Rather than having a formula include a conditional
+  // logic, we deal with it here.
+  if (m_rate < static_cast<reaction_rate_t>(0.0)) {
+    m_rate = static_cast<reaction_rate_t>(0.0);
   }
 
   return m_rate;

@@ -61,7 +61,7 @@ print("""
 print("""
         <!-- species -->""")
 
-defaultVolume = 1/float(constants['Cytoplasm'])/1e6;
+defaultVolume = 6.0221409e+23*float(constants['Cytoplasm'])/1e6;
 if defaultVolume > 10000000:
     defaultVolume = defaultVolume / 1000
 
@@ -80,9 +80,9 @@ print("""
 
 for (rxnName, rate) in rxnRates.items():
     actualRate = '\n'
-    for ccc in dependentConstants[rxnName]:
-        actualRate += ccc+' := '+constants[ccc]+';\n'
-    actualRate += rate
+    for ccc in set(dependentConstants[rxnName]):
+        actualRate += 'var '+ccc+' := '+constants[ccc]+';\n'
+    actualRate += 'm_rate := '+rate+';'
     print("""
         <node id="r_%(rxnName)s">
             <data key="v_label">%(rxnName)s</data>
@@ -120,6 +120,7 @@ if 1:
             <edge id="r_%(rxn)s_d%(c)s" source="s_%(species)s" target="r_%(rxn)s">
                <data key="e_stoic">0</data>
             </edge>''' % {'rxn':rxnName, 'species': dep, 'c': count})
+            count += 1
 
 print("""
 

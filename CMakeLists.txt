@@ -390,13 +390,13 @@ set_target_properties(graphml2dot-bin PROPERTIES OUTPUT_NAME graphml2dot)
 list(APPEND WCS_UTILS_TARGETS graphml2dot-bin)
 
 if (WCS_HAS_SBML)
-  add_executable( readSBML-bin src/utils/readSBML.cpp )
-  target_compile_definitions(readSBML-bin PRIVATE WCS_HAS_CONFIG)
-  target_include_directories(readSBML-bin
+  add_executable( loadSBML-bin src/utils/loadSBML.cpp )
+  target_compile_definitions(loadSBML-bin PRIVATE WCS_HAS_CONFIG)
+  target_include_directories(loadSBML-bin
     PRIVATE $<TARGET_PROPERTY:wcs,INTERFACE_INCLUDE_DIRECTORIES>)
-  target_link_libraries(readSBML-bin PRIVATE SBML::SBML)
-  set_target_properties(readSBML-bin PROPERTIES OUTPUT_NAME readSBML)
-  list(APPEND WCS_UTILS_TARGETS readSBML-bin)
+  target_link_libraries(loadSBML-bin PRIVATE SBML::SBML)
+  set_target_properties(loadSBML-bin PROPERTIES OUTPUT_NAME loadSBML)
+  list(APPEND WCS_UTILS_TARGETS loadSBML-bin)
 endif (WCS_HAS_SBML)
 
 # Build tests

@@ -61,6 +61,15 @@
    header-only library. No pre-installation is required as it is
    automatically downloaded and made available.
 
+## Getting started:
+ ```
+ git clone https://github.com/llnl/wcs.git
+ mkdir build; cd build
+ cmake -DBOOST_ROOT:PATH=<PathToYourBoostDev> -DCMAKE_INSTALL_PREFIX:PATH=<YourInstallPath> ../wcs
+ make
+ make install
+ ```
+
 ## Future requirements:
  + **Charm++ and Charades (ROSS over Charm++)**
  + [**Sundial CVODE**](https://github.com/LLNL/sundials.git)
@@ -94,3 +103,22 @@
  option `-DWCS_WITH_UNIT_TESTING=ON`. No pre-installation of Catch2 is required
  as it is automatically downloaded and made available. To use a pre-installed
  copy, use the variable `CATCH2_ROOT`.
+
+## Authors:
+  Many thanks go to WCS's [contributors](https://github.com/llnl/wcs/graphs/contributors).
+
+ * Jae-Seung Yeom
+ * Giorgis Georgakoudis
+ * Robert Blake
+ * Ali Navid
+
+## Release:
+ Whole cell simulator is distributed under the terms of the MIT license.
+ All new contributions must be made under this license.
+
+ See [LICENSE](https://github.com/llnl/wcs/blob/master/LICENSE) and [NOTICE](https://github.com/llnl/wcs/blob/master/NOTICE) for details
+ `SPDX-License-Identifier: MIT`
+ ``LLNL-CODE-809742``
+
+## Contribution:
+ Please submit any bugfixes or feature improvements as [pull requests](https://help.github.com/articles/using-pull-requests/).

@@ -1,3 +1,13 @@
+/******************************************************************************
+ *                                                                            *
+ *    Copyright 2020   Lawrence Livermore National Security, LLC and other    *
+ *    Whole Cell Simulator Project Developers. See the top-level COPYRIGHT    *
+ *    file for details.                                                       *
+ *                                                                            *
+ *    SPDX-License-Identifier: MIT                                            *
+ *                                                                            *
+ ******************************************************************************/
+
 #if defined(WCS_HAS_CONFIG)
 #include "wcs_config.hpp"
 #else

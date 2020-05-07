@@ -1,3 +1,13 @@
+/******************************************************************************
+ *                                                                            *
+ *    Copyright 2020   Lawrence Livermore National Security, LLC and other    *
+ *    Whole Cell Simulator Project Developers. See the top-level COPYRIGHT    *
+ *    file for details.                                                       *
+ *                                                                            *
+ *    SPDX-License-Identifier: MIT                                            *
+ *                                                                            *
+ ******************************************************************************/
+
 #include "reaction_network/vertex_property_base.hpp"
 #include "utils/exception.hpp"
 

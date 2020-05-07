@@ -1,6 +1,5 @@
 % Source: Matlab user forum discussion
 % https://www.mathworks.com/matlabcentral/answers/224604-implementing-gillespie-s-algorithm
-% by Harley Day on 11 Feb 2019
 function [tplot, Yplot] = eqn29 ( Y0 )
 % function to simulate reaction dynamics of equation 29 from Gillespie's
 % 1977 paper. The sigle argument to this function specifies the initial

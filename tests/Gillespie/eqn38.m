@@ -1,6 +1,5 @@
 % Source: Matlab user forum discussion
 % https://www.mathworks.com/matlabcentral/answers/224604-implementing-gillespie-s-algorithm
-% by Harley Day on 11 Feb 2019
 
 %% Lotka reactions
 %--------------------------

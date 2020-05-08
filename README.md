@@ -115,10 +115,10 @@
 ## Release:
  Whole cell simulator is distributed under the terms of the MIT license.
  All new contributions must be made under this license.
+ See [LICENSE](https://github.com/llnl/wcs/blob/master/LICENSE) and [NOTICE](https://github.com/llnl/wcs/blob/master/NOTICE) for details.
 
- See [LICENSE](https://github.com/llnl/wcs/blob/master/LICENSE) and [NOTICE](https://github.com/llnl/wcs/blob/master/NOTICE) for details
- `SPDX-License-Identifier: MIT`
- ``LLNL-CODE-809742``
+ + `SPDX-License-Identifier: MIT`
+ + `LLNL-CODE-809742`
 
-## Contribution:
- Please submit any bugfixes or feature improvements as [pull requests](https://help.github.com/articles/using-pull-requests/).
+## Contributing:
+ Please submit any bugfixes or feature improvements as [pull requests](https://help.github.com/en/github/collaborating-with-issues-and-pull-requests/creating-a-pull-request-from-a-fork).

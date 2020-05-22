@@ -81,15 +81,17 @@
  + [**libSBML C++ API**](http://sbml.org/Software/libSBML)
  + [**ExprTK**](https://github.com/ArashPartow/exprtk)
 
- We rely on either of the two approaches to ingest problem inputs. The one
- based on libSBML, currently under development. The other is based on ExprTk
- to parse the formula of the reaction rate annotated to each reaction
+ We currently rely on ExprTk to ingest problem inputs, and moving toward
+ utilizing libSBML. Until the latter replaces the former, the former is
+ used to parse the formula of the reaction rate annotated to each reaction
  vertex in the GraphML-formatted description of the reaction network.
+ Without either, reaction rate simply computes as the multiplication of
+ the counts of all the input species and the reaction coefficient.
+ As the integraton of libSBML completes, it will no longer be optional.
  To enable one of the optional components, either set the environment
  variable `WCS_WITH_SBML` or `WCS_WITH_EXPRTK`, or invoke cmake with
  the option `-DWCS_WITH_SBML:BOOL=ON` or `-DWCS_WITH_EXPRTK:BOOL=ON`
  respectively for libSBML or ExprTk.
- In case that both are set, only libSBML is enabled and ExprTk is ignored.
  To use a pre-installed libSBML, either set the environment variable
  `SBML_ROOT` or invoke cmake with the option `-DSBML_ROOT=<path-to-libsbml>`.
  For ExprTk, no pre-installation is required as it will automatically download

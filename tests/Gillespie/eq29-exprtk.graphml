@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<graphml xmlns="http://graphml.graphdrawing.org/xmlns">
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://graphml.graphdrawing.org/xmlns
+        http://graphml.graphdrawing.org/xmlns/1.1/graphml.xsd">
+
+    <!-- vertex (species and reactions) attributes -->
+    <key id="v_label" for="node" attr.name="v_label" attr.type="string"/>
+    <key id="v_type" for="node" attr.name="v_type" attr.type="int"/>
+    <key id="s_count" for="node" attr.name="s_count" attr.type="int">
+      <default>0</default>
+    </key>
+    <key id="r_const" for="node" attr.name="r_const" attr.type="double">
+      <default>1.0</default>
+    </key>
+    <key id="r_rate" for="node" attr.name="r_rate" attr.type="string"/>
+
+    <!-- edge attributes -->
+    <key id="e_label" for="edge" attr.name="e_label" attr.type="string"/>
+    <key id="e_stoic" for="edge" attr.name="e_stoic" attr.type="int">
+        <default>1</default>
+    </key>
+
+    <!--  r_1 : Xbar + Y -> 2*Y;  c1 -->
+    <!--    Xbar is assumed to be a constnt average of X,      -->
+    <!--    which is 10 in this example.                       -->
+    <!--    Alternatively, the above reaction is simplified as -->
+    <!--  r_1 : Y -> Y + Y;       c1 -->
+    <!--  r_2 : Y + Y -> Z;       c2 -->
+    <graph id="simple" edgedefault="directed">
+
+        <!-- species -->
+        <node id="s_Y">
+            <data key="v_label">Y</data>
+            <data key="v_type">1</data>
+            <data key="s_count">1000</data>
+            <!-- Replace the above line with the one below for batch runs -->
+            <!-- <data key="s_count">@Y0@</data> -->
+        </node>
+        <node id="s_Z">
+            <data key="v_label">Z</data>
+            <data key="v_type">1</data>
+            <data key="s_count">0</data>
+        </node>
+
+        <!-- reactions -->
+        <node id="r_1">
+            <data key="v_label">r1</data>
+            <data key="v_type">2</data>
+            <data key="r_rate">var Xbar := 10; var k := 5/Xbar * Xbar; m_rate := k * Y;</data>
+            <!-- <data key="r_rate">var k := 5; m_rate := k * Y;</data> -->
+            <!-- (Xbar +) Y -> 2*Y -->
+        </node>
+        <node id="r_2">
+            <data key="v_label">r2</data>
+            <data key="v_type">2</data>
+            <data key="r_rate">var k := 0.005; m_rate := k * Y * (Y-1) / 2</data>
+            <!-- Y + Y -> Z -->
+        </node>
+
+        <!-- Y -> 2*Y -->
+        <edge id="r_1_r1" source="s_Y" target="r_1"/>
+        <edge id="r_1_p1" source="r_1" target="s_Y">
+            <data key="e_stoic">2</data>
+        </edge>
+
+        <!-- Y + Y -> Z -->
+        <edge id="r_2_r1" source="s_Y" target="r_2">
+            <data key="e_stoic">2</data>
+        </edge>
+        <edge id="r_2_p1" source="r_2" target="s_Z"/>
+
+    </graph>
+</graphml>
+

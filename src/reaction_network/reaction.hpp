@@ -16,9 +16,7 @@
 
 #include "reaction_network/reaction_base.hpp"
 
-#if defined(WCS_HAS_SBML)
-#pragma message ("libSBML is not supported yet.")
-#elif defined(WCS_HAS_EXPRTK)
+#if defined(WCS_HAS_EXPRTK)
 #include "exprtk.hpp"
 #endif
 
@@ -42,12 +40,12 @@ class Reaction : public ReactionBase {
 
   void set_rate_inputs(const std::map<std::string, rdriver_t>& species_involved);
   const involved_species_t& get_rate_inputs() const;
-#if !defined(WCS_HAS_SBML) && defined(WCS_HAS_EXPRTK)
+#if defined(WCS_HAS_EXPRTK)
   void set_products(const std::map<std::string, rdriver_t>& products);
   reaction_rate_t calc_rate(std::vector<reaction_rate_t> params) override;
   void show_compile_error() const;
   bool detect_composite() const;
-#endif // !defined(WCS_HAS_SBML) && defined(WCS_HAS_EXPRTK)
+#endif // defined(WCS_HAS_EXPRTK)
 
  protected:
   void reset(Reaction& obj);
@@ -55,13 +53,13 @@ class Reaction : public ReactionBase {
  private:
   Reaction* clone_impl() const override;
 
-#if !defined(WCS_HAS_SBML) && defined(WCS_HAS_EXPRTK)
+#if defined(WCS_HAS_EXPRTK)
   std::vector<reaction_rate_t> m_params;
   exprtk::symbol_table<reaction_rate_t> m_sym_table;
   exprtk::parser<reaction_rate_t> m_parser;
   exprtk::expression<reaction_rate_t> m_expr;
   bool m_is_composite;
-#endif // !defined(WCS_HAS_SBML) && defined(WCS_HAS_EXPRTK)
+#endif // defined(WCS_HAS_EXPRTK)
 
  protected:
   /// The BGL descriptors of input vertices to reaction rate formula

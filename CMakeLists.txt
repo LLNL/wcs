@@ -248,12 +248,7 @@ if (WCS_WITH_SBML)
 endif (WCS_WITH_SBML)
 
 if (WCS_WITH_EXPRTK)
-  if (WCS_WITH_SBML)
-    message(WARNING "Disable ExprTk and keep libSBML enabled.")
-    set(WCS_WITH_EXPRTK OFF)
-  else (WCS_WITH_SBML)
-    include(SetupExprTk)
-  endif (WCS_WITH_SBML)
+  include(SetupExprTk)
 endif (WCS_WITH_EXPRTK)
 
 if (WCS_WITH_CEREAL)

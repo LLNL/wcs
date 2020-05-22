@@ -60,9 +60,9 @@ void Network::init()
       // implemented.
       s_involved_t involved_species;
 
-    #if !defined(WCS_HAS_SBML) && defined(WCS_HAS_EXPRTK)
+    #if defined(WCS_HAS_EXPRTK)
       s_involved_t products;
-    #endif // !defined(WCS_HAS_SBML) && defined(WCS_HAS_EXPRTK)
+    #endif // defined(WCS_HAS_EXPRTK)
 
       if constexpr (is_bidirectional) {
         for(const auto ei_in :
@@ -77,22 +77,22 @@ void Network::init()
       for(const auto ei_out :
           boost::make_iterator_range(boost::out_edges(reaction, m_graph))) {
         v_desc_t product = boost::target(ei_out, m_graph);
-    #if !defined(WCS_HAS_SBML) && defined(WCS_HAS_EXPRTK)
+    #if defined(WCS_HAS_EXPRTK)
         products.insert(std::make_pair(m_graph[product].get_label(),
                                        std::make_pair(product, 1)));
     #else
         involved_species.insert(std::make_pair(m_graph[product].get_label(),
                                                std::make_pair(product, 1)));
-    #endif // !defined(WCS_HAS_SBML) && defined(WCS_HAS_EXPRTK)
+    #endif // defined(WCS_HAS_EXPRTK)
       }
 
       m_reactions.emplace_back(reaction);
 
       auto& r = m_graph[*vi].checked_property< Reaction<v_desc_t> >();
       r.set_rate_inputs(involved_species);
-    #if !defined(WCS_HAS_SBML) && defined(WCS_HAS_EXPRTK)
+    #if defined(WCS_HAS_EXPRTK)
       r.set_products(products);
-    #endif // !defined(WCS_HAS_SBML) && defined(WCS_HAS_EXPRTK)
+    #endif // defined(WCS_HAS_EXPRTK)
       set_reaction_rate(*vi);
     }
   }
@@ -111,7 +111,7 @@ reaction_rate_t Network::set_reaction_rate(const Network::v_desc_t r) const
   std::vector<reaction_rate_t> params;
   // GG: rate constant is part of the Reaction object
   params.reserve(ri.size()+1u); // reserve space for species count and rate constant
-  #if defined(WCS_HAS_SBML) || !defined(WCS_HAS_EXPRTK)
+  #if !defined(WCS_HAS_EXPRTK)
   auto denominator = static_cast<stoic_t>(1);
   #endif
 
@@ -129,7 +129,7 @@ reaction_rate_t Network::set_reaction_rate(const Network::v_desc_t r) const
         // not modified by the reaction (i.e., neither reactant nor product)
         params.push_back(static_cast<reaction_rate_t>(n));
     } else {
-    #if !defined(WCS_HAS_SBML) && defined(WCS_HAS_EXPRTK)
+    #if defined(WCS_HAS_EXPRTK)
       params.push_back(static_cast<reaction_rate_t>(n));
     #else
       for (stoic_t i = static_cast<stoic_t>(0); i < num_same ; ++i) {
@@ -143,7 +143,7 @@ reaction_rate_t Network::set_reaction_rate(const Network::v_desc_t r) const
     #endif
     }
   }
-  #if defined(WCS_HAS_SBML) || !defined(WCS_HAS_EXPRTK)
+  #if !defined(WCS_HAS_EXPRTK)
   params.push_back(static_cast<reaction_rate_t>(1.0/
                      static_cast<reaction_rate_t>(denominator)));
   #endif

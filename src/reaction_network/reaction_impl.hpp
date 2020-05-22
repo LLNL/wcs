@@ -78,14 +78,7 @@ inline void Reaction<VD>::reset(Reaction& obj)
   ReactionBase::reset(obj);
 }
 
-#if defined(WCS_HAS_SBML)
-#pragma message ("libSBML is not supported yet.")
-template <typename VD>
-inline void Reaction<VD>::set_rate_inputs(const std::map<std::string, rdriver_t>& species_involved)
-{
-  m_rate_inputs = ReactionBase::interpret_species_name(this->get_rate_formula(), species_involved);
-}
-#elif defined(WCS_HAS_EXPRTK)
+#if defined(WCS_HAS_EXPRTK)
 template <typename VD>
 inline void Reaction<VD>::set_rate_inputs(const std::map<std::string, rdriver_t>& species_involved)
 {

@@ -388,7 +388,7 @@ if (WCS_HAS_SBML)
   add_executable( loadSBML-bin src/utils/loadSBML.cpp )
   target_compile_definitions(loadSBML-bin PRIVATE WCS_HAS_CONFIG)
   target_include_directories(loadSBML-bin
-    PRIVATE $<TARGET_PROPERTY:wcs,INTERFACE_INCLUDE_DIRECTORIES>)
+    PRIVATE $<TARGET_PROPERTY:wcs,INTERFACE_INCLUDE_DIRECTORIES> ${SBML_INCLUDE_DIR})
   target_link_libraries(loadSBML-bin PRIVATE SBML::SBML)
   set_target_properties(loadSBML-bin PROPERTIES OUTPUT_NAME loadSBML)
   list(APPEND WCS_UTILS_TARGETS loadSBML-bin)

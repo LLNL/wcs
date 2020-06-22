@@ -130,6 +130,7 @@ int main(int argc, char** argv)
       std::string toReplace("pow(");
       std::string toReplace2(", ");
       std::string toReplace3(")");
+      std::string wholeformula("");
       size_t pos = formula.find(toReplace);
       while (pos < formula.length()) {
         if (pos != std::string::npos) {
@@ -145,12 +146,15 @@ int main(int argc, char** argv)
       for (int ic = 0; ic < parametersSize; ic++) {
         std::string toFindPar(parameterslist->get(ic)->getIdAttribute());
         size_t posPar = formula.find(toFindPar);
+	std::string parametervalue = std::to_string(parameterslist->get(ic)->getValue()).substr(0, std::to_string(parameterslist->get(ic)->getValue()).find(".") + 3);
         if (posPar != std::string::npos) {
+	  wholeformula = wholeformula + "var " + parameterslist->get(ic)->getIdAttribute() + " := " + parametervalue +  "; ";	
           std::cout << "var " <<parameterslist->get(ic)->getIdAttribute() << " := " << parameterslist->get(ic)->getValue() << "; ";
         } 
       }
       std::cout << "m_rate := " << formula << ";\n";
-
+      wholeformula = wholeformula + "m_rate := " + formula + ";\n";
+      ///std::cout << wholeformula;
 
       /**std::cout << "FunctionDefinition " << reactionsk->get(ic)->getIdAttribute();
       const ASTNode*  math = reactionsk->get(ic)->getKineticLaw()->getMath();   
@@ -181,12 +185,12 @@ int main(int argc, char** argv)
         std::cout << "\n  " <<  specieslist->get(ic)->getIdAttribute() << " = 0";
       } else {
         if (!isnan(specieslist->get(ic)->getInitialAmount())){
-          std::cout << "\n  " << specieslist->get(ic)->getIdAttribute() << " = " << specieslist->get(ic)->getInitialAmount() << "/" <<specieslist->get(ic)->getCompartment() << ";";
+          std::cout << "\n  " << specieslist->get(ic)->getIdAttribute() << " = " << specieslist->get(ic)->getInitialAmount() << ";"; /// << "/" <<specieslist->get(ic)->getCompartment() << ";";
        	} else if (!isnan(specieslist->get(ic)->getInitialConcentration())) {
           if (specieslist->get(ic)->getInitialConcentration() == 0) { 
 	    std::cout << "\n  " << specieslist->get(ic)->getIdAttribute() << " = 0;";
 	  } else {
-            std::cout << "\n  " << specieslist->get(ic)->getIdAttribute() << " = " << specieslist->get(ic)->getInitialConcentration() << "/" << specieslist->get(ic)->getCompartment() << ";";
+            std::cout << "\n  " << specieslist->get(ic)->getIdAttribute() << " = " << specieslist->get(ic)->getInitialConcentration() << ";"; /// << "/" << specieslist->get(ic)->getCompartment() << ";";
 	  } 
 	}		
       }

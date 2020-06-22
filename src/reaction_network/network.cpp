@@ -13,6 +13,8 @@
 #include <type_traits> // is_same<>
 #include <algorithm> // lexicographical_compare(), sort()
 #include <limits> // numeric_limits
+#include <sbml/SBMLTypes.h>   ///Konstantia added
+#include <sbml/common/extern.h>
 
 namespace wcs {
 /** \addtogroup wcs_reaction_network
@@ -31,6 +33,35 @@ void Network::load(const std::string graphml_filename)
   gfactory.copy_to(m_graph);
 }
 
+void Network::loadSBML(const std::string sbml_filename) 
+{
+  ::wcs::GraphFactory gfactory;
+  libsbml::SBMLReader reader;
+  libsbml::SBMLDocument* document = reader.readSBML(sbml_filename);
+  libsbml::Model* model = document->getModel();
+  
+  const unsigned num_errors = document->getNumErrors();
+
+  if (num_errors > 0u) {
+    WCS_THROW(std::to_string(num_errors) + " error(s) in reading " + sbml_filename);
+
+    document->printErrors(std::cerr);
+
+    delete document;
+    return; /// static_cast<int>(num_errors);
+  }
+
+  if (model == NULL) {
+    std::cout << "Failed to get model from " << sbml_filename << std::endl;
+    delete document;
+    return; ///-1;
+  }
+
+   
+  
+  gfactory.convert_to(*model, m_graph);
+  delete document; 
+}
 
 void Network::init()
 {

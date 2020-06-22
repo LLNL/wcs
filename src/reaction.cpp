@@ -27,7 +27,8 @@ void print_usage(const std::string exec, int code)
 {
   std::cerr <<
     "Usage: " << exec << " <filename>.graphml\n"
-    "    Load a reaction network graph (<filename>.graphml)\n"
+    "    Load a reaction network graph (<filename>.graphml) or\n"
+    "    a Systems Biology Markup Language (SBML) file (<filename>.xml)\n"
     "    into a graph with the flat vertex property stucture.\n"
     "    Then, convert it to the one with polymorphic vertices.\n"
     "    Finally, write to a GraphViz format file (<filename>.dot)\n"
@@ -98,6 +99,44 @@ void traverse(const wcs::Network& rnet)
   }
 }
 
+int check_type_of_file(std::string fn) { 
+  std::ifstream file;
+  file.open(fn);
+  std::string line;
+  std::string commentline("<!--");
+  std::string graphmlline("<graphml");
+  std::string sbmlline("<sbml");
+
+  if (!file) //checks to see if file opens properly
+  {
+    WCS_THROW("Error: Could not find the requested file.");
+    file.close(); // Remember to close the file.
+    return -1;
+  }
+  else
+  {
+    for(int i=0; i<10; i++) {
+      if (std::getline(file, line)){
+        size_t pos = line.find(commentline);
+        size_t pos1 = line.find(graphmlline);
+        size_t pos2 = line.find(sbmlline);
+        if (pos != std::string::npos) {
+          i--;
+        } else if (pos1 != std::string::npos) {  ///graphml file
+          file.close(); // Remember to close the file.
+          return 1;
+        } else if (pos2 != std::string::npos) {  ///sbml file
+          file.close(); // Remember to close the file.
+          return 2;
+        }  
+      } 
+    }
+    
+  }
+  file.close(); // Remember to close the file.
+  return -1;
+}
+
 int main(int argc, char** argv)
 {
   int c;
@@ -125,7 +164,16 @@ int main(int argc, char** argv)
   std::string fn(argv[optind]);
 
   wcs::Network rnet;
-  rnet.load(fn);
+   
+  int filetype = check_type_of_file(fn);
+  if (filetype == 1) {
+    rnet.load(fn);
+  } else if (filetype == 2) {  
+    rnet.loadSBML(fn);
+  } else if (filetype == -1) {
+    print_usage (argv[0], 1);
+  } 
+  
   rnet.init();
   const wcs::Network::graph_t& g = rnet.graph();
 

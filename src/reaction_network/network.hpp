@@ -88,6 +88,7 @@ class Network {
  public:
   /// Load an input Graph ML file
   void load(const std::string graphml_filename);
+  void loadSBML(const std::string sbml_filename); ///Konstantia
   void init();
   reaction_rate_t set_reaction_rate(const v_desc_t r) const;
   reaction_rate_t get_reaction_rate(const v_desc_t r) const;

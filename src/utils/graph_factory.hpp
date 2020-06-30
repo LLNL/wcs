@@ -19,6 +19,18 @@
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
 #endif
+
+#if defined(WCS_HAS_CONFIG)
+#include "wcs_config.hpp"
+#else
+#error "no config"
+#endif
+
+#if defined(WCS_HAS_SBML)
+#include <sbml/SBMLTypes.h>
+#include <sbml/common/extern.h>
+#endif // defined(WCS_HAS_SBML)
+
 // To suppress the gcc compiler warning 'maybe-uninitialized'
 // from the boost graph source code.
 // clang does not recognize this particular diagnostic flag.
@@ -34,9 +46,7 @@
 #include <reaction_network/species.hpp>
 #include <reaction_network/reaction.hpp>
 #include <utils/detect_methods.hpp>
-
-#include <sbml/SBMLTypes.h>   ///Konstantia added
-#include <sbml/common/extern.h>
+#include <utils/sbml_utils.hpp>
 
 
 namespace wcs {
@@ -65,7 +75,9 @@ class GraphFactory {
   /** Export the internal adjacency list to g, which might be of a different
       type in terms of the random accessibility but of a compatible one (G). */
   template<typename G> void copy_to(G& g) const;
-  template<typename G> void convert_to(libsbml::Model& model, G& g) const; ///Konstantia
+  #if defined(WCS_HAS_SBML)
+  template<typename G> void convert_to(libsbml::Model& model, G& g) const; 
+  #endif // defined(WCS_HAS_SBML)
   template<typename G>
   typename std::shared_ptr<G> make_graph() const;
 
@@ -128,10 +140,14 @@ template<typename G> void GraphFactory::copy_to(G& g) const
   }
 }
 
+#if defined(WCS_HAS_SBML)
 /// Convert SBML output into a Boost graph 
 template<typename G> void GraphFactory::convert_to(libsbml::Model& model, G& g) const
 {
+    
   using v_new_desc_t = typename boost::graph_traits<G>::vertex_descriptor;
+  using e_new_desc_t = typename boost::graph_traits<G>::edge_descriptor;
+
 
   if constexpr (has_reserve_for_vertex_list<G>::value) {
     g.m_vertices.reserve(m_g.m_vertices.size());
@@ -141,7 +157,7 @@ template<typename G> void GraphFactory::convert_to(libsbml::Model& model, G& g) 
   constexpr bool is_bidirectional
     = std::is_same<directed_category, boost::bidirectional_tag>::value;
 
-
+  
   libsbml::ListOfReactions* reactionslist = model.getListOfReactions();
 
   if  (reactionslist == nullptr) {
@@ -155,9 +171,23 @@ template<typename G> void GraphFactory::convert_to(libsbml::Model& model, G& g) 
   typename species_added::const_iterator it;
   species_added smap;
 
-  using edges_added = std::unordered_map<std::string, double>;
-  edges_added::const_iterator eit;
+  using edges_added = std::unordered_map<std::string, e_new_desc_t>;
+  typename edges_added::const_iterator eit;
   edges_added emap;
+
+  using undeclared_reactants = std::unordered_set<std::string>;
+  typename undeclared_reactants::const_iterator urit;
+  undeclared_reactants urset;
+
+  using  all_species = std::unordered_set<std::string>;
+  typename all_species::const_iterator aspit;
+  all_species aspset;
+  
+  // Create an unordered_set for all model species
+  unsigned int speciesSize = specieslist->size();
+  for (unsigned int si = 0u; si < speciesSize; si++) {
+    aspset.insert(specieslist->get(si)->getIdAttribute());
+  }
 
   /// Add reactions
   for (unsigned int ri=0u; ri < reactionsSize; ri++) {
@@ -179,6 +209,7 @@ template<typename G> void GraphFactory::convert_to(libsbml::Model& model, G& g) 
       g.m_vertices[vd].m_in_edges.reserve(reactantsSize);
     }
 
+    
     /// Add reactants species
     for (unsigned int si=0u; si < reactantsSize; si++) {
       const auto &reactant = *(reaction.getReactant(si));
@@ -205,16 +236,65 @@ template<typename G> void GraphFactory::convert_to(libsbml::Model& model, G& g) 
         }
         g[ret.first].set_stoichiometry_ratio(reactant.getStoichiometry()); 
         g[ret.first].set_label(e_label);
-        emap.insert(std::make_pair(e_label,reactant.getStoichiometry()));
+        emap.insert(std::make_pair(e_label, ret.first));
+      } else {
+        const auto& edge_found = eit->second;
+        stoic_t new_stoich = g[edge_found].get_stoichiometry_ratio()
+                           + reactant.getStoichiometry();
+        g[edge_found].set_stoichiometry_ratio(new_stoich);
+      }
+    }
+
+
+
+    sbml_utils sbml_o;
+    urset=sbml_o.find_undeclared_reactant_species(model, reaction);
+
+    /// Check if all the elements of the undeclared elements are actually species 
+    for  (const std::string& x: urset) {
+      std::string s_label = x;
+      aspit = aspset.find(s_label);
+      if (aspit == aspset.end()) {
+        WCS_THROW("Unknown elements in the reaction " + reaction.getIdAttribute() + " of your SBML file");
+        return;
       }  
     }
+
+    /// Add undeclared reactants species in the rate formula
+    for  (const std::string& x: urset) {
+      std::string s_label = x;
+      it = smap.find(s_label) ;
+      v_new_desc_t vds;
+      if (it == smap.end()) {
+        wcs::Vertex vs(*specieslist->get(x), g); 
+        vds = boost::add_vertex(vs, g); 
+        smap.insert(std::make_pair(s_label,vds));
+      } else {
+        vds = it->second;
+      }
+      
+      std::string e_label = g[vds].get_label() + g[vd].get_label();
+      const auto ret = boost::add_edge(vds, vd, g);
+      
+      if (!ret.second) { 
+        WCS_THROW("Please check the reactions in your SBML file");
+        return;
+      }
+      g[ret.first].set_stoichiometry_ratio(0); 
+      g[ret.first].set_label(e_label);
+      emap.insert(std::make_pair(e_label, ret.first));
+      
+    }
+
+
+
     
     /// Add products species
     for (unsigned int si=0u; si < productsSize; si++) {
       const auto &product = *(reaction.getProduct(si));
    
       std::string s_label = specieslist->get(product.getSpecies())->getIdAttribute();
-      it = smap.find(s_label) ;
+      it = smap.find(s_label);
       v_new_desc_t vds;
       if (it == smap.end()) {
         wcs::Vertex vs(*specieslist->get(product.getSpecies()), g); 
@@ -235,12 +315,19 @@ template<typename G> void GraphFactory::convert_to(libsbml::Model& model, G& g) 
         }
         g[ret.first].set_stoichiometry_ratio(product.getStoichiometry()); 
         g[ret.first].set_label( g[vd].get_label() + g[vds].get_label()); 
-        emap.insert(std::make_pair(e_label,product.getStoichiometry()));
+        emap.insert(std::make_pair(e_label, ret.first));
+      } else {
+        const auto& edge_found = eit->second;
+        stoic_t new_stoich = g[edge_found].get_stoichiometry_ratio()
+                           + product.getStoichiometry();
+        g[edge_found].set_stoichiometry_ratio(new_stoich);
+             
       }
     }
     
-  }  
+  } 
 }
+#endif // defined(WCS_HAS_SBML)
 
 
 /**

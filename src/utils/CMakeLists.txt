@@ -3,9 +3,11 @@ set_full_path(THIS_DIR_HEADERS
   detect_methods.hpp
   exception.hpp
   graph_factory.hpp
+  input_filetype.hpp
   rngen.hpp
   rngen_impl.hpp
   samples.hpp
+  sbml_utils.hpp
   seed.hpp
   state_io.hpp
   state_io_impl.hpp
@@ -25,7 +27,9 @@ set_full_path(THIS_DIR_HEADERS
 set_full_path(THIS_DIR_SOURCES
   exception.cpp
   graph_factory.cpp
+  input_filetype.cpp
   samples.cpp
+  sbml_utils.cpp
   trace.cpp
   trace_ssa.cpp
   )

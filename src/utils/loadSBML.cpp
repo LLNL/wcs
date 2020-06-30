@@ -14,6 +14,8 @@
 #error "no config"
 #endif
 
+#include "utils/sbml_utils.hpp"
+
 #if defined(WCS_HAS_SBML)
 #include <iostream>
 
@@ -156,26 +158,9 @@ int main(int argc, char** argv)
       wholeformula = wholeformula + "m_rate := " + formula + ";\n";
       ///std::cout << wholeformula;
 
-      /**std::cout << "FunctionDefinition " << reactionsk->get(ic)->getIdAttribute();
-      const ASTNode*  math = reactionsk->get(ic)->getKineticLaw()->getMath();   
-      if (math->getNumChildren() > 1) {
-        std::cout<<" " << math->getNumChildren()<<"\n";
-	std::cout << "\n(" << ( math->getLeftChild() )->getName();
-        for (int n = 0; n < math->getNumChildren() - 1; ++n){
-       	  std::cout <<", " << ( math->getChild(n) )->getName();
-        }
-      }   
-
-      std::cout <<") := ";
-      if (math->getNumChildren() == 0){ 
-        std::cout << "(no body defined)";
-      } else {
-        math    = math->getChild(math->getNumChildren() - 1);
-        char* formula = SBML_formulaToString(math);
-        std::cout << formula ;
-      }*/
-
-   
+      ///std::cout << "FunctionDefinition " << reactionsk->get(ic)->getIdAttribute();
+      ///const ASTNode*  math = reactionslist->get(ic)->getKineticLaw()->getMath();   
+        
     }  
    
     /// Print out Species initializations

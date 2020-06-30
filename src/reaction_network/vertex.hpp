@@ -26,6 +26,12 @@
  * \date 2019
  */
 
+#if defined(WCS_HAS_CONFIG)
+#include "wcs_config.hpp"
+#else
+#error "no config"
+#endif
+
 #include <string>
 #include <map>
 #include <iostream>
@@ -35,8 +41,12 @@
 #include "reaction_network/vertex_property_base.hpp"
 #include "reaction_network/species.hpp"
 #include "reaction_network/reaction.hpp"
-#include <sbml/SBMLTypes.h>   ///Konstantia added
+#include "utils/sbml_utils.hpp"
+
+#if defined(WCS_HAS_SBML)
+#include <sbml/SBMLTypes.h>
 #include <sbml/common/extern.h>
+#endif // defined(WCS_HAS_SBML)
 
 namespace wcs {
 /** \addtogroup wcs_reaction_network
@@ -54,8 +64,10 @@ class Vertex {
   Vertex& operator=(const Vertex& rhs);
   Vertex& operator=(Vertex&& rhs) noexcept;
   template <typename G> Vertex(const VertexFlat& rhs, const G& g);
-  template <typename G> Vertex(const libsbml::Species& species, const G& g); ///Konstantia
+  #if defined(WCS_HAS_SBML)
+  template <typename G> Vertex(const libsbml::Species& species, const G& g); 
   template <typename G> Vertex(const libsbml::Model& model, const libsbml::Reaction& reaction, const G& g); ///Konstantia
+  #endif // defined(WCS_HAS_SBML)
   virtual ~Vertex();
   std::unique_ptr<Vertex> clone() const;
 
@@ -123,6 +135,7 @@ Vertex::Vertex(const VertexFlat& flat, const G& g)
   }
 }
 
+#if defined(WCS_HAS_SBML)
 template <typename G>
 Vertex::Vertex(const libsbml::Species& species, const G& g)
 : m_type(_species_),
@@ -136,7 +149,7 @@ Vertex::Vertex(const libsbml::Species& species, const G& g)
     dynamic_cast<Species*>(m_p.get())->set_count(species.getInitialAmount()); 
   } else  if (!isnan(species.getInitialConcentration())) {
     dynamic_cast<Species*>(m_p.get())->set_count(species.getInitialConcentration());    
-  }
+  }  
 }
 
 template <typename G>
@@ -146,6 +159,7 @@ Vertex::Vertex(const libsbml::Model& model, const libsbml::Reaction& reaction, c
   m_label(reaction.getIdAttribute()),
   m_p(nullptr)
 {
+  
   m_typeid = static_cast<int>(m_type);
   using v_desc_t = typename boost::graph_traits<G>::vertex_descriptor;
   m_p = std::unique_ptr< Reaction<v_desc_t> >(new Reaction<v_desc_t>);
@@ -153,20 +167,42 @@ Vertex::Vertex(const libsbml::Model& model, const libsbml::Reaction& reaction, c
 
   std::string formula = SBML_formulaToString(reaction.getKineticLaw()->getMath());
   std::string wholeformula("");
+  //Add parameters  
   const libsbml::ListOfParameters* parameterslist = model.getListOfParameters();
   unsigned int parametersSize = parameterslist->size();
   for (unsigned int ic = 0u; ic < parametersSize; ic++) {
     std::string toFindPar(parameterslist->get(ic)->getIdAttribute());
     size_t posPar = formula.find(toFindPar);
-    std::string parametervalue = std::to_string(parameterslist->get(ic)->getValue());
-    /// std::string parametervalue = std::to_string(parameterslist->get(ic)->getValue()).substr(0, std::to_string(parameterslist->get(ic)->getValue()).find(".") + 3); ///add precision
+
+    std::stringstream ss;
+    ss << parameterslist->get(ic)->getValue();
+    std::string parametervalue = ss.str();
+
     if (posPar != std::string::npos) {
           wholeformula = wholeformula + "var " + parameterslist->get(ic)->getIdAttribute() + " := " + parametervalue +  "; ";          
     }
   }
-  wholeformula = wholeformula + "m_rate := " + formula ;
+  
+  //Add compartnents
+  const libsbml::ListOfCompartments* compartmentslist = model.getListOfCompartments();
+  unsigned int compartmentsSize = compartmentslist->size();
+  for (unsigned int ic = 0u; ic < compartmentsSize; ic++) {
+    std::string toFindPar(compartmentslist->get(ic)->getIdAttribute());
+    size_t posPar = formula.find(toFindPar);
+    
+    std::stringstream ss;
+    ss << compartmentslist->get(ic)->getSize();
+    std::string parametervalue = ss.str();
+
+    if (posPar != std::string::npos) {
+          wholeformula = wholeformula + "var " + compartmentslist->get(ic)->getIdAttribute() + " := " + parametervalue +  "; ";          
+    }
+  }
+
+  wholeformula = wholeformula + "m_rate := " + formula +";";
   dynamic_cast<Reaction<v_desc_t>*>(m_p.get())->set_rate_formula(wholeformula);
 }
+#endif // defined(WCS_HAS_SBML)
 
 template <typename P> P& Vertex::property() const
 {
@@ -184,4 +220,5 @@ template <typename P> P& Vertex::checked_property() const
 
 /**@}*/
 } // end of namespace wcs
+
 #endif // __WCS_REACTION_NETWORK_VERTEX_HPP__

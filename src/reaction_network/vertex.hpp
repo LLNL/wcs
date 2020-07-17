@@ -148,6 +148,7 @@ Vertex::Vertex(const LIBSBML_CPP_NAMESPACE::Species& species, const G& g)
   if  (!isnan(species.getInitialAmount())) {
     dynamic_cast<Species*>(m_p.get())->set_count(static_cast<species_cnt_t>
     (species.getInitialAmount()));
+    // TODO: species.getInitialConcentration() should be multiplied by compartment volume and molarity (depending on the unit of concentration) should be converted to count
   } else  if (!isnan(species.getInitialConcentration())) {
     dynamic_cast<Species*>(m_p.get())->set_count(static_cast<species_cnt_t>
     (species.getInitialConcentration()));

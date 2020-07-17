@@ -32,26 +32,18 @@ namespace wcs {
 
 class sbml_utils {
  public:
-  enum component_type { _undefined_=0, _model_, _species_, _reaction_ };
   sbml_utils();
+  ~sbml_utils();
 
-  #if defined(WCS_HAS_SBML)  
-  static std::unordered_set<std::string> find_undeclared_reactant_species(const libsbml::Model& model, const libsbml::Reaction& reaction);
-  
-  static std::unordered_set<std::string>  get_symbol_table_of_formula (const libsbml::ASTNode& formula); 
-  static void read_ast_node(const libsbml::ASTNode&  math, std::unordered_set<std::string>& math_elements);
+  #if defined(WCS_HAS_SBML)
+  static std::unordered_set<std::string> find_undeclared_species_in_reaction_formula(const LIBSBML_CPP_NAMESPACE::Model& model, const LIBSBML_CPP_NAMESPACE::Reaction& reaction);
+  static std::unordered_set<std::string> get_reaction_parameters(const LIBSBML_CPP_NAMESPACE::Model& model, const LIBSBML_CPP_NAMESPACE::Reaction& reaction);
+
+  static std::unordered_set<std::string>  get_symbol_table_of_formula (const LIBSBML_CPP_NAMESPACE::ASTNode& formula);
+  static void read_ast_node(const LIBSBML_CPP_NAMESPACE::ASTNode&  math, std::unordered_set<std::string>& math_elements);
+
   #endif // defined(WCS_HAS_SBML)
 
-  
-  virtual ~sbml_utils();
-
- protected:
-  
- private:
-  
- protected:
-  component_type m_type; ///< The sbml component type
-  
 };
 
 /**@}*/

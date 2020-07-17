@@ -21,7 +21,7 @@
 #include <algorithm> // lexicographical_compare(), sort()
 #include <limits> // numeric_limits
 
-#if defined(WCS_HAS_SBML)  
+#if defined(WCS_HAS_SBML)
 #include <sbml/SBMLTypes.h>
 #include <sbml/common/extern.h>
 #endif // defined(WCS_HAS_SBML)
@@ -38,7 +38,7 @@ void Network::load(const std::string filename)
   input_filetype::input_type filetype = fn.detect();
   if (filetype == input_filetype::input_type::_graphml_) {
     loadGraphML(filename);
-  } else if (filetype == input_filetype::input_type::_sbml_) {  
+  } else if (filetype == input_filetype::input_type::_sbml_) {
     loadSBML(filename);
   } else if (filetype == input_filetype::input_type::_ioerror_) {
     WCS_THROW("Could not find the requested file.");
@@ -46,8 +46,8 @@ void Network::load(const std::string filename)
   } else if (filetype == input_filetype::input_type::_unknown_) {
     WCS_THROW("Unknown filetype. Please select a reaction network graph (<filename>.graphml) or"
               " a Systems Biology Markup Language (SBML) file (<filename>.xml)\n");
-    return;    
-  } 
+    return;
+  }
 }
 
 void Network::loadGraphML(const std::string graphml_filename)
@@ -61,36 +61,33 @@ void Network::loadGraphML(const std::string graphml_filename)
   gfactory.copy_to(m_graph);
 }
 
-void Network::loadSBML(const std::string sbml_filename) 
+void Network::loadSBML(const std::string sbml_filename)
 {
   #if defined(WCS_HAS_SBML)
-  
+
   ::wcs::GraphFactory gfactory;
-  libsbml::SBMLReader reader;
-  libsbml::SBMLDocument* document = reader.readSBML(sbml_filename);
-  libsbml::Model* model = document->getModel();
-  
+  LIBSBML_CPP_NAMESPACE::SBMLReader reader;
+  const LIBSBML_CPP_NAMESPACE::SBMLDocument* document = reader.readSBML(sbml_filename);
+  const LIBSBML_CPP_NAMESPACE::Model* model = document->getModel();
+
   const unsigned num_errors = document->getNumErrors();
 
   if (num_errors > 0u) {
-    WCS_THROW(std::to_string(num_errors) + " error(s) in reading " + sbml_filename);
-
     document->printErrors(std::cerr);
 
     delete document;
-    return; /// static_cast<int>(num_errors);
+    WCS_THROW(std::to_string(num_errors) + " error(s) in reading " + sbml_filename);
+    return;
   }
 
   if (model == NULL) {
-    std::cout << "Failed to get model from " << sbml_filename << std::endl;
     delete document;
-    return; ///-1;
+    WCS_THROW("Failed to get model from " + sbml_filename);
+    return;
   }
 
-   
-  
   gfactory.convert_to(*model, m_graph);
-  delete document; 
+  delete document;
   #endif // defined(WCS_HAS_SBML)
 
 }

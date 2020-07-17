@@ -9,8 +9,10 @@
  ******************************************************************************/
 
 #include "utils/input_filetype.hpp"
-#include <iostream> 
+#include <iostream>
 #include <fstream>
+#include <algorithm>
+
 
 namespace wcs {
 /** \addtogroup wcs_utils
@@ -20,14 +22,14 @@ input_filetype::input_filetype(const std::string filename)
 : m_filename(filename)
 {}
 
-input_filetype::input_type input_filetype::detect() 
+input_filetype::input_type input_filetype::detect() const
 {
   std::ifstream file;
   file.open(m_filename);
   std::string line;
-  std::string commentline("<!--");
-  std::string graphmlline("<graphml");
-  std::string sbmlline("<sbml");
+  const std::string commentline("<!--");
+  const std::string graphmlline("graphml");
+  const std::string sbmlline("sbml");
 
   if (!file) //checks to see if file opens properly
   {
@@ -38,9 +40,11 @@ input_filetype::input_type input_filetype::detect()
   {
     for(int i=0; i<10; i++) {
       if (std::getline(file, line)){
-        size_t pos = line.find(commentline);
-        size_t pos1 = line.find(graphmlline);
-        size_t pos2 = line.find(sbmlline);
+        std::transform(line.begin(), line.end(), line.begin(),
+        [](unsigned char c){ return std::tolower(c); });
+        const size_t pos = line.find(commentline);
+        const size_t pos1 = line.find(graphmlline);
+        const size_t pos2 = line.find(sbmlline);
         if (pos != std::string::npos) {
           i--;
         } else if (pos1 != std::string::npos) {  ///graphml file
@@ -49,10 +53,10 @@ input_filetype::input_type input_filetype::detect()
         } else if (pos2 != std::string::npos) {  ///sbml file
           file.close(); // Remember to close the file.
           return input_filetype::input_type::_sbml_;
-        }  
-      } 
+        }
+      }
     }
-    
+
   }
   file.close(); // Remember to close the file.
   return input_filetype::input_type::_unknown_;

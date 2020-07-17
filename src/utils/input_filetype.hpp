@@ -20,8 +20,8 @@ namespace wcs {
 class input_filetype {
  public:
   enum input_type { _ioerror_=0, _graphml_, _sbml_, _unknown_ };
-  input_filetype(const std::string message = "");
-  input_type detect (); 
+  input_filetype(const std::string filename);
+  input_type detect () const;
  private:
   std::string m_filename;
 };

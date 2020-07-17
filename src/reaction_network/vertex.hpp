@@ -65,8 +65,9 @@ class Vertex {
   Vertex& operator=(Vertex&& rhs) noexcept;
   template <typename G> Vertex(const VertexFlat& rhs, const G& g);
   #if defined(WCS_HAS_SBML)
-  template <typename G> Vertex(const libsbml::Species& species, const G& g); 
-  template <typename G> Vertex(const libsbml::Model& model, const libsbml::Reaction& reaction, const G& g); ///Konstantia
+  template <typename G> Vertex(const LIBSBML_CPP_NAMESPACE::Species& species, const G& g);
+  template <typename G> Vertex(const LIBSBML_CPP_NAMESPACE::Model& model, const
+  LIBSBML_CPP_NAMESPACE::Reaction& reaction, const G& g);
   #endif // defined(WCS_HAS_SBML)
   virtual ~Vertex();
   std::unique_ptr<Vertex> clone() const;
@@ -128,7 +129,7 @@ Vertex::Vertex(const VertexFlat& flat, const G& g)
         m_p = std::unique_ptr< Reaction<v_desc_t> >(new Reaction<v_desc_t>);
         dynamic_cast<Reaction<v_desc_t>*>(m_p.get())->set_rate_constant(flat.get_rate_constant());
         dynamic_cast<Reaction<v_desc_t>*>(m_p.get())->set_rate_formula(flat.get_rate_formula());
-        break;
+    break;
       }
     default:
       break;
@@ -137,69 +138,87 @@ Vertex::Vertex(const VertexFlat& flat, const G& g)
 
 #if defined(WCS_HAS_SBML)
 template <typename G>
-Vertex::Vertex(const libsbml::Species& species, const G& g)
+Vertex::Vertex(const LIBSBML_CPP_NAMESPACE::Species& species, const G& g)
 : m_type(_species_),
-  m_typeid(1),
+  m_typeid(static_cast<int>(_species_)),
   m_label(species.getIdAttribute()),
   m_p(nullptr)
 {
-  m_typeid = static_cast<int>(m_type);
   m_p = std::unique_ptr<Species>(new Species);
   if  (!isnan(species.getInitialAmount())) {
-    dynamic_cast<Species*>(m_p.get())->set_count(species.getInitialAmount()); 
+    dynamic_cast<Species*>(m_p.get())->set_count(static_cast<species_cnt_t>
+    (species.getInitialAmount()));
   } else  if (!isnan(species.getInitialConcentration())) {
-    dynamic_cast<Species*>(m_p.get())->set_count(species.getInitialConcentration());    
-  }  
+    dynamic_cast<Species*>(m_p.get())->set_count(static_cast<species_cnt_t>
+    (species.getInitialConcentration()));
+  }
 }
 
 template <typename G>
-Vertex::Vertex(const libsbml::Model& model, const libsbml::Reaction& reaction, const G& g)
+Vertex::Vertex(const LIBSBML_CPP_NAMESPACE::Model& model, const LIBSBML_CPP_NAMESPACE::Reaction& reaction, const G& g)
 : m_type(_reaction_),
-  m_typeid(2),
+  m_typeid(static_cast<int>(_reaction_)),
   m_label(reaction.getIdAttribute()),
   m_p(nullptr)
 {
-  
-  m_typeid = static_cast<int>(m_type);
   using v_desc_t = typename boost::graph_traits<G>::vertex_descriptor;
   m_p = std::unique_ptr< Reaction<v_desc_t> >(new Reaction<v_desc_t>);
   dynamic_cast<Reaction<v_desc_t>*>(m_p.get())->set_rate_constant(1);
 
+  using reaction_parameters = std::unordered_set<std::string>;
+  typename reaction_parameters::const_iterator mpit;
+  reaction_parameters mpset;
+  reaction_parameters pset;
+
   std::string formula = SBML_formulaToString(reaction.getKineticLaw()->getMath());
+
+  //remove spaves from formula
+  formula.erase(remove(formula.begin(), formula.end(), ' '), formula.end());
+
   std::string wholeformula("");
-  //Add parameters  
-  const libsbml::ListOfParameters* parameterslist = model.getListOfParameters();
-  unsigned int parametersSize = parameterslist->size();
-  for (unsigned int ic = 0u; ic < parametersSize; ic++) {
-    std::string toFindPar(parameterslist->get(ic)->getIdAttribute());
-    size_t posPar = formula.find(toFindPar);
+  //Add parameters
+  const LIBSBML_CPP_NAMESPACE::ListOfParameters* parameter_list = model.getListOfParameters();
+  unsigned int parametersSize = parameter_list->size();
 
-    std::stringstream ss;
-    ss << parameterslist->get(ic)->getValue();
-    std::string parametervalue = ss.str();
+  sbml_utils sbml_o;
+  pset=sbml_o.get_reaction_parameters(model, reaction);
 
-    if (posPar != std::string::npos) {
-          wholeformula = wholeformula + "var " + parameterslist->get(ic)->getIdAttribute() + " := " + parametervalue +  "; ";          
+  // Create an unordered_set for all model parameters
+  for (unsigned int pi = 0u; pi < parametersSize; pi++) {
+    const LIBSBML_CPP_NAMESPACE::Parameter* parameter = parameter_list->get(pi);
+    mpset.insert(parameter->getIdAttribute());
+  }
+
+  //Add parameters
+  for  (const std::string& x: pset) {
+    std::string s_label = x;
+    mpit = mpset.find(s_label) ;
+    if (mpit != mpset.end()) {
+      std::stringstream ss;
+      ss << parameter_list->get(s_label)->getValue();
+      std::string parametervalue = ss.str();
+      wholeformula = wholeformula + "var " + s_label + " := " + parametervalue +  "; ";
     }
   }
-  
+
   //Add compartnents
-  const libsbml::ListOfCompartments* compartmentslist = model.getListOfCompartments();
-  unsigned int compartmentsSize = compartmentslist->size();
+  const LIBSBML_CPP_NAMESPACE::ListOfCompartments* compartment_list = model.getListOfCompartments();
+  unsigned int compartmentsSize = compartment_list->size();
   for (unsigned int ic = 0u; ic < compartmentsSize; ic++) {
-    std::string toFindPar(compartmentslist->get(ic)->getIdAttribute());
+    const LIBSBML_CPP_NAMESPACE::Compartment* compartment = compartment_list->get(ic);
+    std::string toFindPar(compartment->getIdAttribute());
     size_t posPar = formula.find(toFindPar);
-    
+
     std::stringstream ss;
-    ss << compartmentslist->get(ic)->getSize();
+    ss << compartment->getSize();
     std::string parametervalue = ss.str();
 
     if (posPar != std::string::npos) {
-          wholeformula = wholeformula + "var " + compartmentslist->get(ic)->getIdAttribute() + " := " + parametervalue +  "; ";          
+          wholeformula = wholeformula + "var " + compartment->getIdAttribute() + " := " + parametervalue +  "; ";
     }
   }
 
-  wholeformula = wholeformula + "m_rate := " + formula +";";
+  wholeformula = wholeformula + "m_rate := " + formula + ";";
   dynamic_cast<Reaction<v_desc_t>*>(m_p.get())->set_rate_formula(wholeformula);
 }
 #endif // defined(WCS_HAS_SBML)

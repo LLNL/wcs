@@ -72,7 +72,7 @@ void traverse(const wcs::Network& rnet)
   for(const auto& vd : rnet.reaction_list()) {
     using directed_category
       = typename boost::graph_traits<wcs::Network::graph_t>::directed_category;
-    constexpr bool is_bidirectional 
+    constexpr bool is_bidirectional
       = std::is_same<directed_category, boost::bidirectional_tag>::value;
 
     const auto& rv = g[vd];
@@ -126,9 +126,9 @@ int main(int argc, char** argv)
   std::string fn(argv[optind]);
 
   wcs::Network rnet;
-  
+
   rnet.load(fn);
-  
+
   rnet.init();
   const wcs::Network::graph_t& g = rnet.graph();
 

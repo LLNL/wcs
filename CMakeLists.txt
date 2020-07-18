@@ -422,6 +422,14 @@ if (WCS_HAS_SBML)
   target_link_libraries(loadSBML-bin PRIVATE SBML::SBML)
   set_target_properties(loadSBML-bin PROPERTIES OUTPUT_NAME loadSBML)
   list(APPEND WCS_EXEC_TARGETS loadSBML-bin)
+
+  add_executable( generate_cxx_code-bin src/utils/generate_cxx_code.cpp )
+  target_compile_definitions(generate_cxx_code-bin PRIVATE WCS_HAS_CONFIG)
+  target_include_directories(generate_cxx_code-bin
+    PRIVATE $<TARGET_PROPERTY:wcs,INTERFACE_INCLUDE_DIRECTORIES> ${SBML_INCLUDE_DIR})
+  target_link_libraries(generate_cxx_code-bin PRIVATE SBML::SBML)
+  set_target_properties(generate_cxx_code-bin PROPERTIES OUTPUT_NAME generate_cxx_code)
+  list(APPEND WCS_EXEC_TARGETS generate_cxx_code-bin)
 endif (WCS_HAS_SBML)
 
 # add executable des

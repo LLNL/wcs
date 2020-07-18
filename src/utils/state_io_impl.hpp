@@ -12,8 +12,6 @@
 #define __STATE_IO_IMPL_HPP__
 
 namespace wcs {
-/** \addtogroup wcs_utils
- *  @{ */
 
 template<typename S, typename T>
 S& operator<<(S &os, const bits_t<T&>& b)
@@ -129,7 +127,6 @@ bool load_state(ObjT& obj, const CharT* buffer) {
   return iss.good();
 }
 
-/**@}*/
 } // end of namespace wcs
 
 #endif // __STATE_IO_IMPL_HPP__

@@ -13,7 +13,7 @@
 
 namespace wcs {
 /** \addtogroup wcs_reaction_network
- *  @{ */
+ *  *  @{ */
 
 species_cnt_t Species::m_max_count = std::numeric_limits<species_cnt_t>::max();
 

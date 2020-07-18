@@ -28,9 +28,6 @@
 #endif
 
 namespace wcs {
-/** \addtogroup wcs_global
- *  @{ */
-
 template<typename S = void>
 struct adjlist_selector_t {
   using type = ::boost::vecS;
@@ -68,7 +65,6 @@ using wcs_out_edge_list_t = adjlist_selector_t<>::type;
 using wcs_out_edge_list_t = adjlist_selector_t<WCS_OUT_EDGE_LIST_TYPE>::type;
 #endif
 
-/**@}*/
 } // end of namespace wcs
 
 #endif // __WCS_BGL_HPP__

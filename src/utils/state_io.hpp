@@ -16,8 +16,6 @@
 #include "traits.hpp"
 
 namespace wcs {
-/** \addtogroup wcs_utils
- *  @{ */
 
 /**
  * Override the stream operators only for trivially copyable types.
@@ -108,7 +106,6 @@ template<typename ObjT,
          typename Traits = std::char_traits<CharT> >
 bool load_state(ObjT& obj, const CharT* buffer);
 
-/**@}*/
 } // end of namespace wcs
 
 #include "state_io_impl.hpp"

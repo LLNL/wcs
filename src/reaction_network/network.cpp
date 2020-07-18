@@ -28,7 +28,7 @@
 
 namespace wcs {
 /** \addtogroup wcs_reaction_network
- *  @{ */
+ *  *  @{ */
 
 sim_time_t Network::m_etime_ulimit = std::numeric_limits<sim_time_t>::infinity();
 
@@ -44,9 +44,8 @@ void Network::load(const std::string filename)
     WCS_THROW("Could not find the requested file.");
     return;
   } else if (filetype == input_filetype::input_type::_unknown_) {
-    WCS_THROW("Unknown filetype. Please select a reaction network graph "
-              "(<filename>.graphml) or a Systems Biology Markup Language "
-              "(SBML) file (<filename>.xml)\n");
+    WCS_THROW("Unknown filetype. Please select a reaction network graph (<filename>.graphml) or"
+              " a Systems Biology Markup Language (SBML) file (<filename>.xml)\n");
     return;
   }
 }
@@ -68,14 +67,7 @@ void Network::loadSBML(const std::string sbml_filename)
 
   ::wcs::GraphFactory gfactory;
   LIBSBML_CPP_NAMESPACE::SBMLReader reader;
-  const LIBSBML_CPP_NAMESPACE::SBMLDocument* document
-    = reader.readSBML(sbml_filename);
-
-  if (document == nullptr) {
-    WCS_THROW("Failed to read the SBML file " + sbml_filename);
-    return;
-  }
-
+  const LIBSBML_CPP_NAMESPACE::SBMLDocument* document = reader.readSBML(sbml_filename);
   const LIBSBML_CPP_NAMESPACE::Model* model = document->getModel();
 
   const unsigned num_errors = document->getNumErrors();
@@ -84,12 +76,11 @@ void Network::loadSBML(const std::string sbml_filename)
     document->printErrors(std::cerr);
 
     delete document;
-    WCS_THROW(std::to_string(num_errors) + " error(s) in reading " +
-              sbml_filename);
+    WCS_THROW(std::to_string(num_errors) + " error(s) in reading " + sbml_filename);
     return;
   }
 
-  if (model == nullptr) {
+  if (model == NULL) {
     delete document;
     WCS_THROW("Failed to get model from " + sbml_filename);
     return;
@@ -97,9 +88,6 @@ void Network::loadSBML(const std::string sbml_filename)
 
   gfactory.convert_to(*model, m_graph);
   delete document;
-
-  #else
-  WCS_THROW("SBML is not enabled.");
   #endif // defined(WCS_HAS_SBML)
 
 }

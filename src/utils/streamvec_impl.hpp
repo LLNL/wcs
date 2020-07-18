@@ -14,8 +14,6 @@
 #include <iostream>
 
 namespace wcs {
-/** \addtogroup wcs_utils
- *  @{ */
 
 //---------------------------- ostreamvec --------------------------------
 
@@ -310,6 +308,5 @@ streamvec<CharT, Traits>::overflow(
   return c;
 }
 
-/**@}*/
 } // end of namesace wcs
 #endif // __STREAMVEC_IMPL_HPP__

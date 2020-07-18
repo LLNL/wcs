@@ -2,7 +2,7 @@
 
 namespace wcs {
 /** \addtogroup wcs_reaction_network
- *  @{ */
+ *  *  @{ */
 
 Edge_Weighted::Edge_Weighted()
 : Edge(), m_weight(static_cast<reaction_rate_t>(0.0))

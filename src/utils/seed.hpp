@@ -44,8 +44,6 @@ namespace std
 
 namespace wcs
 {
-/** \addtogroup wcs_utils
- *  @{ */
 
 /**
  * The seed_seq constructor takes an initialization list of any integer type.
@@ -178,7 +176,6 @@ inline bool gen_unique_seed_seq_params(const size_t num,
   return true;
 }
 
-/**@}*/
 } // end of namespace wcs
 
 

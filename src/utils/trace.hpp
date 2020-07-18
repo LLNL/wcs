@@ -20,7 +20,7 @@
 
 namespace wcs {
 /** \addtogroup wcs_utils
- *  @{ */
+ *  *  @{ */
 
 class Trace {
 public:

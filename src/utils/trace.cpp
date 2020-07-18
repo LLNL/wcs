@@ -14,7 +14,7 @@
 
 namespace wcs {
 /** \addtogroup wcs_utils
- *  @{ */
+ *  *  @{ */
 
 Trace::~Trace()
 {}

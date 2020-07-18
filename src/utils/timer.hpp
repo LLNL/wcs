@@ -14,8 +14,6 @@
 #include <chrono>
 
 namespace wcs {
-/** \addtogroup wcs_utils
- *  @{ */
 
 inline double get_time() {
   using namespace std::chrono;
@@ -23,7 +21,6 @@ inline double get_time() {
            steady_clock::now().time_since_epoch()).count();
 }
 
-/**@}*/
 } // namespace wcs
 
 #endif  // _WCS_UTILS_TIMER_HPP_

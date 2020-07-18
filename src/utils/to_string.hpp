@@ -13,9 +13,6 @@
 #include <sstream>
 
 namespace wcs {
-/** \addtogroup wcs_utils
- *  @{ */
-
 template <typename T>
 inline std::enable_if_t<std::is_same<T, float>::value ||
                         std::is_same<T, double>::value, std::string>
@@ -37,8 +34,6 @@ to_string_in_scientific(const T a_value, const int precision = 6)
   out << std::scientific << a_value;
   return out.str();
 }
-
-/**@}*/
 } // end of namespasce wcs
 #endif // TO_STRING_HPP
 

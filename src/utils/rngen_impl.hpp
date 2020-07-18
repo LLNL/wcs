@@ -12,8 +12,6 @@
 #include <cassert>
 
 namespace wcs {
-/** \addtogroup wcs_utils
- *  @{ */
 
 template <template <typename> typename D, typename V>
 inline RNGen<D, V>::RNGen()
@@ -145,5 +143,4 @@ inline size_t RNGen<D, V>::byte_size() const
           sizeof(m_gen) + sizeof(m_distribution));
 }
 
-/**@}*/
 } // end of namespce wcs

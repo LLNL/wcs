@@ -13,7 +13,7 @@
 
 namespace wcs {
 /** \addtogroup wcs_utils
- *  @{ */
+ *  *  @{ */
 
 /**
  * Build the map from a vertex descriptor to an index of the

@@ -17,7 +17,7 @@
 
 namespace wcs {
 /** \addtogroup wcs_utils
- *  @{ */
+ *  *  @{ */
 
 template <typename G>
 std::ostream& write_graphviz(std::ostream& os, const G& g);

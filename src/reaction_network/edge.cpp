@@ -12,7 +12,7 @@
 
 namespace wcs {
 /** \addtogroup wcs_reaction_network
- *  @{ */
+ *  *  @{ */
 
 Edge::Edge()
 : m_stoichio(1), m_label("N/A")

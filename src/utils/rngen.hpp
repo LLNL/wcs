@@ -40,8 +40,6 @@ ENABLE_CUSTOM_CEREAL (std::uniform_real_distribution<float>)
 #include "utils/seed.hpp"
 
 namespace wcs {
-/** \addtogroup wcs_utils
- *  @{ */
 
 template <template <typename> typename D = std::uniform_real_distribution,
           typename V = double>
@@ -104,8 +102,6 @@ class RNGen {
   generator_type m_gen;
   distribution_t m_distribution;
 };
-
-/**@}*/
 } // end of namespce wcs
 
 #include "rngen_impl.hpp"

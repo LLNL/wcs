@@ -8,11 +8,23 @@
  *                                                                            *
  ******************************************************************************/
 
+#if defined(WCS_HAS_CONFIG)
+#include "wcs_config.hpp"
+#else
+#error "no config"
+#endif
+
 #include "reaction_network/network.hpp"
 #include "utils/graph_factory.hpp"
+#include "utils/input_filetype.hpp"
 #include <type_traits> // is_same<>
 #include <algorithm> // lexicographical_compare(), sort()
 #include <limits> // numeric_limits
+
+#if defined(WCS_HAS_SBML)
+#include <sbml/SBMLTypes.h>
+#include <sbml/common/extern.h>
+#endif // defined(WCS_HAS_SBML)
 
 namespace wcs {
 /** \addtogroup wcs_reaction_network
@@ -20,7 +32,25 @@ namespace wcs {
 
 sim_time_t Network::m_etime_ulimit = std::numeric_limits<sim_time_t>::infinity();
 
-void Network::load(const std::string graphml_filename)
+void Network::load(const std::string filename)
+{
+  input_filetype fn(filename);
+  input_filetype::input_type filetype = fn.detect();
+  if (filetype == input_filetype::input_type::_graphml_) {
+    loadGraphML(filename);
+  } else if (filetype == input_filetype::input_type::_sbml_) {
+    loadSBML(filename);
+  } else if (filetype == input_filetype::input_type::_ioerror_) {
+    WCS_THROW("Could not find the requested file.");
+    return;
+  } else if (filetype == input_filetype::input_type::_unknown_) {
+    WCS_THROW("Unknown filetype. Please select a reaction network graph (<filename>.graphml) or"
+              " a Systems Biology Markup Language (SBML) file (<filename>.xml)\n");
+    return;
+  }
+}
+
+void Network::loadGraphML(const std::string graphml_filename)
 {
   ::wcs::GraphFactory gfactory;
 
@@ -31,6 +61,36 @@ void Network::load(const std::string graphml_filename)
   gfactory.copy_to(m_graph);
 }
 
+void Network::loadSBML(const std::string sbml_filename)
+{
+  #if defined(WCS_HAS_SBML)
+
+  ::wcs::GraphFactory gfactory;
+  LIBSBML_CPP_NAMESPACE::SBMLReader reader;
+  const LIBSBML_CPP_NAMESPACE::SBMLDocument* document = reader.readSBML(sbml_filename);
+  const LIBSBML_CPP_NAMESPACE::Model* model = document->getModel();
+
+  const unsigned num_errors = document->getNumErrors();
+
+  if (num_errors > 0u) {
+    document->printErrors(std::cerr);
+
+    delete document;
+    WCS_THROW(std::to_string(num_errors) + " error(s) in reading " + sbml_filename);
+    return;
+  }
+
+  if (model == NULL) {
+    delete document;
+    WCS_THROW("Failed to get model from " + sbml_filename);
+    return;
+  }
+
+  gfactory.convert_to(*model, m_graph);
+  delete document;
+  #endif // defined(WCS_HAS_SBML)
+
+}
 
 void Network::init()
 {

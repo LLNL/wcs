@@ -120,6 +120,8 @@ class Network {
  protected:
   /// Sort the species list by the label (in lexicogrphical order)
   void sort_species();
+  void loadGraphML(const std::string graphml_filename);
+  void loadSBML(const std::string sbml_filename);
 
  protected:
   /// The BGL graph to represent a reaction network

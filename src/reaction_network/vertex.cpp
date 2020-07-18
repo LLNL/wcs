@@ -135,5 +135,6 @@ std::string Vertex::get_label() const
   return m_label;
 }
 
+
 /**@}*/
 } // end of namespace wcs

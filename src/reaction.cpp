@@ -27,7 +27,8 @@ void print_usage(const std::string exec, int code)
 {
   std::cerr <<
     "Usage: " << exec << " <filename>.graphml\n"
-    "    Load a reaction network graph (<filename>.graphml)\n"
+    "    Load a reaction network graph (<filename>.graphml) or\n"
+    "    a Systems Biology Markup Language (SBML) file (<filename>.xml)\n"
     "    into a graph with the flat vertex property stucture.\n"
     "    Then, convert it to the one with polymorphic vertices.\n"
     "    Finally, write to a GraphViz format file (<filename>.dot)\n"
@@ -71,7 +72,7 @@ void traverse(const wcs::Network& rnet)
   for(const auto& vd : rnet.reaction_list()) {
     using directed_category
       = typename boost::graph_traits<wcs::Network::graph_t>::directed_category;
-    constexpr bool is_bidirectional 
+    constexpr bool is_bidirectional
       = std::is_same<directed_category, boost::bidirectional_tag>::value;
 
     const auto& rv = g[vd];
@@ -125,7 +126,9 @@ int main(int argc, char** argv)
   std::string fn(argv[optind]);
 
   wcs::Network rnet;
+
   rnet.load(fn);
+
   rnet.init();
   const wcs::Network::graph_t& g = rnet.graph();
 

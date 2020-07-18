@@ -21,7 +21,7 @@
 
 namespace wcs {
 /** \addtogroup wcs_utils
- *  *  @{ */
+ *  @{ */
 
 class exception : public std::exception {
  public:

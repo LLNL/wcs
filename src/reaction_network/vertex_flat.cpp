@@ -12,7 +12,7 @@
 
 namespace wcs {
 /** \addtogroup wcs_reaction_network
- *  *  @{ */
+ *  @{ */
 
 std::map<VertexFlat::vertex_type, std::string> VertexFlat::vt_str {
   {VertexFlat::_undefined_, "undefined"},

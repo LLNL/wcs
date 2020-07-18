@@ -12,7 +12,7 @@
 
 namespace wcs {
 /** \addtogroup wcs_utils
- *  *  @{ */
+ *  @{ */
 
 exception::exception(const std::string msg)
 : m_message(msg)

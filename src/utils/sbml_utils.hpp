@@ -28,7 +28,7 @@
 
 namespace wcs {
 /** \addtogroup wcs_utils
- *  *  @{ */
+ *  @{ */
 
 class sbml_utils {
  public:
@@ -36,11 +36,24 @@ class sbml_utils {
   ~sbml_utils();
 
   #if defined(WCS_HAS_SBML)
-  static std::unordered_set<std::string> find_undeclared_species_in_reaction_formula(const LIBSBML_CPP_NAMESPACE::Model& model, const LIBSBML_CPP_NAMESPACE::Reaction& reaction);
-  static std::unordered_set<std::string> get_reaction_parameters(const LIBSBML_CPP_NAMESPACE::Model& model, const LIBSBML_CPP_NAMESPACE::Reaction& reaction);
+  static std::unordered_set<std::string>
+  find_undeclared_species_in_reaction_formula(
+    const LIBSBML_CPP_NAMESPACE::Model& model,
+    const LIBSBML_CPP_NAMESPACE::Reaction& reaction);
 
-  static std::unordered_set<std::string>  get_symbol_table_of_formula (const LIBSBML_CPP_NAMESPACE::ASTNode& formula);
-  static void read_ast_node(const LIBSBML_CPP_NAMESPACE::ASTNode&  math, std::unordered_set<std::string>& math_elements);
+  static std::unordered_set<std::string>
+  get_reaction_parameters(
+    const LIBSBML_CPP_NAMESPACE::Model& model,
+    const LIBSBML_CPP_NAMESPACE::Reaction& reaction);
+
+  static std::unordered_set<std::string>
+  get_symbol_table_of_formula(
+    const LIBSBML_CPP_NAMESPACE::ASTNode& formula);
+
+  static void
+  read_ast_node(
+    const LIBSBML_CPP_NAMESPACE::ASTNode& math,
+    std::unordered_set<std::string>& math_elements);
 
   #endif // defined(WCS_HAS_SBML)
 

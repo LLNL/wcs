@@ -22,7 +22,7 @@
 
 namespace wcs {
 /** \addtogroup wcs_reaction_network
- *  *  @{ */
+ *  @{ */
 
 template <typename VD>
 class Reaction : public ReactionBase {

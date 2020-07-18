@@ -16,7 +16,7 @@
 
 namespace wcs {
 /** \addtogroup wcs_utils
- *  *  @{ */
+ *  @{ */
 
 /**
  * Check if the vertex list of the graph of type G indicated by the first

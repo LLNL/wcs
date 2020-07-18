@@ -23,6 +23,9 @@ struct is_trivially_copyable
 
 namespace wcs
 {
+/** \addtogroup wcs_utils
+ *  @{ */
+
 /// Detect if type T is a vector type
 template<typename T>
 struct is_vector : public std::false_type {};
@@ -46,5 +49,6 @@ struct is_bool
           typename std::remove_cv<T>::type>::type, bool>::value>
 {};
 
+/**@}*/
 } // end of namespace wcs
 #endif // WCS_TRAITS_HPP

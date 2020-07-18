@@ -16,7 +16,7 @@
 
 namespace wcs {
 /** \addtogroup wcs_utils
- *  *  @{ */
+ *  @{ */
 
 input_filetype::input_filetype(const std::string filename)
 : m_filename(filename)
@@ -46,7 +46,9 @@ input_filetype::input_type input_filetype::detect() const
         const size_t pos1 = line.find(graphmlline);
         const size_t pos2 = line.find(sbmlline);
         if (pos != std::string::npos) {
-          i--;  // If there is a comment line, it decreases the i in order to check only the first 10 lines of a SBML or a graphML file
+          // If there is a comment line, it decreases the i in order to
+          // check only the first 10 lines of a SBML or a graphML file
+          i--;
         } else if (pos1 != std::string::npos) {  ///graphml file
           file.close(); // Remember to close the file.
           return input_filetype::input_type::_graphml_;

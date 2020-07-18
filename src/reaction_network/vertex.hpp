@@ -50,7 +50,7 @@
 
 namespace wcs {
 /** \addtogroup wcs_reaction_network
- *  *  @{ */
+ *  @{ */
 
 class Vertex {
  public:
@@ -64,11 +64,17 @@ class Vertex {
   Vertex& operator=(const Vertex& rhs);
   Vertex& operator=(Vertex&& rhs) noexcept;
   template <typename G> Vertex(const VertexFlat& rhs, const G& g);
+
   #if defined(WCS_HAS_SBML)
-  template <typename G> Vertex(const LIBSBML_CPP_NAMESPACE::Species& species, const G& g);
-  template <typename G> Vertex(const LIBSBML_CPP_NAMESPACE::Model& model, const
+  template <typename G>
+  Vertex(const LIBSBML_CPP_NAMESPACE::Species& species, const G& g);
+
+  template <typename G>
+  Vertex(const LIBSBML_CPP_NAMESPACE::Model& model, const
+
   LIBSBML_CPP_NAMESPACE::Reaction& reaction, const G& g);
   #endif // defined(WCS_HAS_SBML)
+
   virtual ~Vertex();
   std::unique_ptr<Vertex> clone() const;
 
@@ -105,7 +111,8 @@ class Vertex {
  friend ::wcs::GraphFactory;
 
  template <typename G>
- friend std::ostream& ::wcs::write_graphviz_of_any_vertex_list(std::ostream& os, const G& g);
+ friend std::ostream&
+ ::wcs::write_graphviz_of_any_vertex_list(std::ostream& os, const G& g);
 };
 
 
@@ -116,8 +123,6 @@ Vertex::Vertex(const VertexFlat& flat, const G& g)
   m_label(flat.get_label()),
   m_p(nullptr)
 {
-  m_typeid = static_cast<int>(m_type);
-
   switch(m_type) {
     case _species_: {
         m_p = std::unique_ptr<Species>(new Species);
@@ -127,8 +132,10 @@ Vertex::Vertex(const VertexFlat& flat, const G& g)
     case _reaction_: {
         using v_desc_t = typename boost::graph_traits<G>::vertex_descriptor;
         m_p = std::unique_ptr< Reaction<v_desc_t> >(new Reaction<v_desc_t>);
-        dynamic_cast<Reaction<v_desc_t>*>(m_p.get())->set_rate_constant(flat.get_rate_constant());
-        dynamic_cast<Reaction<v_desc_t>*>(m_p.get())->set_rate_formula(flat.get_rate_formula());
+        dynamic_cast<Reaction<v_desc_t>*>(m_p.get())->
+          set_rate_constant(flat.get_rate_constant());
+        dynamic_cast<Reaction<v_desc_t>*>(m_p.get())->
+          set_rate_formula(flat.get_rate_formula());
     break;
       }
     default:
@@ -145,18 +152,24 @@ Vertex::Vertex(const LIBSBML_CPP_NAMESPACE::Species& species, const G& g)
   m_p(nullptr)
 {
   m_p = std::unique_ptr<Species>(new Species);
+
   if  (!isnan(species.getInitialAmount())) {
-    dynamic_cast<Species*>(m_p.get())->set_count(static_cast<species_cnt_t>
-    (species.getInitialAmount()));
-    // TODO: species.getInitialConcentration() should be multiplied by compartment volume and molarity (depending on the unit of concentration) should be converted to count
+    dynamic_cast<Species*>(m_p.get())->
+      set_count(static_cast<species_cnt_t>(species.getInitialAmount()));
+    // TODO: species.getInitialConcentration() should be multiplied by
+    // compartment volume and molarity (depending on the unit of
+    // concentration) should be converted to count
   } else  if (!isnan(species.getInitialConcentration())) {
-    dynamic_cast<Species*>(m_p.get())->set_count(static_cast<species_cnt_t>
-    (species.getInitialConcentration()));
+    dynamic_cast<Species*>(m_p.get())->
+      set_count(static_cast<species_cnt_t>(species.getInitialConcentration()));
   }
 }
 
 template <typename G>
-Vertex::Vertex(const LIBSBML_CPP_NAMESPACE::Model& model, const LIBSBML_CPP_NAMESPACE::Reaction& reaction, const G& g)
+Vertex::Vertex(
+  const LIBSBML_CPP_NAMESPACE::Model& model,
+  const LIBSBML_CPP_NAMESPACE::Reaction& reaction,
+  const G& g)
 : m_type(_reaction_),
   m_typeid(static_cast<int>(_reaction_)),
   m_label(reaction.getIdAttribute()),
@@ -178,7 +191,8 @@ Vertex::Vertex(const LIBSBML_CPP_NAMESPACE::Model& model, const LIBSBML_CPP_NAME
 
   std::string wholeformula("");
   //Add parameters
-  const LIBSBML_CPP_NAMESPACE::ListOfParameters* parameter_list = model.getListOfParameters();
+  const LIBSBML_CPP_NAMESPACE::ListOfParameters* parameter_list
+    = model.getListOfParameters();
   unsigned int parametersSize = parameter_list->size();
 
   sbml_utils sbml_o;
@@ -198,15 +212,19 @@ Vertex::Vertex(const LIBSBML_CPP_NAMESPACE::Model& model, const LIBSBML_CPP_NAME
       std::stringstream ss;
       ss << parameter_list->get(s_label)->getValue();
       std::string parametervalue = ss.str();
-      wholeformula = wholeformula + "var " + s_label + " := " + parametervalue +  "; ";
+      wholeformula = wholeformula + "var " + s_label
+                   + " := " + parametervalue +  "; ";
     }
   }
 
   //Add compartnents
-  const LIBSBML_CPP_NAMESPACE::ListOfCompartments* compartment_list = model.getListOfCompartments();
+  const LIBSBML_CPP_NAMESPACE::ListOfCompartments* compartment_list
+    = model.getListOfCompartments();
   unsigned int compartmentsSize = compartment_list->size();
+
   for (unsigned int ic = 0u; ic < compartmentsSize; ic++) {
-    const LIBSBML_CPP_NAMESPACE::Compartment* compartment = compartment_list->get(ic);
+    const LIBSBML_CPP_NAMESPACE::Compartment* compartment
+      = compartment_list->get(ic);
     std::string toFindPar(compartment->getIdAttribute());
     size_t posPar = formula.find(toFindPar);
 
@@ -215,7 +233,8 @@ Vertex::Vertex(const LIBSBML_CPP_NAMESPACE::Model& model, const LIBSBML_CPP_NAME
     std::string parametervalue = ss.str();
 
     if (posPar != std::string::npos) {
-          wholeformula = wholeformula + "var " + compartment->getIdAttribute() + " := " + parametervalue +  "; ";
+      wholeformula = wholeformula + "var " + compartment->getIdAttribute()
+                   + " := " + parametervalue +  "; ";
     }
   }
 

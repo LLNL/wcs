@@ -22,9 +22,6 @@
  * Represent a reaction network as a bipartite graph using BGL.
  * A reaction graph consists of a set of species nodes, a set of reaction nodes,
  * and the directed edges between species and reactions.
- *
- * \author Jae-Seung Yeom <yeom2@llnl.gov>
- * \date 2019
  */
 
 #include <string>
@@ -37,7 +34,7 @@
 
 namespace wcs {
 /** \addtogroup wcs_reaction_network
- *  *  @{ */
+ *  @{ */
 
 class Network {
  public:

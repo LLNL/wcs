@@ -25,6 +25,9 @@
 #include "traits.hpp" // is_trivially_copyable
 
 namespace wcs {
+/** \addtogroup wcs_utils
+ *  @{ */
+
 template <typename T>
 constexpr bool is_custom_bin_cerealizable()
 {
@@ -69,6 +72,7 @@ void load_state(T& state, std::istream& is)
   iarchive(state); // Read the data from the archive
 }
 
+/**@}*/
 } // end of namespace wcs
 #endif // WCS_HAS_CEREAL
 

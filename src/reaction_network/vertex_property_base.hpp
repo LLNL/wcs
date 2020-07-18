@@ -28,7 +28,7 @@
 
 namespace wcs {
 /** \addtogroup wcs_reaction_network
- *  *  @{ */
+ *  @{ */
 
 class VertexPropertyBase {
  public:

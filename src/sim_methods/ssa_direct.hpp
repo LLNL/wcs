@@ -17,7 +17,7 @@
 
 namespace wcs {
 /** \addtogroup wcs_sim_methods
- *  *  @{ */
+ *  @{ */
 
 class SSA_Direct : public Sim_Method {
 public:

@@ -13,7 +13,7 @@
 
 namespace wcs {
 /** \addtogroup wcs_reaction_network
- *  *  @{ */
+ *  @{ */
 
 Sim_Method::Sim_Method()
 : m_net_ptr(nullptr),

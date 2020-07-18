@@ -15,7 +15,7 @@
 
 namespace wcs {
 /** \addtogroup wcs_utils
- *  *  @{ */
+ *  @{ */
 
 void GraphFactory::setup_dynamic_property ()
 {

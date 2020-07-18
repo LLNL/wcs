@@ -21,7 +21,7 @@
 
 namespace wcs {
 /** \addtogroup wcs_utils
- *  *  @{ */
+ *  @{ */
 
 class Samples {
 
@@ -53,9 +53,12 @@ protected:
   using r_map_t = typename std::unordered_map<r_desc_t, r_cnt_t>;
 
   void build_index_maps();
-  std::ostream& write_header(std::ostream& os, const size_t num_reactions) const;
-  void count_species(const s_sample_t& ss, std::vector<species_cnt_t>& speices) const;
-  void count_reactions(const r_sample_t& ss, std::vector<r_cnt_t>& reactions) const;
+  std::ostream& write_header(std::ostream& os,
+                             const size_t num_reactions) const;
+  void count_species(const s_sample_t& ss,
+                     std::vector<species_cnt_t>& speices) const;
+  void count_reactions(const r_sample_t& ss,
+                       std::vector<r_cnt_t>& reactions) const;
   std::ostream& print_stats(const sim_time_t sim_time,
                             const std::vector<species_cnt_t>& species,
                             const std::vector<r_cnt_t>& reactions,

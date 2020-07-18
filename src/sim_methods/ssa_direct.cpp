@@ -26,7 +26,7 @@
 
 namespace wcs {
 /** \addtogroup wcs_reaction_network
- *  *  @{ */
+ *  @{ */
 
 SSA_Direct::SSA_Direct()
 : Sim_Method() {}

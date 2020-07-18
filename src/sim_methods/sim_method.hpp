@@ -21,7 +21,7 @@
 
 namespace wcs {
 /** \addtogroup wcs_sim_methods
- *  *  @{ */
+ *  @{ */
 
 class Sim_Method {
 public:

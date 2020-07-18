@@ -13,7 +13,7 @@
 
 namespace wcs {
 /** \addtogroup wcs_utils
- *  *  @{ */
+ *  @{ */
 
 void Samples::record_initial_condition(const std::shared_ptr<wcs::Network>& net_ptr)
 {
@@ -61,7 +61,9 @@ void Samples::take_sample(const sim_time_t t)
     r_sample.emplace_back(std::make_pair(vd_reaction, rcnt));
 
     // product species
-    for (const auto ei_out : boost::make_iterator_range(boost::out_edges(vd_reaction, g))) {
+    for (const auto ei_out :
+         boost::make_iterator_range(boost::out_edges(vd_reaction, g)))
+    {
       const auto vd_product = boost::target(ei_out, g);
       if constexpr (wcs::Vertex::_num_vertex_types_  > 3) {
         // in case that there are other type of vertices than species or reaction
@@ -72,7 +74,9 @@ void Samples::take_sample(const sim_time_t t)
     }
 
     // reactant species
-    for (const auto ei_in : boost::make_iterator_range(boost::in_edges(vd_reaction, g))) {
+    for (const auto ei_in :
+         boost::make_iterator_range(boost::in_edges(vd_reaction, g)))
+    {
       const auto vd_reactant = boost::source(ei_in, g);
       if constexpr (wcs::Vertex::_num_vertex_types_  > 3) {
         // in case that there are other type of vertices than species or reaction
@@ -88,7 +92,10 @@ void Samples::take_sample(const sim_time_t t)
   }
   m_r_diffs.clear();
   m_s_diffs.clear();
-  m_samples.emplace_back(std::make_tuple(t, std::move(s_sample), std::move(r_sample)));
+  m_samples.emplace_back(std::make_tuple(
+                           t,
+                           std::move(s_sample),
+                           std::move(r_sample)));
 }
 
 /**
@@ -122,7 +129,7 @@ void Samples::build_index_maps()
 std::ostream& Samples::write_header(std::ostream& os, size_t num_reactions) const
 { // write the header to show the species labels and the initial population
   const auto num_species = m_net_ptr->get_num_species();
-  
+
   std::string ostr = "num_species = " + std::to_string(num_species)
                    + "\tnum_reactions = " + std::to_string(num_reactions)
                    + "\tnum_events = " + std::to_string(num_events)
@@ -146,25 +153,30 @@ std::ostream& Samples::write_header(std::ostream& os, size_t num_reactions) cons
   return os;
 }
 
-void Samples::count_species(const Samples::s_sample_t& ss, std::vector<species_cnt_t>& species) const
+void Samples::count_species(
+  const Samples::s_sample_t& ss,
+  std::vector<species_cnt_t>& species) const
 {
   for (const auto& s: ss) {
     species.at(m_s_id_map.at(std::get<0>(s))) += std::get<1>(s);
   }
 }
 
-void Samples::count_reactions(const Samples::r_sample_t& rs, std::vector<Samples::r_cnt_t>& reactions) const
+void Samples::count_reactions(
+  const Samples::r_sample_t& rs,
+  std::vector<Samples::r_cnt_t>& reactions) const
 {
   for (const auto& r: rs) {
     reactions.at(m_r_id_map.at(std::get<0>(r))) += std::get<1>(r);
   }
 }
 
-std::ostream& Samples::print_stats(const sim_time_t sim_time,
-                                  const std::vector<species_cnt_t>& species,
-                                  const std::vector<Samples::r_cnt_t>& reactions,
-                                  std::string& tmpstr,
-                                  std::ostream& os) const
+std::ostream& Samples::print_stats(
+  const sim_time_t sim_time,
+  const std::vector<species_cnt_t>& species,
+  const std::vector<Samples::r_cnt_t>& reactions,
+  std::string& tmpstr,
+  std::ostream& os) const
 {
   tmpstr = to_string_in_scientific(sim_time);
   const size_t tstr_sz = tmpstr.size();

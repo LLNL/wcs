@@ -24,7 +24,7 @@
 
 namespace wcs {
 /** \addtogroup wcs_reaction_network
- *  *  @{ */
+ *  @{ */
 
 SSA_NRM::SSA_NRM()
 : Sim_Method() {}

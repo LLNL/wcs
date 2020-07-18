@@ -16,7 +16,7 @@
 
 namespace wcs {
 /** \addtogroup wcs_sim_methods
- *  *  @{ */
+ *  @{ */
 
 class SSA_NRM : public Sim_Method {
 public:

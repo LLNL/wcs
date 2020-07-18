@@ -12,7 +12,7 @@
 
 namespace wcs {
 /** \addtogroup wcs_reaction_network
- *  *  @{ */
+ *  @{ */
 
 template <typename VD>
 inline Reaction<VD>::Reaction()

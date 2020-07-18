@@ -14,6 +14,8 @@
 #include <streambuf>
 
 namespace wcs {
+/** \addtogroup wcs_utils
+ *  @{ */
 
 /**
  * Wraps an existing buffer to use it as the internal buffer of streambuf,
@@ -171,6 +173,7 @@ class streambuff : public std::basic_streambuf<CharT, Traits>
   size_t m_capacity; ///< The maximum amount of data allowed
 };
 
+/**@}*/
 } // end of namesace wcs
 
 #include "streambuff_impl.hpp"

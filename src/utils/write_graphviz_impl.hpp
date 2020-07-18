@@ -13,7 +13,7 @@
 
 namespace wcs {
 /** \addtogroup wcs_utils
- *  *  @{ */
+ *  @{ */
 
 /**
  * Write the graph out to the output stream in the graphviz format.

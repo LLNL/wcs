@@ -14,7 +14,7 @@
 
 namespace wcs {
 /** \addtogroup wcs_utils
- *  *  @{ */
+ *  @{ */
 
 class TraceSSA : public Trace {
 

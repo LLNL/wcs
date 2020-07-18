@@ -14,6 +14,8 @@
 #include <streambuf>
 
 namespace wcs {
+/** \addtogroup wcs_utils
+ *  @{ */
 
 /**
  * Wraps an existing vector to use it as the internal buffer of streambuf,
@@ -208,6 +210,7 @@ class streamvec : public std::basic_streambuf<CharT, Traits>
   std::vector<char_type>& buf;
 };
 
+/**@}*/
 } // end of namesace wcs
 
 #include "streamvec_impl.hpp"

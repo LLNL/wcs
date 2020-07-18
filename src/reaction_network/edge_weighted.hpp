@@ -6,7 +6,7 @@
 
 namespace wcs {
 /** \addtogroup wcs_reaction_network
- *  *  @{ */
+ *  @{ */
 
 class Edge_Weighted : public Edge{
  public:

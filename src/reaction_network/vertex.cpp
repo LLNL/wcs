@@ -14,7 +14,7 @@
 
 namespace wcs {
 /** \addtogroup wcs_reaction_network
- *  *  @{ */
+ *  @{ */
 
 std::map<Vertex::vertex_type, std::string> Vertex::vt_str {
   {Vertex::_undefined_, "undefined"},

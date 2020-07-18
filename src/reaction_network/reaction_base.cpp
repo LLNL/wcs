@@ -13,7 +13,7 @@
 
 namespace wcs {
 /** \addtogroup wcs_reaction_network
- *  *  @{ */
+ *  @{ */
 
 ReactionBase::ReactionBase()
 : VertexPropertyBase(),

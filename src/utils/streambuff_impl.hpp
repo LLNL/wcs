@@ -14,6 +14,8 @@
 #include <iostream>
 
 namespace wcs {
+/** \addtogroup wcs_utils
+ *  @{ */
 
 //---------------------------- ostreambuff --------------------------------
 
@@ -225,5 +227,6 @@ void streambuff<CharT, Traits>::shrink_to_fit()
   this->pbump(sz); // set pptr
 }
 
+/**@}*/
 } // end of namesace wcs
 #endif // __STREAMBUFF_IMPL_HPP__

@@ -379,10 +379,16 @@ set_target_properties(ssa-bin PROPERTIES CMAKE_INSTALL_RPATH
                       "${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}")
 
 add_executable( graphml2dot-bin src/utils/graphml2dot.cpp )
-target_link_libraries(graphml2dot-bin PRIVATE wcs)
 set_target_properties(graphml2dot-bin PROPERTIES OUTPUT_NAME graphml2dot)
+target_link_libraries(graphml2dot-bin PRIVATE wcs)
 
 list(APPEND WCS_UTILS_TARGETS graphml2dot-bin)
+
+add_executable( partition-bin src/partition.cpp )
+set_target_properties(partition-bin PROPERTIES OUTPUT_NAME partition)
+target_link_libraries(partition-bin PRIVATE wcs)
+
+list(APPEND WCS_UTILS_TARGETS partition-bin)
 
 if (WCS_HAS_SBML)
   add_executable( loadSBML-bin src/utils/loadSBML.cpp )

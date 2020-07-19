@@ -54,6 +54,10 @@ void VertexFlat::set_type(const vertex_type vt)
   m_typeid = static_cast<int>(m_type);
 }
 
+/**
+ * Convert the vertex type id in integer format, which is read from GraphML
+ * input, into the enum type that is internally used.
+ */
 void VertexFlat::set_type()
 {
   m_type = static_cast<vertex_type>(m_typeid);

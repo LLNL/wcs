@@ -4,6 +4,7 @@ set_full_path(THIS_DIR_HEADERS
   exception.hpp
   graph_factory.hpp
   input_filetype.hpp
+  partition.hpp
   rngen.hpp
   rngen_impl.hpp
   samples.hpp
@@ -28,6 +29,7 @@ set_full_path(THIS_DIR_SOURCES
   exception.cpp
   graph_factory.cpp
   input_filetype.cpp
+  partition.cpp
   samples.cpp
   sbml_utils.cpp
   trace.cpp

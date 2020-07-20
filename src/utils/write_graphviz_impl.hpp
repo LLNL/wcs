@@ -8,12 +8,58 @@
 #include <algorithm>
 #include <type_traits>
 #include <unordered_map>
+#include <limits>
 #include "utils/detect_methods.hpp"
 #include "utils/to_string.hpp"
 
 namespace wcs {
 /** \addtogroup wcs_utils
  *  @{ */
+
+/**
+ *  Find the min and max of edge weights in the graph.
+ *  If the edge type does not have weight, stoichiometry is used instead.
+ */
+template <typename G, typename W>
+std::pair<W, W> find_min_max_weight(const G& g)
+{
+  using e_desc_t = typename boost::graph_traits<G>::edge_descriptor;
+  using e_prop_t = typename boost::edge_bundle_type<G>::type;
+
+  if constexpr (has_get_weight<e_prop_t>::value) {
+    using weight_t = typename e_prop_t::edge_weight_t;
+    weight_t w_min = std::numeric_limits<weight_t>::max();
+    weight_t w_max = std::numeric_limits<weight_t>::min();
+
+    typename boost::graph_traits<G>::edge_iterator ei, ei_end;
+    std::function<void (const e_desc_t&)> find_weight_bounds
+      = [&] (const e_desc_t& e) {
+        const auto w = g[e].get_weight();
+        w_min = std::min(w_min, w);
+        w_max = std::max(w_max, w);
+      };
+
+    boost::tie(ei, ei_end) = boost::edges(g);
+    std::for_each(ei, ei_end, find_weight_bounds);
+    return std::make_pair(w_min, w_max);
+  } else {
+    using weight_t = wcs::stoic_t;
+    weight_t w_min = std::numeric_limits<weight_t>::max();
+    weight_t w_max = std::numeric_limits<weight_t>::min();
+
+    typename boost::graph_traits<G>::edge_iterator ei, ei_end;
+    std::function<void (const e_desc_t&)> find_weight_bounds
+      = [&] (const e_desc_t& e) {
+        const auto w = g[e].get_stoichiometry_ratio();
+        w_min = std::min(w_min, w);
+        w_max = std::max(w_max, w);
+      };
+
+    boost::tie(ei, ei_end) = boost::edges(g);
+    std::for_each(ei, ei_end, find_weight_bounds);
+    return std::make_pair(w_min, w_max);
+  }
+}
 
 /**
  * Write the graph out to the output stream in the graphviz format.
@@ -73,19 +119,30 @@ std::ostream& write_graphviz(std::ostream& os, const G& g, const VIdxMap& v_idx_
 
   { // print edges
     using e_desc_t = typename boost::graph_traits<G>::edge_descriptor;
+    using e_prop_t = typename boost::edge_bundle_type<G>::type;
 
     constexpr const char* edge_delimiter = directed? "->" : "--";
     typename boost::graph_traits<G>::edge_iterator ei, ei_end;
 
-    if constexpr (has_get_weight<decltype(g[*ei])>::value) {
+    if constexpr (has_get_weight<e_prop_t>::value) {
+      auto bounds = find_min_max_weight<G, typename e_prop_t::edge_weight_t>(g);
+
       std::function<void (const e_desc_t&)> edge_writer
         = [&] (const e_desc_t& e) {
+          const auto w = g[e].get_weight();
+          // GraphViz only supports int type edge weights.
+          // Scale the weight into a integer number between 0 and 100.
+          const auto w_scale
+            = (bounds.second > bounds.first)?
+              static_cast<int>(100*(w - bounds.first)/
+                                   (bounds.second - bounds.first)) : 1;
+
           os << "  " << get_v_index(v_idx_map, boost::source(e, g))
              << edge_delimiter
              << get_v_index(v_idx_map, boost::target(e, g))
-             << " [taillabel=\"" << g[e].get_stoichiometry_ratio()
-             << "\", weight=" << to_string_in_scientific(g[e].get_weight())
-             << "];" << std::endl;
+             << " [weight=" << w_scale
+             << " taillabel=\"" << w_scale
+             << "\"];" << std::endl;
         };
 
       boost::tie(ei, ei_end) = boost::edges(g);

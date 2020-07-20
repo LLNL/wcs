@@ -8,16 +8,20 @@ namespace wcs {
 /** \addtogroup wcs_reaction_network
  *  @{ */
 
-class Edge_Weighted : public Edge{
+class Edge_Weighted : public Edge {
  public:
+  using edge_weight_t = reaction_rate_t;
 
   Edge_Weighted();
   Edge_Weighted(stoic_t r, const std::string& lb);
-  void set_weight(const reaction_rate_t w);
-  reaction_rate_t get_weight(void) const;
+  void set_weight(const edge_weight_t w);
+  edge_weight_t get_weight() const;
+  void set_partition(const partition_id_t pid);
+  partition_id_t get_partition() const;
 
  protected:
-  reaction_rate_t m_weight;
+  edge_weight_t m_weight; ///< The weight of this edge
+  partition_id_t m_pid; ///< The id of the partition to which this edge belongs
 };
 
 /**@}*/

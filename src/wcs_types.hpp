@@ -13,6 +13,7 @@
 #include <iostream>
 #include <utility> // std::move
 #include <memory>  // std::unique_ptr
+#include <limits>
 
 namespace wcs {
 /** \addtogroup wcs_global
@@ -24,6 +25,10 @@ using reaction_rate_t = double;
 using sim_time_t = double;
 using sim_iter_t = unsigned;
 using stoic_t = int;
+using partition_id_t = unsigned;
+
+constexpr partition_id_t unassigned_partition
+  = std::numeric_limits<partition_id_t>::max();
 
 template <typename G>
 std::ostream& write_graphviz_of_any_vertex_list(std::ostream& os, const G& g);

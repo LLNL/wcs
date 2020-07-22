@@ -110,6 +110,7 @@
   Many thanks go to WCS's [contributors](https://github.com/llnl/wcs/graphs/contributors).
 
  * Jae-Seung Yeom
+ * Konstantia Georgouli
  * Giorgis Georgakoudis
  * Robert Blake
  * Ali Navid

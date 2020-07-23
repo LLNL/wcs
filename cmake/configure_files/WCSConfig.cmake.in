@@ -34,6 +34,7 @@ set(WCS_HAS_CEREAL @WCS_HAS_CEREAL@)
 set(WCS_HAS_CATCH2 @WCS_HAS_CATCH2@)
 set(WCS_HAS_DOXYGEN @WCS_HAS_DOXYGEN@)
 set(WCS_HAS_VTUNE @WCS_HAS_VTUNE@)
+set(WCS_HAS_ROSS @WCS_HAS_ROSS@)
 
 # Setup dependencies
 
@@ -68,6 +69,14 @@ if (WCS_HAS_CEREAL)
 
   find_package(CEREAL REQUIRED)
 endif (WCS_HAS_CEREAL)
+
+if (WCS_HAS_ROSS)
+  if (NOT ROSS_ROOT)
+    set(ROSS_ROOT "@ROSS_ROOT@")
+  endif ()
+
+  find_package(ROSS REQUIRED)
+endif (WCS_HAS_ROSS)
 
 
 @PACKAGE_INIT@

@@ -110,6 +110,8 @@ option(WCS_WITH_CEREAL "Include Cereal" ON)
 option(WCS_WITH_VTUNE
   "Link the Intel VTune profiling library" OFF)
 
+option(WCS_WITH_ROSS "Use ROSS" OFF)
+
 option(WCS_WITH_UNIT_TESTING
   "Enable the unit testing framework (requires Catch2)" OFF)
 
@@ -271,6 +273,14 @@ if (WCS_WITH_VTUNE)
   endif (VTune_FOUND)
 endif (WCS_WITH_VTUNE)
 
+if (WCS_WITH_ROSS)
+  set(WCS_HAS_ROSS FALSE)
+  find_package(ROSS MODULE)
+  if (ROSS_FOUND)
+    set(WCS_HAS_ROSS TRUE)
+  endif (ROSS_FOUND)
+endif (WCS_WITH_ROSS)
+
 
 if (WCS_WITH_UNIT_TESTING)
   include(SetupCatch2)
@@ -353,9 +363,10 @@ set(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)
 set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}")
 #https://stackoverflow.com/questions/54464929/cmake-install-rpath-use-link-path-without-any-effect
+message(STATUS "CMAKE_INSTALL_RPATH = ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}")
 unset (LIBRARY_PATH)
 
-# add executable
+# add executable reaction
 add_executable( reaction-bin src/reaction.cpp )
 target_include_directories(reaction-bin PUBLIC
   $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}>
@@ -366,7 +377,9 @@ target_link_libraries(reaction-bin PRIVATE wcs)
 set_target_properties(reaction-bin PROPERTIES OUTPUT_NAME reaction)
 set_target_properties(reaction-bin PROPERTIES CMAKE_INSTALL_RPATH
                       "${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}")
+list(APPEND WCS_EXEC_TARGETS reaction-bin)
 
+# add executable ssa
 add_executable( ssa-bin src/ssa.cpp )
 target_include_directories(ssa-bin PUBLIC
   $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}>
@@ -377,19 +390,30 @@ target_link_libraries(ssa-bin PRIVATE wcs)
 set_target_properties(ssa-bin PROPERTIES OUTPUT_NAME ssa)
 set_target_properties(ssa-bin PROPERTIES CMAKE_INSTALL_RPATH
                       "${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}")
+list(APPEND WCS_EXEC_TARGETS ssa-bin)
 
+# add executable graphml2dot
 add_executable( graphml2dot-bin src/utils/graphml2dot.cpp )
 set_target_properties(graphml2dot-bin PROPERTIES OUTPUT_NAME graphml2dot)
 target_link_libraries(graphml2dot-bin PRIVATE wcs)
 
-list(APPEND WCS_UTILS_TARGETS graphml2dot-bin)
+list(APPEND WCS_EXEC_TARGETS graphml2dot-bin)
 
+# add executable partition
 add_executable( partition-bin src/partition.cpp )
-set_target_properties(partition-bin PROPERTIES OUTPUT_NAME partition)
+target_include_directories(partition-bin PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}>
+  $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/src>
+  $<INSTALL_INTERFACE:${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_INCLUDEDIR}>)
+
 target_link_libraries(partition-bin PRIVATE wcs)
+set_target_properties(partition-bin PROPERTIES OUTPUT_NAME partition)
+set_target_properties(partition-bin PROPERTIES CMAKE_INSTALL_RPATH
+                      "${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}")
 
-list(APPEND WCS_UTILS_TARGETS partition-bin)
+list(APPEND WCS_EXEC_TARGETS partition-bin)
 
+# add executable loadSBML
 if (WCS_HAS_SBML)
   add_executable( loadSBML-bin src/utils/loadSBML.cpp )
   target_compile_definitions(loadSBML-bin PRIVATE WCS_HAS_CONFIG)
@@ -397,8 +421,21 @@ if (WCS_HAS_SBML)
     PRIVATE $<TARGET_PROPERTY:wcs,INTERFACE_INCLUDE_DIRECTORIES> ${SBML_INCLUDE_DIR})
   target_link_libraries(loadSBML-bin PRIVATE SBML::SBML)
   set_target_properties(loadSBML-bin PROPERTIES OUTPUT_NAME loadSBML)
-  list(APPEND WCS_UTILS_TARGETS loadSBML-bin)
+  list(APPEND WCS_EXEC_TARGETS loadSBML-bin)
 endif (WCS_HAS_SBML)
+
+# add executable des
+if (WCS_HAS_ROSS)
+  add_executable( des-bin src/des.cpp )
+  target_include_directories(des-bin SYSTEM PUBLIC ${ROSS_INCLUDE_DIRS})
+  target_include_directories(des-bin PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}>
+    $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/src>
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_INCLUDEDIR}>)
+  target_link_libraries(des-bin PRIVATE ROSS::ROSS wcs)
+  set_target_properties(des-bin PROPERTIES OUTPUT_NAME des)
+  list(APPEND WCS_EXEC_TARGETS des-bin)
+endif (WCS_HAS_ROSS)
 
 # Build tests
 add_executable( t_state_rngen-bin src/utils/unit_tests/t_state_rngen.cpp )
@@ -416,16 +453,7 @@ list(APPEND WCS_UNIT_TEST_TARGETS t_state_rngen-bin)
 
 # Install the binaries
 install(
-  TARGETS  reaction-bin ssa-bin
-  EXPORT   WCSTargets
-  RUNTIME  DESTINATION ${CMAKE_INSTALL_BINDIR}
-  ARCHIVE  DESTINATION ${CMAKE_INSTALL_LIBDIR}
-  LIBRARY  DESTINATION ${CMAKE_INSTALL_LIBDIR}
-  INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
-  )
-
-install(
-  TARGETS  ${WCS_UTILS_TARGETS}
+  TARGETS  ${WCS_EXEC_TARGETS}
   EXPORT   WCSTargets
   RUNTIME  DESTINATION ${CMAKE_INSTALL_BINDIR}
   ARCHIVE  DESTINATION ${CMAKE_INSTALL_LIBDIR}
@@ -505,9 +533,6 @@ configure_package_config_file(cmake/configure_files/WCSConfig.cmake.in
   INSTALL_DESTINATION "${CMAKE_BINARY_DIR}"
   PATH_VARS INCLUDE_INSTALL_DIRS LIB_INSTALL_DIR)
 
-# Build tree export
-export(EXPORT WCSTargets NAMESPACE WCS:: FILE WCSTargets.cmake)
-
 # Write the configure file for the install tree
 set(INCLUDE_INSTALL_DIRS include)
 set(LIB_INSTALL_DIR ${CMAKE_INSTALL_LIBDIR})
@@ -528,6 +553,9 @@ install(
   LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}"
   INCLUDES DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
   )
+
+# Build tree export
+export(EXPORT WCSTargets NAMESPACE WCS:: FILE WCSTargets.cmake)
 
 # Install export
 install(EXPORT WCSTargets
@@ -644,7 +672,8 @@ append_str_tf(_str
   WCS_HAS_CEREAL
   WCS_HAS_CATCH2
   WCS_HAS_VTUNE
-  WCS_HAS_DOXYGEN)
+  WCS_HAS_DOXYGEN
+  WCS_HAS_ROSS)
 string(APPEND _str
   "\n== End WCS Configuration Summary ==\n")
 

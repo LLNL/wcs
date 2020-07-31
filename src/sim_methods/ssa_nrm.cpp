@@ -75,27 +75,6 @@ void SSA_NRM::build_heap()
   std::make_heap(m_heap.begin(), m_heap.end(), SSA_NRM::later);
 }
 
-/// Undo the species updates applied during incomplete reaction processing.
-void SSA_NRM::undo_species_updates(const SSA_NRM::update_list_t& updates) const
-{
-  bool ok = true;
-  const wcs::Network::graph_t& g = m_net_ptr->graph();
-
-  for (const auto& u: updates) {
-    const auto& sv_undo = g[u.first];
-    using s_prop_t = wcs::Species;
-    auto& sp_undo = sv_undo.property<s_prop_t>();
-    if (u.second > static_cast<stoic_t>(0)) {
-      ok &= sp_undo.dec_count(u.second);
-    } else {
-      ok &= sp_undo.inc_count(u.second);
-    }
-    if (!ok) {
-      WCS_THROW("Failed to reverse the species updates");
-    }
-  }
-}
-
 SSA_NRM::priority_t& SSA_NRM::choose_reaction()
 {
   return m_heap.front();
@@ -104,89 +83,6 @@ SSA_NRM::priority_t& SSA_NRM::choose_reaction()
 sim_time_t SSA_NRM::get_reaction_time(const SSA_NRM::priority_t& p)
 {
   return p.first;
-}
-
-/**
- * Given the reaction with the earliest time to occur, execute it (i.e.,
- * update the species population involved in the reaction). In addition,
- * record how the species are updated, and which other reactions are
- * affected as a result.
- */
-bool SSA_NRM::fire_reaction(
-       const SSA_NRM::v_desc_t vd_firing,
-       SSA_NRM::update_list_t& updating_species,
-       SSA_NRM::affected_reactions_t& affected_reactions)
-{
-  using s_prop_t = wcs::Species;
-
-  // Reactions do not change the connectivity, but only change the property
-  // data, which are allocated outside of BGL graph, but only linked to it.
-  const wcs::Network::graph_t& g = m_net_ptr->graph();
-
-  updating_species.clear();
-  affected_reactions.clear();
-
-  // reactant species
-  for (const auto ei_in : boost::make_iterator_range(boost::in_edges(vd_firing, g))) {
-    const auto vd_updating = boost::source(ei_in, g);
-    const auto& sv_updating = g[vd_updating];
-    if constexpr (wcs::Vertex::_num_vertex_types_  > 3) {
-      // in case that there are other type of vertices than species or reaction
-      if (sv_updating.get_type() != wcs::Vertex::_species_) continue;
-    }
-
-    auto& sp_updating = sv_updating.property<s_prop_t>();
-    const auto stoichio = g[ei_in].get_stoichiometry_ratio();
-    if (stoichio == static_cast<stoic_t>(0)) {
-      continue;
-    }
-    if (!sp_updating.dec_count(stoichio)) { // State update
-      std::string err = "Not enough reactants of " + sv_updating.get_label()
-                      + "[" + std::to_string(sp_updating.get_count())
-                      + "] for reaction " + g[vd_firing].get_label();
-      WCS_THROW(err);
-      return false;
-    }
-    updating_species.emplace_back(std::make_pair(vd_updating, -stoichio));
-
-    for (const auto vi_affected : boost::make_iterator_range(boost::out_edges(vd_updating, g))) {
-      const auto vd_affected = boost::target(vi_affected, g);
-      if (vd_affected == vd_firing) continue;
-      affected_reactions.insert(vd_affected);
-    }
-  }
-
-  // product species
-  for (const auto ei_out : boost::make_iterator_range(boost::out_edges(vd_firing, g))) {
-    const auto vd_updating = boost::target(ei_out, g);
-    const auto& sv_updating = g[vd_updating];
-    if constexpr (wcs::Vertex::_num_vertex_types_  > 3) {
-      // in case that there are other type of vertices than species or reaction
-      if (sv_updating.get_type() != wcs::Vertex::_species_) continue;
-    }
-
-    auto& sp_updating = sv_updating.property<s_prop_t>();
-    const auto stoichio = g[ei_out].get_stoichiometry_ratio();
-    if (stoichio == static_cast<stoic_t>(0)) {
-      continue;
-    }
-    if (!sp_updating.inc_count(stoichio)) { // State update
-      std::string err = "Can not produce more of " + sv_updating.get_label()
-                      + "[" + std::to_string(sp_updating.get_count())
-                      + "] by reaction " + g[vd_firing].get_label();
-      WCS_THROW(err);
-      return false;
-    }
-    updating_species.emplace_back(std::make_pair(vd_updating, stoichio));
-
-    for (const auto vi_affected : boost::make_iterator_range(boost::out_edges(vd_updating, g))) {
-      const auto vd_affected = boost::target(vi_affected, g);
-      if (vd_affected == vd_firing) continue;
-      affected_reactions.insert(vd_affected);
-    }
-  }
-
-  return true;
 }
 
 void SSA_NRM::reset_reaction_time(const v_desc_t& vd, wcs::sim_time_t& rt)
@@ -247,7 +143,7 @@ void SSA_NRM::adjust_reaction_time(const v_desc_t& vd, wcs::sim_time_t& rt)
  */
 void SSA_NRM::update_reactions(
        SSA_NRM::priority_t& firing,
-       const SSA_NRM::affected_reactions_t& affected,
+       const Sim_Method::affected_reactions_t& affected,
        SSA_NRM::reaction_times_t& affected_rtimes)
 {
   auto t_fired = firing.first;
@@ -267,7 +163,7 @@ void SSA_NRM::update_reactions(
     auto& et = e.first; // reaction time
     et -= t_fired;
     // TODO: need a better facility to locate the affected reaction entry in
-    // the m_heap. red-black tree perhaps.
+    // the m_heap.
     auto it_found = affected_reactions.find(vd);
     if (it_found == affected_reactions.end()) { // not found
       continue;
@@ -367,7 +263,7 @@ void SSA_NRM::init(std::shared_ptr<wcs::Network>& net_ptr,
 std::pair<sim_iter_t, sim_time_t> SSA_NRM::run()
 {
   // species to update as a result of the reaction fired
-  update_list_t updating_species;
+  Sim_Method::update_list_t updating_species;
 
   // Any other reaction that takes any of species being updated as a result of
   // the current reaction as a reactant is affected. This assumes that species
@@ -395,7 +291,9 @@ std::pair<sim_iter_t, sim_time_t> SSA_NRM::run()
       break;
     }
 
-    if (!fire_reaction(vd_firing, updating_species, affected_reactions)) {
+    if (!Sim_Method::fire_reaction(vd_firing,
+                                   updating_species,
+                                   affected_reactions)) {
       break;
     }
 
@@ -417,96 +315,6 @@ std::pair<sim_iter_t, sim_time_t> SSA_NRM::run()
   return std::make_pair(m_cur_iter, m_sim_time);
 }
 
-/**
- * Undo the state update done by the previous the reaction executed.
- * In addition, record which the species are restored, and which reactions are
- * affected.
- */
-bool SSA_NRM::undo_reaction(const SSA_NRM::v_desc_t vd_undo,
-                            SSA_NRM::update_list_t& reverting_species,
-                            SSA_NRM::affected_reactions_t& affected_reactions)
-{
-  using s_prop_t = wcs::Species;
-
-  // Reactions do not change the connectivity, but only change the property
-  // data, which are allocated outside of BGL graph, but only linked to it.
-  const wcs::Network::graph_t& g = m_net_ptr->graph();
-
-  reverting_species.clear();
-  affected_reactions.clear();
-
-  // reactant species
-  for (const auto ei_in :
-       boost::make_iterator_range(boost::in_edges(vd_undo, g)))
-  {
-    const auto vd_updating = boost::source(ei_in, g);
-    const auto& sv_updating = g[vd_updating];
-    if constexpr (wcs::Vertex::_num_vertex_types_  > 3) {
-      // in case that there are other type of vertices than species or reaction
-      if (sv_updating.get_type() != wcs::Vertex::_species_) continue;
-    }
-
-    auto& sp_updating = sv_updating.property<s_prop_t>();
-    const auto stoichio = g[ei_in].get_stoichiometry_ratio();
-    if (stoichio == static_cast<stoic_t>(0)) {
-      continue;
-    }
-    if (!sp_updating.inc_count(stoichio)) { // State update
-      std::string err = "Unable to undo the decrement of reactant "
-                      + sv_updating.get_label()
-                      + "[" + std::to_string(sp_updating.get_count())
-                      + "] for reaction " + g[vd_undo].get_label();
-      WCS_THROW(err);
-      return false;
-    }
-    reverting_species.emplace_back(std::make_pair(vd_updating, stoichio));
-
-    for (const auto vi_affected :
-         boost::make_iterator_range(boost::out_edges(vd_updating, g)))
-    {
-      const auto vd_affected = boost::target(vi_affected, g);
-      if (vd_affected == vd_undo) continue;
-      affected_reactions.insert(vd_affected);
-    }
-  }
-
-  // product species
-  for (const auto ei_out :
-       boost::make_iterator_range(boost::out_edges(vd_undo, g)))
-  {
-    const auto vd_updating = boost::target(ei_out, g);
-    const auto& sv_updating = g[vd_updating];
-    if constexpr (wcs::Vertex::_num_vertex_types_  > 3) {
-      // in case that there are other type of vertices than species or reaction
-      if (sv_updating.get_type() != wcs::Vertex::_species_) continue;
-    }
-
-    auto& sp_updating = sv_updating.property<s_prop_t>();
-    const auto stoichio = g[ei_out].get_stoichiometry_ratio();
-    if (stoichio == static_cast<stoic_t>(0)) {
-      continue;
-    }
-    if (!sp_updating.dec_count(stoichio)) { // State update
-      std::string err = "Unable to undo the production of "
-                      + sv_updating.get_label()
-                      + "[" + std::to_string(sp_updating.get_count())
-                      + "] by reaction " + g[vd_undo].get_label();
-      WCS_THROW(err);
-      return false;
-    }
-    reverting_species.emplace_back(std::make_pair(vd_updating, -stoichio));
-
-    for (const auto vi_affected :
-         boost::make_iterator_range(boost::out_edges(vd_updating, g)))
-    {
-      const auto vd_affected = boost::target(vi_affected, g);
-      if (vd_affected == vd_undo) continue;
-      affected_reactions.insert(vd_affected);
-    }
-  }
-
-  return true;
-}
 
 /**@}*/
 } // end of namespace wcs

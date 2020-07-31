@@ -31,6 +31,15 @@ public:
   using sim_time_t = wcs::sim_time_t;
   using reaction_rate_t = wcs::reaction_rate_t;
 
+  /** Type for keeping track of species updates to facilitate undoing
+   *  reaction processing.  */
+  using update_t = std::pair<v_desc_t, stoic_t>;
+  using update_list_t = std::vector<update_t>;
+  /** Type for the list of reactions that share any of the species with the
+   *  firing reaction */
+  using affected_reactions_t = std::set<v_desc_t>;
+
+
   Sim_Method();
   virtual ~Sim_Method();
   virtual void init(std::shared_ptr<wcs::Network>& net_ptr,
@@ -65,6 +74,16 @@ public:
   trace_t& trace();
   /// Allow access to the internal sampler
   samples_t& samples();
+
+  bool fire_reaction(
+       const v_desc_t vd_firing,
+       update_list_t& updating_species,
+       affected_reactions_t& affected_reactions);
+
+  void undo_species_updates(const update_list_t& updates) const;
+  bool undo_reaction(const v_desc_t vd_undo,
+                     update_list_t& reverting_species,
+                     affected_reactions_t& affected_reactions) const;
 
 protected:
 

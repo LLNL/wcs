@@ -291,21 +291,23 @@ std::pair<sim_iter_t, sim_time_t> SSA_NRM::run()
       break;
     }
 
+    const sim_time_t m_sim_time_last = m_sim_time;
+    m_sim_time += dt;
+
     if (!Sim_Method::fire_reaction(vd_firing,
                                    updating_species,
                                    affected_reactions)) {
+      m_sim_time = m_sim_time_last;
       break;
     }
 
-    is_recorded = check_to_record(dt, firing.second);
+    is_recorded = check_to_record(firing.second);
 
     update_reactions(firing, affected_reactions, reaction_times);
 
-    m_sim_time += dt;
-
     if (m_sim_time >= m_max_time) {
       if (!is_recorded) {
-        record_final_state(dt, firing.second);
+        record_final_state(firing.second);
       }
       break;
     }

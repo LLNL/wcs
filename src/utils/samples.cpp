@@ -202,14 +202,13 @@ std::ostream& Samples::write(std::ostream& os)
   std::vector<r_cnt_t> reactions;
   reactions.resize(m_net_ptr->reaction_list().size(), 0ul);
 
-  sim_time_t sim_time = 0.0; // simulation time
   std::string tmpstr;
 
   build_index_maps();
   write_header(os, reactions.size());
 
   for (const auto& sample : m_samples) {
-    sim_time += std::get<0>(sample); // time of the reaction
+    const auto sim_time = std::get<0>(sample); // time of the reaction
     const s_sample_t& s_sample = std::get<1>(sample);
     const r_sample_t& r_sample = std::get<2>(sample);
     count_species(s_sample, species);

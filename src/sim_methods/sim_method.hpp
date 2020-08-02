@@ -61,12 +61,12 @@ public:
   /// Record the initial state of simulation
   void record_initial_state(const std::shared_ptr<wcs::Network>& net_ptr);
   /// Record the final state of simulation
-  void record_final_state(const sim_time_t dt, const v_desc_t rv);
+  void record_final_state(const v_desc_t rv);
 
   /// Check whether to record the state at current step
   bool check_to_record();
   /// Record the state at current step as needed
-  bool check_to_record(const sim_time_t dt, const v_desc_t rv);
+  bool check_to_record(const v_desc_t rv);
 
   virtual std::pair<sim_iter_t, sim_time_t> run() = 0;
 
@@ -110,8 +110,6 @@ protected:
 
   trace_t m_trace; ///< Tracing record
   samples_t m_samples; ///< Sampling record
-
-  sim_time_t dt_sample; ///< time elapsed since the last sample
 };
 
 /**@}*/

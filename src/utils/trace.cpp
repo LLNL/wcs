@@ -146,10 +146,8 @@ std::ostream& Trace::write(std::ostream& os)
   trace_t::const_iterator it = m_trace.begin();
   trace_t::const_iterator it_end = m_trace.cend();
 
-  sim_time_t sim_time = 0.0; // simulation time
-
   for (; it != it_end; it++) {
-    sim_time += it->first; // time of the reaction
+    const auto sim_time = it->first; // time of the reaction
     r_desc_t vd_reaction = it->second; // BGL vertex descriptor of the reaction
     count_reaction(vd_reaction);
 

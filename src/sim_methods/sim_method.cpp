@@ -26,8 +26,7 @@ Sim_Method::Sim_Method()
   m_sample_iter_interval(static_cast<sim_iter_t>(0u)),
   m_sample_time_interval(static_cast<sim_time_t>(0)),
   m_next_sample_iter(static_cast<sim_iter_t>(0u)),
-  m_next_sample_time(static_cast<sim_time_t>(0)),
-  dt_sample(static_cast<sim_time_t>(0))
+  m_next_sample_time(static_cast<sim_time_t>(0))
 {
   using directed_category
     = typename boost::graph_traits<wcs::Network::graph_t>::directed_category;
@@ -85,34 +84,30 @@ void Sim_Method::record_initial_state(const std::shared_ptr<wcs::Network>& net_p
   }
 }
 
-void Sim_Method::record_final_state(const sim_time_t dt, const v_desc_t rv)
+void Sim_Method::record_final_state(const v_desc_t rv)
 {
   if (m_enable_tracing) {
-    m_trace.record_reaction(dt, rv);
+    m_trace.record_reaction(m_sim_time, rv);
   } else if (m_enable_sampling) {
     m_samples.record_reaction(rv);
-    dt_sample += dt;
-    m_samples.take_sample(dt_sample);
+    m_samples.take_sample(m_sim_time);
   }
 }
 
-bool Sim_Method::check_to_record(const sim_time_t dt, const v_desc_t rv)
+bool Sim_Method::check_to_record(const v_desc_t rv)
 {
   if (m_enable_tracing) {
-    m_trace.record_reaction(dt, rv);
+    m_trace.record_reaction(m_sim_time, rv);
     return true;
   } else if (m_enable_sampling) {
     m_samples.record_reaction(rv);
-    dt_sample += dt;
     if (m_cur_iter >= m_next_sample_iter) {
       m_next_sample_iter += m_sample_iter_interval;
-      m_samples.take_sample(dt_sample);
-      dt_sample = 0.0;
+      m_samples.take_sample(m_sim_time);
       return true;
     } else if (m_sim_time >= m_next_sample_time) {
       m_next_sample_time += m_sample_time_interval;
-      m_samples.take_sample(dt_sample);
-      dt_sample = 0.0;
+      m_samples.take_sample(m_sim_time);
       return true;
     } else {
       return false;

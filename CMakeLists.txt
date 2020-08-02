@@ -218,6 +218,7 @@ find_package(Boost
              REQUIRED COMPONENTS
              graph regex filesystem system)
 
+message(STATUS "Boost_INCLUDE_DIRS: " ${Boost_INCLUDE_DIRS})
 message(STATUS "Boost_LIBRARY_DIRS: " ${Boost_LIBRARY_DIRS})
 
 # This shouldn't be here, but is ok for now. This will occasionally be

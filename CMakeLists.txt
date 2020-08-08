@@ -105,6 +105,7 @@ option(WCS_WITH_SBML "Enable SBML library" OFF)
 
 option(WCS_WITH_EXPRTK "Include ExprTk" OFF)
 
+# Cereal is going to be required.
 option(WCS_WITH_CEREAL "Include Cereal" ON)
 
 option(WCS_WITH_VTUNE
@@ -233,6 +234,10 @@ if (NOT DL_LIBRARY)
   endif (DL_LIBRARY)
 endif ()
 
+include(SetupIHeap)
+
+# Optional dependencies
+
 if (WCS_WITH_SUNDIALS)
   set(WCS_HAS_SUNDIALS FALSE)
   find_package(Sundials MODULE)
@@ -318,6 +323,13 @@ target_include_directories(wcs PUBLIC
 target_include_directories(wcs SYSTEM PUBLIC ${Boost_INCLUDE_DIRS})
 
 # Use the IMPORTED targets when possible.
+
+if (WCS_HAS_IHEAP)
+  add_dependencies(wcs IHEAP-download)
+  target_include_directories(wcs PUBLIC
+    $<BUILD_INTERFACE:${IHEAP_DIR}>
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_INCLUDEDIR}>)
+endif (WCS_HAS_IHEAP)
 
 if (WCS_HAS_SUNDIALS)
   target_link_libraries(wcs PUBLIC SUNDIALS::SUNDIALS)

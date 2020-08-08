@@ -1,0 +1,40 @@
+--- iheap.h	2020-08-07 15:36:02.000000000 -0700
++++ iheap.new.h	2020-08-07 10:10:19.000000000 -0700
+@@ -85,7 +85,7 @@
+         typename Compare = std::less<typename std::iterator_traits<RandomIt>::value_type>>
+     void push(RandomIt begin, RandomIt end, Indexer indexer, Compare comp = Compare())
+     {
+-        if (begin >= end)
++        if (begin + 1 >= end)
+             return;
+         indexer((end - 1)->second) = (end - begin) - 1;
+         detail::bubble_up(begin, end, end - 1, indexer, comp);
+@@ -101,8 +101,12 @@
+             return;
+ 
+         auto back = end - 1;
+-        swap(*begin, *back);
+-        swap(indexer(begin->second), indexer(back->second));
++
++        if (back != begin) {
++            swap(*begin, *back);
++            swap(indexer(begin->second), indexer(back->second));
++        }
++
+         indexer(back->second) = -1;
+ 
+         detail::bubble_down(begin, back, begin, indexer, comp);
+@@ -174,8 +178,11 @@
+ 
+         auto old = *it;
+ 
+-        swap(*it, *back);
+-        swap(indexer(it->second), indexer(back->second));
++        if (back != begin) {
++        //https://stackoverflow.com/questions/24444630/is-stdswapx-x-guaranteed-to-leave-x-unchanged
++            swap(*it, *back);
++            swap(indexer(it->second), indexer(back->second));
++        }
+         indexer(back->second) = -1;
+         // works just fine when it == back
+ 

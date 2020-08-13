@@ -12,6 +12,7 @@
 #define __WCS_SIM_METHODS_SSA_NRM_HPP__
 #include <cmath>
 #include <limits>
+#include <unordered_map>
 #include "sim_methods/sim_method.hpp"
 
 namespace wcs {
@@ -38,22 +39,27 @@ public:
 
   std::pair<sim_iter_t, sim_time_t> run() override;
 
-  static bool later(const priority_t& v1, const priority_t& v2);
   rng_t& rgen();
 
 protected:
   void build_heap();
-  priority_t& choose_reaction();
+  priority_t choose_reaction();
   sim_time_t get_reaction_time(const priority_t& p);
-  void reset_reaction_time(const v_desc_t& vd, wcs::sim_time_t& rt);
-  void adjust_reaction_time(const v_desc_t& vd, wcs::sim_time_t& rt);
-  void update_reactions(priority_t& firing,
+  wcs::sim_time_t recompute_reaction_time(const v_desc_t& vd);
+  wcs::sim_time_t adjust_reaction_time(const v_desc_t& vd, wcs::sim_time_t rt);
+  void update_reactions(const priority_t& fired,
                         const Sim_Method::affected_reactions_t& affected,
                         reaction_times_t& affected_rtimes);
   void revert_reaction_updates(const sim_time_t dt,
                                const reaction_times_t& affected);
 
 protected:
+  /** In-heap index table maintains where in the heap each item can be found.
+      The position in the heap is identified by an index of type idx_t. */
+  using heap_idx_t = int; // the type used in iheap
+  using in_heap_index_table_t = std::unordered_map<v_desc_t, heap_idx_t>;
+
+  in_heap_index_table_t m_idx_table;
   priority_queue_t m_heap;
   rng_t m_rgen;
 };

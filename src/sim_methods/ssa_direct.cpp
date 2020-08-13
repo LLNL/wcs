@@ -118,16 +118,16 @@ sim_time_t SSA_Direct::get_reaction_time()
  * Recompute the reaction rates of those affected which are linked with
  * updating species. Also, the update cumulative propensity list.
  */
-void SSA_Direct::update_reactions(priority_t& firing,
+void SSA_Direct::update_reactions(priority_t& fired,
   const Sim_Method::affected_reactions_t& affected_reactions)
 {
   using r_prop_t = wcs::Reaction<v_desc_t>;
 
-  // update the propensity of the firing reaction
-  const auto vd_firing = firing.second;
-  size_t pidx_min = m_pindices.at(vd_firing);
-  firing.first =  m_net_ptr->set_reaction_rate(vd_firing);
-  //(m_propensity.at(pidx_min)).first =  m_net_ptr->set_reaction_rate(vd_firing);
+  // update the propensity of the fired reaction
+  const auto vd_fired = fired.second;
+  size_t pidx_min = m_pindices.at(vd_fired);
+  fired.first =  m_net_ptr->set_reaction_rate(vd_fired);
+  //(m_propensity.at(pidx_min)).first =  m_net_ptr->set_reaction_rate(vd_fired);
 
   // update the propensity of the rest of affected reactions
   for (const auto& vd : affected_reactions) {
@@ -155,9 +155,9 @@ void SSA_Direct::update_reactions(priority_t& firing,
 
 
 void SSA_Direct::init(std::shared_ptr<wcs::Network>& net_ptr,
-                   const sim_iter_t max_iter,
-                   const double max_time,
-                   const unsigned rng_seed)
+                      const sim_iter_t max_iter,
+                      const double max_time,
+                      const unsigned rng_seed)
 {
   if (!net_ptr) {
     WCS_THROW("Invalid pointer to the reaction network.");
@@ -207,7 +207,7 @@ void SSA_Direct::init(std::shared_ptr<wcs::Network>& net_ptr,
 std::pair<sim_iter_t, sim_time_t> SSA_Direct::run()
 {
   // species to update as a result of the reaction fired
-  update_list_t updating_species;
+  Sim_Method::update_list_t updating_species;
 
   // Any other reaction that takes any of species being updated as a result of
   // the current reaction as a reactant is affected. This assumes that species
@@ -215,40 +215,40 @@ std::pair<sim_iter_t, sim_time_t> SSA_Direct::run()
   // that produce any of the updated species are affected as well. Here, we
   // take the assumption for simplicity. However, if we consider compartments
   // with population/concentration limits, we need to reconsider.
-  affected_reactions_t affected_reactions;
+  Sim_Method::affected_reactions_t affected_reactions;
 
   bool is_recorded = true; // initial state recording done
 
   for (; m_cur_iter < m_max_iter; ++ m_cur_iter) {
     if (m_propensity.empty()) { // no reaction possible
+      std::cerr << "No reaction exists." << std::endl;
       break;
     }
 
     const sim_time_t dt = get_reaction_time();
     auto& firing = choose_reaction();
+    const auto vd_firing = firing.second; // reaction vertex descriptor
 
-    if ((dt == std::numeric_limits<sim_time_t>::infinity()) ||
-        (dt >= wcs::Network::get_etime_ulimit())) {
+    if (dt >= wcs::Network::get_etime_ulimit()) {
+      std::cerr << "No more reaction can fire." << std::endl;
       break;
     }
 
-    const sim_time_t m_sim_time_last = m_sim_time;
-    m_sim_time += dt;
-
-    if (!Sim_Method::fire_reaction(firing.second,
+    if (!Sim_Method::fire_reaction(vd_firing,
                                    updating_species,
                                    affected_reactions)) {
-      m_sim_time = m_sim_time_last;
+      std::cerr << "Faile to fire a reaction." << std::endl;
       break;
     }
 
-    is_recorded = check_to_record(firing.second);
-
+    m_sim_time += dt;
     update_reactions(firing, affected_reactions);
+
+    is_recorded = check_to_record(vd_firing);
 
     if (m_sim_time >= m_max_time) {
       if (!is_recorded) {
-        record_final_state(firing.second);
+        record_final_state(vd_firing);
       }
       break;
     }

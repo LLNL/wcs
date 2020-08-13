@@ -47,7 +47,7 @@ protected:
   void build_propensity_list();
   priority_t& choose_reaction();
   sim_time_t get_reaction_time();
-  void update_reactions(priority_t& firing,
+  void update_reactions(priority_t& fired,
                         const Sim_Method::affected_reactions_t& affected);
 
 protected:

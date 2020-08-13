@@ -25,22 +25,17 @@ public:
   using v_desc_t = Sim_Method::v_desc_t;
   using priority_t = std::pair<reaction_rate_t, v_desc_t>;
   using propensisty_list_t = std::vector<priority_t>;
-  /** Type for the list of reactions that share any of the species with the
-   *  firing reaction */
-  using affected_reactions_t = std::set<v_desc_t>;
 
-  /** Type for keeping track of species updates to facilitate undoing
-   *  reaction processing.  */
-  using update_t = std::pair<v_desc_t, stoic_t>;
-  using update_list_t = std::vector<update_t>;
 
   SSA_Direct();
   ~SSA_Direct() override;
+  /// Initialize propensity list
   void init(std::shared_ptr<wcs::Network>& net_ptr,
             const unsigned max_iter,
             const double max_time,
             const unsigned rng_seed) override;
 
+  /// Main loop of SSA
   std::pair<unsigned, sim_time_t> run() override;
 
   static bool less(const priority_t& v1, const priority_t& v2);
@@ -52,14 +47,8 @@ protected:
   void build_propensity_list();
   priority_t& choose_reaction();
   sim_time_t get_reaction_time();
-  bool fire_reaction(const priority_t& firing,
-                     update_list_t& updating_species,
-                     affected_reactions_t& affected_reactions);
-  void update_reactions(priority_t& firing, const affected_reactions_t& affected);
-  void undo_species_updates(const update_list_t& updates) const;
-  bool undo_reaction(const priority_t& to_undo,
-                     update_list_t& reverting_species,
-                     affected_reactions_t& affected_reactions);
+  void update_reactions(priority_t& fired,
+                        const Sim_Method::affected_reactions_t& affected);
 
 protected:
   /// Cumulative propensity of reactions events

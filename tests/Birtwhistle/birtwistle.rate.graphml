@@ -5004,54 +5004,6 @@ var Nucleus := 1.75e-12;
 m_rate := k28_1*k28_2*k28_3*(Nucleus/Cytoplasm);</data>
         </node>
 
-        <node id="r_vTL27">
-            <data key="v_label">vTL27</data>
-            <data key="v_type">2</data>
-            <data key="r_rate">
-var k29_3 := 0.7021;
-var k29_1 := 1.12575;
-var Cytoplasm := 5.25e-12;
-var Nucleus := 1.75e-12;
-var k29_2 := 0.0139149;
-m_rate := k29_1*k29_2*k29_3*(Nucleus/Cytoplasm);</data>
-        </node>
-
-        <node id="r_vTL28">
-            <data key="v_label">vTL28</data>
-            <data key="v_type">2</data>
-            <data key="r_rate">
-var k30_2 := 0.000632496;
-var k30_1 := 0.765837;
-var k30_3 := 0.7021;
-var Cytoplasm := 5.25e-12;
-var Nucleus := 1.75e-12;
-m_rate := k30_1*k30_2*k30_3*(Nucleus/Cytoplasm);</data>
-        </node>
-
-        <node id="r_vTL29">
-            <data key="v_label">vTL29</data>
-            <data key="v_type">2</data>
-            <data key="r_rate">
-var k31_1 := 0.0351651;
-var k31_2 := 0.00347873;
-var k31_3 := 0.7021;
-var Cytoplasm := 5.25e-12;
-var Nucleus := 1.75e-12;
-m_rate := k31_1*k31_2*k31_3*(Nucleus/Cytoplasm);</data>
-        </node>
-
-        <node id="r_vTL30">
-            <data key="v_label">vTL30</data>
-            <data key="v_type">2</data>
-            <data key="r_rate">
-var Cytoplasm := 5.25e-12;
-var k32_2 := 0.00221374;
-var k32_1 := 1.26575;
-var k32_3 := 0.7021;
-var Nucleus := 1.75e-12;
-m_rate := k32_1*k32_2*k32_3*(Nucleus/Cytoplasm);</data>
-        </node>
-
         <node id="r_vTL31">
             <data key="v_label">vTL31</data>
             <data key="v_type">2</data>
@@ -18618,22 +18570,6 @@ var k1648 := 0.1;
 m_rate := k1648*RasT_CRaf_BRaf;</data>
         </node>
 
-        <node id="r_vP11">
-            <data key="v_label">vP11</data>
-            <data key="v_type">2</data>
-            <data key="r_rate">
-var k1649 := 0;
-m_rate := k1649;</data>
-        </node>
-
-        <node id="r_vP12">
-            <data key="v_label">vP12</data>
-            <data key="v_type">2</data>
-            <data key="r_rate">
-var k1650 := 0;
-m_rate := k1650;</data>
-        </node>
-
         <node id="r_vP13">
             <data key="v_label">vP13</data>
             <data key="v_type">2</data>
@@ -19561,22 +19497,6 @@ m_rate := k1765*pGSK3b;</data>
 var k1766_1 := 60;
 var k1766_2 := 200;
 m_rate := (k1766_1*bCATENIN*GSK3b^4)/(k1766_2^4+GSK3b^4);</data>
-        </node>
-
-        <node id="r_vP129">
-            <data key="v_label">vP129</data>
-            <data key="v_type">2</data>
-            <data key="r_rate">
-var k1767 := 0.1;
-m_rate := k1767;</data>
-        </node>
-
-        <node id="r_vP130">
-            <data key="v_label">vP130</data>
-            <data key="v_type">2</data>
-            <data key="r_rate">
-var k1768 := 1;
-m_rate := k1768;</data>
         </node>
 
         <node id="r_vP131">

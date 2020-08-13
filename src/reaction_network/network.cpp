@@ -172,6 +172,16 @@ void Network::init()
   sort_species();
 }
 
+/// Overwrite the reaction rate to a given value
+void Network::set_reaction_rate(const Network::v_desc_t r,
+                                const wcs::reaction_rate_t rate) const
+{
+  using r_prop_t = wcs::Reaction<v_desc_t>;
+  const auto& rv = m_graph[r]; // vertex (property) of the reaction
+  auto& rp = rv.property<r_prop_t>(); // detailed vertex property data
+  rp.set_rate(rate);
+}
+
 /**
  * Computes the reaction rate based on the population of the reaction driving
  * species and the reaction constant.

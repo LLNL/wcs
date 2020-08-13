@@ -132,6 +132,11 @@ reaction_rate_t ReactionBase::calc_rate(std::vector<reaction_rate_t> params)
   return m_rate;
 }
 
+void ReactionBase::set_rate(const reaction_rate_t rate)
+{
+  m_rate = rate;
+}
+
 reaction_rate_t ReactionBase::get_rate() const
 {
   return m_rate;

@@ -4,7 +4,7 @@
 
 set(WCS_HAS_IHEAP TRUE)
 set(IHEAP_SOURCE_DIR ${CMAKE_SOURCE_DIR}/external/iheap)
-set(IHEAP_HEADER iheap.hpp)
+set(IHEAP_HEADER iheap.h)
 
 find_file(IHEAP ${IHEAP_HEADER}
           HINTS ${IHEAP_SOURCE_DIR}
@@ -18,7 +18,8 @@ if (IHEAP)
 else ()
   message(STATUS "iheap will be downloaded.")
   ExternalProject_Add(IHEAP
-    GIT_REPOSITORY https://github.com/yangle/iheap.git
+    DOWNLOAD_COMMAND "${CMAKE_SOURCE_DIR}/external/get_iheap.sh;${CMAKE_SOURCE_DIR}/external"
+    #GIT_REPOSITORY https://github.com/yangle/iheap.git
     SOURCE_DIR "${IHEAP_SOURCE_DIR}"
     LOG_DOWNLOAD ON
     STEP_TARGETS download
@@ -26,7 +27,6 @@ else ()
     BUILD_COMMAND ""
     INSTALL_COMMAND ""
     LOG_PATCH ON
-    #PATCH_COMMAND "patch ${IHEAP_SOURCE_DIR}/iheap.h < ${CMAKE_SOURCE_DIR}/external/patch_iheap_h.txt"
   )
 
   unset(IHEAP_DIR CACHE)

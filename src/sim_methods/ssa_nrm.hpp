@@ -12,6 +12,7 @@
 #define __WCS_SIM_METHODS_SSA_NRM_HPP__
 #include <cmath>
 #include <limits>
+#include <unordered_map>
 #include "sim_methods/sim_method.hpp"
 
 namespace wcs {
@@ -25,16 +26,9 @@ public:
   using priority_t = std::pair<wcs::sim_time_t, v_desc_t>;
   /// Type of heap structure
   using priority_queue_t = std::vector<priority_t>;
-  /** Type for the list of reactions that share any of the species with the
-   *  firing reaction */
-  using affected_reactions_t = std::set<v_desc_t>;
   /// Type of the pair of BGL vertex descriptor for reaction and the its time
   using reaction_times_t = std::vector<std::pair<v_desc_t, wcs::sim_time_t> >;
 
-  /** Type for keeping track of species updates to facilitate undoing
-   *  reaction processing.  */
-  using update_t = std::pair<v_desc_t, stoic_t>;
-  using update_list_t = std::vector<update_t>;
 
   SSA_NRM();
   ~SSA_NRM() override;
@@ -45,29 +39,27 @@ public:
 
   std::pair<sim_iter_t, sim_time_t> run() override;
 
-  static bool later(const priority_t& v1, const priority_t& v2);
   rng_t& rgen();
 
 protected:
   void build_heap();
-  priority_t& choose_reaction();
+  priority_t choose_reaction();
   sim_time_t get_reaction_time(const priority_t& p);
-  bool fire_reaction(const v_desc_t vd_firing,
-                     update_list_t& updating_species,
-                     affected_reactions_t& affected_reactions);
-  void reset_reaction_time(const v_desc_t& vd, wcs::sim_time_t& rt);
-  void adjust_reaction_time(const v_desc_t& vd, wcs::sim_time_t& rt);
-  void update_reactions(priority_t& firing,
-                       const affected_reactions_t& affected,
-                       reaction_times_t& affected_rtimes);
+  wcs::sim_time_t recompute_reaction_time(const v_desc_t& vd);
+  wcs::sim_time_t adjust_reaction_time(const v_desc_t& vd, wcs::sim_time_t rt);
+  void update_reactions(const priority_t& fired,
+                        const Sim_Method::affected_reactions_t& affected,
+                        reaction_times_t& affected_rtimes);
   void revert_reaction_updates(const sim_time_t dt,
-                       const reaction_times_t& affected);
-  void undo_species_updates(const update_list_t& updates) const;
-  bool undo_reaction(const v_desc_t vd_undo,
-                     update_list_t& reverting_species,
-                     affected_reactions_t& affected_reactions);
+                               const reaction_times_t& affected);
 
 protected:
+  /** In-heap index table maintains where in the heap each item can be found.
+      The position in the heap is identified by an index of type idx_t. */
+  using heap_idx_t = int; // the type used in iheap
+  using in_heap_index_table_t = std::unordered_map<v_desc_t, heap_idx_t>;
+
+  in_heap_index_table_t m_idx_table;
   priority_queue_t m_heap;
   rng_t m_rgen;
 };

@@ -1,0 +1,268 @@
+/******************************************************************************
+ *                                                                            *
+ *    Copyright 2020   Lawrence Livermore National Security, LLC and other    *
+ *    Whole Cell Simulator Project Developers. See the top-level COPYRIGHT    *
+ *    file for details.                                                       *
+ *                                                                            *
+ *    SPDX-License-Identifier: MIT                                            *
+ *                                                                            *
+ ******************************************************************************/
+
+#if defined(WCS_HAS_CONFIG)
+#include "wcs_config.hpp"
+#else
+#error "no config"
+#endif
+
+#include <algorithm> // upper_bound
+#include <cmath> // log
+#include "sim_methods/ssa_sod.hpp"
+#include "utils/exception.hpp"
+#include "utils/seed.hpp"
+
+#if defined(WCS_HAS_CEREAL)
+#include "utils/state_io_cereal.hpp"
+#endif // WCS_HAS_CEREAL
+
+namespace wcs {
+/** \addtogroup wcs_reaction_network
+ *  @{ */
+
+SSA_SOD::SSA_SOD()
+: Sim_Method() {}
+
+SSA_SOD::~SSA_SOD() {}
+
+/// Allow access to the internal random number generator for events
+SSA_SOD::rng_t& SSA_SOD::rgen_e() {
+  return m_rgen_evt;
+}
+
+/// Allow access to the internal random number generator for event times
+SSA_SOD::rng_t& SSA_SOD::rgen_t() {
+  return m_rgen_tm;
+}
+
+/**
+ * Initialize the reaction propensity list by filling it with the propesity of
+ * every reaction and sorting.
+ */
+void SSA_SOD::build_propensity_list()
+{
+  m_propensity.clear();
+
+  for (const auto& vd : m_net_ptr->reaction_list())
+  {
+    const auto rate = m_net_ptr->get_reaction_rate(vd);
+    m_propensity.emplace(priority_t{rate, static_cast<reaction_rate_t>(0.0), vd});
+  }
+  if (m_net_ptr->get_num_reactions() != m_propensity.size()) {
+    WCS_THROW("Failed to add propensity.");
+  }
+
+  reaction_rate_t sum = static_cast<reaction_rate_t>(0.0);
+  rate_idx_t::iterator it = m_propensity.begin();
+
+  for (; it != m_propensity.end(); ++it) { // Calculate the culumative rate
+    sum += it->m_rate;
+  #if 0 // This does not require m_curate to be mutable
+    m_propensity.modify(it, [&sum](priority_t& p) {
+      p.m_curate = sum;
+    });
+  #else // m_curate is mutable. This avoids handling potential repositioning
+    it->m_curate = sum;
+  #endif
+  }
+}
+
+/// Randomly determine which reaction to fire.
+SSA_SOD::priority_t SSA_SOD::choose_reaction()
+{
+  const auto rn
+    = static_cast<reaction_rate_t>(m_rgen_evt() *
+                                   m_propensity.crbegin()->m_curate);
+
+#if 0
+  auto it = std::upper_bound(m_propensity.cbegin(),
+                             m_propensity.cend(),
+                             rn,
+                             [](const double val, const priority_t& rhs)
+                                -> bool { return val < rhs.m_curate; });
+#else
+  auto& pidx = m_propensity.get<tag_rate>();
+  auto it = pidx.upper_bound(rn,
+                             [](const double val, const priority_t& rhs)
+                                -> bool { return val < rhs.m_curate; });
+#endif
+  if (it == m_propensity.cend()) {
+    WCS_THROW("Failed to choose a reaction to fire");
+  }
+  return *it;
+}
+
+/// Randomly determine the time period until the next reaction
+sim_time_t SSA_SOD::get_reaction_time()
+{
+  // total propensity
+  const reaction_rate_t r = m_propensity.empty()?
+                              static_cast<reaction_rate_t>(0) :
+                              (m_propensity.crbegin()->m_curate);
+  return ((r <= static_cast<reaction_rate_t>(0))?
+            wcs::Network::get_etime_ulimit() :
+            -static_cast<reaction_rate_t>(log(m_rgen_tm())/r));
+}
+
+/**
+ * Recompute the reaction rates of those affected which are linked with
+ * updating species. Also, the update cumulative propensity list.
+ */
+void SSA_SOD::update_reactions(const priority_t& fired,
+  const Sim_Method::affected_reactions_t& affected_reactions)
+{
+  constexpr auto zero_rate = static_cast<reaction_rate_t>(0.0);
+  auto& idx_rvd = m_propensity.get<tag_rvd>();
+
+  // update the propensity of the fired reaction
+  const v_desc_t vd_fired = fired.m_rvd;
+  const reaction_rate_t new_rate =  m_net_ptr->set_reaction_rate(vd_fired);
+  priority_t min_new {new_rate, zero_rate, vd_fired};
+  auto it_rvd = idx_rvd.find(vd_fired);
+  bool ok = idx_rvd.replace(it_rvd, priority_t{new_rate, zero_rate, vd_fired});
+
+  affected_reactions_t::const_iterator it_aff = affected_reactions.cbegin();
+  // update the propensity of the rest of affected reactions
+  for (; ok && (it_aff != affected_reactions.cend()); ++it_aff) {
+    const auto& vd = *it_aff;
+    const auto new_rate =  m_net_ptr->set_reaction_rate(vd);
+    min_new = std::min(min_new, priority_t{new_rate, zero_rate, vd});
+    auto it_rvd = idx_rvd.find(vd);
+    ok = idx_rvd.replace(it_rvd, priority_t{new_rate, zero_rate, vd});
+  }
+
+  auto& idx_rate = m_propensity.get<tag_rate>();
+  auto it_rate = idx_rate.find(min_new);
+  if (!ok || it_rate == idx_rate.end()) {
+    WCS_THROW("Failed to update reactions.");
+  }
+
+  auto it_prev = it_rate;
+  reaction_rate_t sum = (it_rate != idx_rate.begin())?
+                        (--it_prev)->m_curate : zero_rate;
+
+  // update the cumulative propensity
+  for (; ok && (it_rate != idx_rate.end()); ++it_rate) {
+    sum += m_net_ptr->get_reaction_rate(it_rate->m_rvd);
+    it_rate->m_curate = sum;
+  }
+  if (!ok) {
+    WCS_THROW("Failed to update reactions.");
+  }
+}
+
+
+void SSA_SOD::init(std::shared_ptr<wcs::Network>& net_ptr,
+                      const sim_iter_t max_iter,
+                      const double max_time,
+                      const unsigned rng_seed)
+{
+  if (!net_ptr) {
+    WCS_THROW("Invalid pointer to the reaction network.");
+  }
+
+  m_net_ptr = net_ptr;
+  m_max_time = max_time;
+  m_max_iter = max_iter;
+  m_sim_time = static_cast<sim_time_t>(0);
+  m_cur_iter = static_cast<sim_iter_t>(0u);
+
+  { // initialize the random number generator
+    if (rng_seed == 0u) {
+      m_rgen_evt.set_seed();
+      m_rgen_tm.set_seed();
+    } else {
+      seed_seq_param_t common_param_e
+        = make_seed_seq_input(1, rng_seed, std::string("SSA_SOD"));
+      seed_seq_param_t common_param_t
+        = make_seed_seq_input(2, rng_seed, std::string("SSA_SOD"));
+
+      std::vector<seed_seq_param_t> unique_params;
+      const size_t num_procs = 1ul;
+      const size_t my_rank = 0ul;
+
+      // make sure to avoid generating any duplicate seed sequence
+      gen_unique_seed_seq_params<rng_t::get_state_size()>(
+          num_procs, common_param_e, unique_params);
+      m_rgen_evt.use_seed_seq(unique_params[my_rank]);
+
+      // make sure to avoid generating any duplicate seed sequence
+      gen_unique_seed_seq_params<rng_t::get_state_size()>(
+          num_procs, common_param_t, unique_params);
+      m_rgen_tm.use_seed_seq(unique_params[my_rank]);
+    }
+
+    m_rgen_evt.param(typename rng_t::param_type(0.0, 1.0));
+    m_rgen_tm.param(typename rng_t::param_type(0.0, 1.0));
+  }
+
+  Sim_Method::record_initial_state(m_net_ptr);
+
+  build_propensity_list(); // prepare internal priority queue
+}
+
+
+std::pair<sim_iter_t, sim_time_t> SSA_SOD::run()
+{
+  // species to update as a result of the reaction fired
+  Sim_Method::update_list_t updating_species;
+
+  // Any other reaction that takes any of species being updated as a result of
+  // the current reaction as a reactant is affected. This assumes that species
+  // count never reaches 'Species::m_max_count'. Otherwise, those reactions
+  // that produce any of the updated species are affected as well. Here, we
+  // take the assumption for simplicity. However, if we consider compartments
+  // with population/concentration limits, we need to reconsider.
+  Sim_Method::affected_reactions_t affected_reactions;
+
+  bool is_recorded = true; // initial state recording done
+
+  for (; m_cur_iter < m_max_iter; ++ m_cur_iter) {
+    if (m_propensity.empty()) { // no reaction possible
+      std::cerr << "No reaction exists." << std::endl;
+      break;
+    }
+
+    const sim_time_t dt = get_reaction_time();
+    const auto firing = choose_reaction();
+    const auto& vd_firing = firing.m_rvd; // reaction vertex descriptor
+
+    if (dt >= wcs::Network::get_etime_ulimit()) {
+      std::cerr << "No more reaction can fire." << std::endl;
+      break;
+    }
+
+    if (!Sim_Method::fire_reaction(vd_firing,
+                                   updating_species,
+                                   affected_reactions)) {
+      std::cerr << "Faile to fire a reaction." << std::endl;
+      break;
+    }
+
+    m_sim_time += dt;
+    update_reactions(firing, affected_reactions);
+
+    is_recorded = check_to_record(vd_firing);
+
+    if (m_sim_time >= m_max_time) {
+      if (!is_recorded) {
+        record_final_state(vd_firing);
+      }
+      break;
+    }
+    is_recorded = false;
+  }
+
+  return std::make_pair(m_cur_iter, m_sim_time);
+}
+
+/**@}*/
+} // end of namespace wcs

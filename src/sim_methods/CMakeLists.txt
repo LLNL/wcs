@@ -3,12 +3,14 @@ set_full_path(THIS_DIR_HEADERS
   sim_method.hpp
   ssa_nrm.hpp
   ssa_direct.hpp
+  ssa_sod.hpp
   )
 
 set_full_path(THIS_DIR_SOURCES
   sim_method.cpp
   ssa_nrm.cpp
   ssa_direct.cpp
+  ssa_sod.cpp
   )
 
 # Propagate the files up the tree

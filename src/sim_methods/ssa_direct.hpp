@@ -19,6 +19,17 @@ namespace wcs {
 /** \addtogroup wcs_sim_methods
  *  @{ */
 
+/**
+ *  This direct SSA method implementation takes advantage of the dependency
+ *  graph to precisely identify the propensities to update and performs the
+ *  binary search over a propensity list sorted in the ascending order.
+ *  This differs from the Cao's optimized direct method where the propensity
+ *  list is ordered in the descending order to reduce the average linear
+ *  search length.
+ *  This reverses the order to minimize the potential numerical error caused
+ *  by adding a small propensity to a large cumulative propensity when
+ *  searching a value from the largest propensity to the smallest propensity.
+ */
 class SSA_Direct : public Sim_Method {
 public:
   using rng_t = wcs::RNGen<std::uniform_real_distribution, double>;

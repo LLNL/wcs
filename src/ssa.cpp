@@ -23,6 +23,7 @@
 #include "utils/timer.hpp"
 #include "sim_methods/ssa_nrm.hpp"
 #include "sim_methods/ssa_direct.hpp"
+#include "sim_methods/ssa_sod.hpp"
 
 
 #define OPTIONS "dg:hi:o:s:t:m:r:"
@@ -169,7 +170,11 @@ void Config::print_usage(const std::string exec, int code)
     "            Specify the maximum number of reaction iterations to run.\n"
     "\n"
     "    -m, --method\n"
-    "            Specify the SSA method: 0 = direct, 1 = next reaction (default).\n"
+    "            Specify the SSA method: 0 = Optimized direct method "
+    " (feat. dependency graph)\n"
+    "                                    1 = next reaction (default).\n"
+    "                                    2 = Sorted optimized direct method."
+    " (feat. propensity sorting)\n"
     "\n"
     "    -r, --record\n"
     "            Specify whether to enable sampling at a time/step interval.\n"
@@ -206,6 +211,9 @@ int main(int argc, char** argv)
   } else if (cfg.method == 1) {
     std::cerr << "Next Reaction SSA method." << std::endl;
     ssa = new wcs::SSA_NRM;
+  } else if (cfg.method == 2) {
+    std::cerr << "Sorted optimized direct SSA method." << std::endl;
+    ssa = new wcs::SSA_SOD;
   } else {
     std::cerr << "Unknown SSA method (" << cfg.method << ')' << std::endl;
     return -1;

@@ -268,7 +268,7 @@ void Sim_Method::undo_species_updates(
  * This is different from `undo_species_updates()` in than this does not
  * require the list of updates done as it assumes that reaction to undo
  * has been completed. In addition, this returns which of the species are
- * restored, and which other reactions are affected. It is rahter similar
+ * restored, and which other reactions are affected. It is rather similar
  * to `fire_reaction()` except that it changes the species count in an
  * opposite way.
  */

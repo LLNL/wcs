@@ -42,7 +42,7 @@ class Reaction : public ReactionBase {
   const involved_species_t& get_rate_inputs() const;
 #if defined(WCS_HAS_EXPRTK)
   void set_products(const std::map<std::string, rdriver_t>& products);
-  reaction_rate_t calc_rate(std::vector<reaction_rate_t> params) override;
+  reaction_rate_t calc_rate(std::vector<reaction_rate_t>&& params) override;
   void show_compile_error() const;
   bool detect_composite() const;
 #endif // defined(WCS_HAS_EXPRTK)

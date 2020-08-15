@@ -107,7 +107,7 @@ inline void Reaction<VD>::set_rate_inputs(const std::map<std::string, rdriver_t>
 }
 
 template <typename VD>
-reaction_rate_t Reaction<VD>::calc_rate(std::vector<reaction_rate_t> params)
+reaction_rate_t Reaction<VD>::calc_rate(std::vector<reaction_rate_t>&& params)
 {
   // GG: This copy could be avoided by directly linking species count to sym_table
   if (m_params.size() != params.size()) {

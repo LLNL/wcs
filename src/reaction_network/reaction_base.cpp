@@ -125,7 +125,7 @@ void ReactionBase::set_calc_rate_fn(
   m_calc_rate = calc_rate;
 }
 
-reaction_rate_t ReactionBase::calc_rate(std::vector<reaction_rate_t> params)
+reaction_rate_t ReactionBase::calc_rate(std::vector<reaction_rate_t>&& params)
 {
   params.push_back(m_rate_const);
   m_rate = (!m_calc_rate)? 0.0 : m_calc_rate(params);

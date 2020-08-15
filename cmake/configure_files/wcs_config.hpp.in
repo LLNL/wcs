@@ -21,4 +21,8 @@
 #cmakedefine WCS_VERTEX_LIST_TYPE @WCS_VERTEX_LIST_TYPE@
 #cmakedefine WCS_OUT_EDGE_LIST_TYPE @WCS_OUT_EDGE_LIST_TYPE@
 
+#ifdef WCS_HAS_VTUNE
+#include <ittnotify.h>
+#endif
+
 #endif /* WCS_CONFIG_H__ */

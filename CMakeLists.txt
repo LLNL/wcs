@@ -357,6 +357,7 @@ endif (WCS_HAS_CEREAL)
 
 if (WCS_HAS_VTUNE)
   target_link_libraries(wcs PUBLIC ${VTUNE_STATIC_LIB})
+  target_include_directories(wcs SYSTEM PUBLIC ${VTUNE_INCLUDE_PATH})
 endif ()
 
 if (WCS_WITH_UNIT_TESTING)

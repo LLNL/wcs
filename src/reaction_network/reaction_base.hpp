@@ -55,7 +55,7 @@ class ReactionBase : public VertexPropertyBase {
   void set_rate_formula(const std::string& f);
   const std::string& get_rate_formula() const;
 
-  virtual reaction_rate_t calc_rate(std::vector<reaction_rate_t> params);
+  virtual reaction_rate_t calc_rate(std::vector<reaction_rate_t>&& params);
 
  protected:
   void reset(ReactionBase& obj);

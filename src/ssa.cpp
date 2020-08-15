@@ -25,6 +25,10 @@
 #include "sim_methods/ssa_direct.hpp"
 #include "sim_methods/ssa_sod.hpp"
 
+#ifdef WCS_HAS_VTUNE
+__itt_domain* vtune_domain_sim = __itt_domain_create("Simulate");
+__itt_string_handle* vtune_handle_sim = __itt_string_handle_create("simulate");
+#endif // WCS_HAS_VTUNE
 
 #define OPTIONS "dg:hi:o:s:t:m:r:"
 static const struct option longopts[] = {
@@ -186,6 +190,9 @@ void Config::print_usage(const std::string exec, int code)
 
 int main(int argc, char** argv)
 {
+ #ifdef WCS_HAS_VTUNE
+  __itt_pause();
+ #endif // WCS_HAS_VTUNE
   int rc = 0;
   Config cfg;
   cfg.getopt(argc, argv);
@@ -233,10 +240,21 @@ int main(int argc, char** argv)
     }
   }
   ssa->init(rnet_ptr, cfg.max_iter, cfg.max_time, cfg.seed);
+
+ #ifdef WCS_HAS_VTUNE
+  __itt_resume();
+  __itt_task_begin(vtune_domain_sim, __itt_null, __itt_null, vtune_handle_sim);
+ #endif // WCS_HAS_VTUNE
+
   double t_start = wcs::get_time();
   ssa->run();
   std::cout << "Wall clock time to run simulation: "
             << wcs::get_time() - t_start << " (sec)" << std::endl;
+
+ #ifdef WCS_HAS_VTUNE
+  __itt_task_end(vtune_domain_sim);
+  __itt_pause();
+ #endif // WCS_HAS_VTUNE
 
   if (cfg.tracing) {
     if (!cfg.outfile.empty()) {

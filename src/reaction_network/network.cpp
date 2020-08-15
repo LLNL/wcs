@@ -229,7 +229,7 @@ reaction_rate_t Network::set_reaction_rate(const Network::v_desc_t r) const
   params.push_back(static_cast<reaction_rate_t>(1.0/
                      static_cast<reaction_rate_t>(denominator)));
   #endif
-  return rprop.calc_rate(params);
+  return rprop.calc_rate(std::move(params));
 }
 
 reaction_rate_t Network::get_reaction_rate(const Network::v_desc_t r) const

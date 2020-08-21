@@ -240,12 +240,18 @@ std::pair<sim_iter_t, sim_time_t> SSA_SOD::run()
       break;
     }
 
+  #ifdef NDEBUG
+    Sim_Method::fire_reaction(vd_firing,
+                              updating_species,
+                              affected_reactions);
+  #else
     if (!Sim_Method::fire_reaction(vd_firing,
                                    updating_species,
                                    affected_reactions)) {
       std::cerr << "Faile to fire a reaction." << std::endl;
       break;
     }
+  #endif
 
     m_sim_time += dt;
     update_reactions(firing, affected_reactions);

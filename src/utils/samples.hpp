@@ -91,7 +91,7 @@ protected:
   samples_t m_samples;
 
   /// Number of events
-  sim_iter_t num_events;
+  sim_iter_t m_num_events;
 };
 
 /**@}*/

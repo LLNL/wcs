@@ -182,6 +182,11 @@ bool Sim_Method::fire_reaction(
     if (stoichio == static_cast<stoic_t>(0)) {
       continue;
     }
+  #ifdef NDEBUG
+    sp_updating.dec_count(stoichio);
+  #else
+    // This really should not happen because whether the reaction is feasible is
+    // checked before computing reaction time or propensity.
     if (!sp_updating.dec_count(stoichio)) { // State update
       std::string err = "Not enough reactants of " + sv_updating.get_label()
                       + "[" + std::to_string(sp_updating.get_count())
@@ -189,6 +194,7 @@ bool Sim_Method::fire_reaction(
       WCS_THROW(err);
       return false;
     }
+  #endif
     updating_species.emplace_back(std::make_pair(vd_updating, -stoichio));
 
     for (const auto vi_affected :
@@ -216,6 +222,9 @@ bool Sim_Method::fire_reaction(
     if (stoichio == static_cast<stoic_t>(0)) {
       continue;
     }
+  #ifdef NDEBUG
+    sp_updating.inc_count(stoichio);
+  #else
     if (!sp_updating.inc_count(stoichio)) { // State update
       std::string err = "Can not produce more of " + sv_updating.get_label()
                       + "[" + std::to_string(sp_updating.get_count())
@@ -223,6 +232,7 @@ bool Sim_Method::fire_reaction(
       WCS_THROW(err);
       return false;
     }
+  #endif
     updating_species.emplace_back(std::make_pair(vd_updating, stoichio));
 
     for (const auto vi_affected :
@@ -302,6 +312,9 @@ bool Sim_Method::undo_reaction(
     if (stoichio == static_cast<stoic_t>(0)) {
       continue;
     }
+  #ifdef NDEBUG
+    sp_reverting.inc_count(stoichio);
+  #else
     if (!sp_reverting.inc_count(stoichio)) { // State update
       std::string err = "Unable to undo the decrement of reactant "
                       + sv_reverting.get_label()
@@ -310,6 +323,7 @@ bool Sim_Method::undo_reaction(
       WCS_THROW(err);
       return false;
     }
+  #endif
     reverting_species.emplace_back(std::make_pair(vd_reverting, stoichio));
 
     for (const auto vi_affected :
@@ -337,6 +351,9 @@ bool Sim_Method::undo_reaction(
     if (stoichio == static_cast<stoic_t>(0)) {
       continue;
     }
+  #ifdef NDEBUG
+    sp_reverting.dec_count(stoichio);
+  #else
     if (!sp_reverting.dec_count(stoichio)) { // State update
       std::string err = "Unable to undo the production of "
                       + sv_reverting.get_label()
@@ -345,6 +362,7 @@ bool Sim_Method::undo_reaction(
       WCS_THROW(err);
       return false;
     }
+  #endif
     reverting_species.emplace_back(std::make_pair(vd_reverting, -stoichio));
 
     for (const auto vi_affected :

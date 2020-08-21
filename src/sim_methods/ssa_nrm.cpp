@@ -175,7 +175,7 @@ wcs::sim_time_t SSA_NRM::adjust_reaction_time(const v_desc_t& vd,
   const auto rate_new = m_net_ptr->set_reaction_rate(vd);
 
   if (rate_new <= static_cast<reaction_rate_t>(0)) {
-    rt = wcs::Network::get_etime_ulimit();
+    return wcs::Network::get_etime_ulimit();
   } else if (rate_old <= static_cast<reaction_rate_t>(0) ||
              rt >= wcs::Network::get_etime_ulimit()) {
     const auto rn = unsigned_max/m_rgen();

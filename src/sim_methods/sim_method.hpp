@@ -18,6 +18,7 @@
 #include "utils/rngen.hpp"
 #include "utils/trace_ssa.hpp"
 #include "utils/samples.hpp"
+#include "sim_methods/sim_state_change.hpp"
 
 namespace wcs {
 /** \addtogroup wcs_sim_methods
@@ -33,12 +34,13 @@ public:
 
   /** Type for keeping track of species updates to facilitate undoing
    *  reaction processing.  */
-  using update_t = std::pair<v_desc_t, stoic_t>;
-  using update_list_t = std::vector<update_t>;
+  using update_t = Sim_State_Change::update_t;
+  using update_list_t = Sim_State_Change::update_list_t;
   /** Type for the list of reactions that share any of the species with the
    *  firing reaction */
-  using affected_reactions_t = std::set<v_desc_t>;
+  using affected_reactions_t = Sim_State_Change::affected_reactions_t;
 
+  enum result_t {Success, Complete, Failure};
 
   Sim_Method();
   virtual ~Sim_Method();
@@ -67,6 +69,8 @@ public:
   bool check_to_record();
   /// Record the state at current step as needed
   bool check_to_record(const v_desc_t rv);
+  /// Remove the last tracing record
+  void pop_trace();
 
   virtual std::pair<sim_iter_t, sim_time_t> run() = 0;
 
@@ -75,15 +79,10 @@ public:
   /// Allow access to the internal sampler
   samples_t& samples();
 
-  bool fire_reaction(
-       const v_desc_t vd_firing,
-       update_list_t& updating_species,
-       affected_reactions_t& affected_reactions);
+  bool fire_reaction(Sim_State_Change& digest);
 
   void undo_species_updates(const update_list_t& updates) const;
-  bool undo_reaction(const v_desc_t vd_undo,
-                     update_list_t& reverting_species,
-                     affected_reactions_t& affected_reactions) const;
+  bool undo_reaction(const Sim_Method::v_desc_t& rd_undo) const;
 
 protected:
 

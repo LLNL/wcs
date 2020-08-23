@@ -341,6 +341,7 @@ bool Network::check_reaction(const wcs::Network::v_desc_t r) const
     const auto stoichio = m_graph[ei_in].get_stoichiometry_ratio();
     if (!sp_reactant.dec_check(stoichio)) {
       // check if reaction is possible, i.e., decrement is possible
+      set_reaction_rate(r, 0.0);
       return false;
     }
   }
@@ -358,6 +359,7 @@ bool Network::check_reaction(const wcs::Network::v_desc_t r) const
     const auto stoichio = m_graph[ei_out].get_stoichiometry_ratio();
     if (!sp_product.inc_check(stoichio)) {
       // check if reaction is possible, i.e., increment is possible
+      set_reaction_rate(r, 0.0);
       return false;
     }
   }

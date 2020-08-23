@@ -138,7 +138,6 @@ wcs::sim_time_t SSA_NRM::recompute_reaction_time(const v_desc_t& vd)
   // at least as large as the stoichiometry, and if the product counts can
   // increase as much as the stoichiometry value.
   if (!m_net_ptr->check_reaction(vd)) {
-    m_net_ptr->set_reaction_rate(vd, 0.0);
     return wcs::Network::get_etime_ulimit();
   }
 
@@ -165,7 +164,6 @@ wcs::sim_time_t SSA_NRM::adjust_reaction_time(const v_desc_t& vd,
     = static_cast<sim_time_t>(std::numeric_limits<unsigned>::max());
 
   if (!m_net_ptr->check_reaction(vd)) {
-    m_net_ptr->set_reaction_rate(vd, 0.0);
     return wcs::Network::get_etime_ulimit();
   }
 
@@ -226,7 +224,6 @@ void SSA_NRM::update_reactions(
 }
 
 void SSA_NRM::revert_reaction_updates(
-       const wcs::sim_time_t dt,
        const SSA_NRM::reaction_times_t& affected)
 {
   lambdas_for_indexed_heap
@@ -280,56 +277,110 @@ void SSA_NRM::init(std::shared_ptr<wcs::Network>& net_ptr,
   build_heap(); // prepare internal priority queue
 }
 
+
+void SSA_NRM::save_rgen_state(Sim_State_Change& digest) const
+{
+  digest.m_rng_state.clear();
+  digest.m_rng_state.reserve(sizeof(m_rgen.engine()));
+  wcs::ostreamvec<char> ostrmbuf(digest.m_rng_state);
+  std::ostream os(&ostrmbuf);
+
+ #if defined(WCS_HAS_CEREAL)
+  cereal::BinaryOutputArchive oarchive(os);
+  oarchive(m_rgen.engine());
+ #else
+  os << bits(m_rgen_evt.engine());
+ #endif // defined(WCS_HAS_CEREAL)
+}
+
+
+void SSA_NRM::load_rgen_state(const Sim_State_Change& digest)
+{
+  wcs::istreamvec<char> istrmbuf(digest.m_rng_state);
+  std::istream is(&istrmbuf);
+
+ #if defined(WCS_HAS_CEREAL)
+  cereal::BinaryInputArchive iarchive(is);
+  iarchive(m_rgen.engine());
+ #else
+  is >> bits(m_rgen.engine());
+ #endif // defined(WCS_HAS_CEREAL)
+}
+
+
+Sim_Method::result_t SSA_NRM::forward(Sim_State_Change& digest)
+{
+  if (m_heap.empty()) { // no reaction possible
+    std::cerr << "No reaction exists." << std::endl;
+    return Failure;
+  }
+
+ #if defined(WCS_HAS_ROSS)
+  save_rgen_state(digest);
+ #endif // defined(WCS_HAS_ROSS)
+
+  auto firing = choose_reaction();
+  const auto& rd_fired = digest.m_reaction_fired = firing.second;
+
+  if (firing.first >= wcs::Network::get_etime_ulimit()) {
+    std::cerr << "No more reaction can fire." << std::endl;
+    return Failure;
+  }
+
+ #ifdef NDEBUG
+  Sim_Method::fire_reaction(digest);
+ #else
+  if (!Sim_Method::fire_reaction(digest)) {
+    std::cerr << "Faile to fire a reaction." << std::endl;
+    return Failure;
+  }
+ #endif
+
+ #if defined(WCS_HAS_ROSS)
+  digest.m_sim_time = m_sim_time;
+ #endif // defined(WCS_HAS_ROSS)
+  m_sim_time = firing.first;
+  update_reactions(firing, digest.m_reactions_affected, digest.m_reaction_times);
+
+  bool is_recorded = check_to_record(rd_fired);
+
+  if (m_sim_time >= m_max_time) {
+    if (!is_recorded) {
+      record_final_state(rd_fired);
+    }
+    return Complete;
+  }
+  return Success;
+}
+
+
+#if defined(WCS_HAS_ROSS)
+Sim_Method::result_t SSA_NRM::backward(Sim_State_Change& digest)
+{
+  // The BGL vertex descriptor of the the reaction to undo
+  const auto& rd_fired = digest.m_reaction_fired;
+  // Undo the species update done by the reaction fired
+  undo_reaction(rd_fired);
+  // Undo the propensity updates done for the reactions affected
+  revert_reaction_updates(digest.m_reaction_times);
+  // Restore the time
+  m_sim_time = digest.m_sim_time;
+  // Restore the RNG state
+  load_rgen_state(digest);
+  // Remove the last trace entry when tracing is on
+  pop_trace();
+  return Success;
+}
+#endif // defined(WCS_HAS_ROSS)
+
+
 std::pair<sim_iter_t, sim_time_t> SSA_NRM::run()
 {
-  // species to update as a result of the reaction fired
-  Sim_Method::update_list_t updating_species;
+  Sim_Method::result_t result = Success;
+  Sim_State_Change digest;
 
-  // Any other reaction that takes any of species being updated as a result of
-  // the current reaction as a reactant is affected. This assumes that species
-  // count never reaches 'Species::m_max_count'. Otherwise, those reactions
-  // that produce any of the updated species are affected as well. Here, we
-  // take the assumption for simplicity. However, if we consider compartments
-  // with population/concentration limits, we need to reconsider.
-  Sim_Method::affected_reactions_t affected_reactions;
-  // Backup the current reaction times of the affected reactions
-  reaction_times_t reaction_times;
-
-  bool is_recorded = true; // initial state recording done
-
-  for (; m_cur_iter < m_max_iter; ++ m_cur_iter) {
-    if (m_heap.empty()) { // no reaction possible
-      std::cerr << "No reaction exists." << std::endl;
-      break;
-    }
-
-    auto firing = choose_reaction();
-    const auto vd_firing = firing.second; // reaction vertex descriptor
-
-    if (firing.first >= wcs::Network::get_etime_ulimit()) {
-      std::cerr << "No more reaction can fire." << std::endl;
-      break;
-    }
-
-    if (!Sim_Method::fire_reaction(vd_firing,
-                                   updating_species,
-                                   affected_reactions)) {
-      std::cerr << "Faile to fire a reaction." << std::endl;
-      break;
-    }
-
-    m_sim_time = firing.first;
-    update_reactions(firing, affected_reactions, reaction_times);
-
-    is_recorded = check_to_record(vd_firing);
-
-    if (m_sim_time >= m_max_time) {
-      if (!is_recorded) {
-        record_final_state(vd_firing);
-      }
-      break;
-    }
-    is_recorded = false;
+  for (; (result == Success) && (m_cur_iter < m_max_iter); ++ m_cur_iter) {
+    result = forward(digest);
   }
 
   return std::make_pair(m_cur_iter, m_sim_time);

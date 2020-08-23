@@ -116,15 +116,16 @@ sim_time_t SSA_SOD::get_reaction_time()
  * Recompute the reaction rates of those affected which are linked with
  * updating species. Also, the update cumulative propensity list.
  */
-void SSA_SOD::update_reactions(const priority_t& fired,
-  const Sim_Method::affected_reactions_t& affected_reactions)
+void SSA_SOD::update_reactions(const SSA_SOD::v_desc_t& vd_fired,
+  const Sim_Method::affected_reactions_t& affected_reactions,
+  bool check_reaction)
 {
   constexpr auto zero_rate = static_cast<reaction_rate_t>(0.0);
   auto& idx_rvd = m_propensity.get<tag_rvd>();
 
   // update the propensity of the fired reaction
-  const v_desc_t vd_fired = fired.m_rvd;
-  const reaction_rate_t new_rate =  m_net_ptr->set_reaction_rate(vd_fired);
+  const auto new_rate = ((check_reaction && !m_net_ptr->check_reaction(vd_fired))?
+                         zero_rate : m_net_ptr->set_reaction_rate(vd_fired));
   priority_t min_new {new_rate, zero_rate, vd_fired};
   auto it_rvd = idx_rvd.find(vd_fired);
   bool ok = idx_rvd.replace(it_rvd, priority_t{new_rate, zero_rate, vd_fired});
@@ -133,7 +134,9 @@ void SSA_SOD::update_reactions(const priority_t& fired,
   // update the propensity of the rest of affected reactions
   for (; ok && (it_aff != affected_reactions.cend()); ++it_aff) {
     const auto& vd = *it_aff;
-    const auto new_rate =  m_net_ptr->set_reaction_rate(vd);
+    const auto new_rate = (check_reaction && !m_net_ptr->check_reaction(vd))?
+                           zero_rate : m_net_ptr->set_reaction_rate(vd);
+
     min_new = std::min(min_new, priority_t{new_rate, zero_rate, vd});
     auto it_rvd = idx_rvd.find(vd);
     ok = idx_rvd.replace(it_rvd, priority_t{new_rate, zero_rate, vd});
@@ -210,61 +213,113 @@ void SSA_SOD::init(std::shared_ptr<wcs::Network>& net_ptr,
 }
 
 
+void SSA_SOD::save_rgen_state(Sim_State_Change& digest) const
+{
+  constexpr size_t rng_state_size = sizeof(m_rgen_evt.engine())
+                                  + sizeof(m_rgen_tm.engine());
+  digest.m_rng_state.clear();
+  digest.m_rng_state.reserve(rng_state_size);
+  wcs::ostreamvec<char> ostrmbuf(digest.m_rng_state);
+  std::ostream os(&ostrmbuf);
+
+ #if defined(WCS_HAS_CEREAL)
+  cereal::BinaryOutputArchive oarchive(os);
+  oarchive(m_rgen_evt.engine(), m_rgen_tm.engine());
+ #else
+  os << bits(m_rgen_evt.engine()) << bits(m_rgen_tm.engine());
+ #endif // defined(WCS_HAS_CEREAL)
+}
+
+
+void SSA_SOD::load_rgen_state(const Sim_State_Change& digest)
+{
+  wcs::istreamvec<char> istrmbuf(digest.m_rng_state);
+  std::istream is(&istrmbuf);
+
+ #if defined(WCS_HAS_CEREAL)
+  cereal::BinaryInputArchive iarchive(is);
+  iarchive(m_rgen_evt.engine(), m_rgen_tm.engine());
+ #else
+  is >> bits(m_rgen_evt.engine()) >> bits(m_rgen_tm.engine());
+ #endif // defined(WCS_HAS_CEREAL)
+}
+
+
+Sim_Method::result_t SSA_SOD::forward(Sim_State_Change& digest)
+{
+  if (m_propensity.empty()) { // no reaction possible
+    std::cerr << "No reaction exists." << std::endl;
+    return Failure;
+  }
+
+ #if defined(WCS_HAS_ROSS)
+  save_rgen_state(digest);
+ #endif // defined(WCS_HAS_ROSS)
+
+  const sim_time_t dt = get_reaction_time();
+  auto firing = choose_reaction();
+  // The BGL vertex descriptor of the the reaction being fired
+  const auto& rd_fired = digest.m_reaction_fired = firing.m_rvd;
+
+  if (dt >= wcs::Network::get_etime_ulimit()) {
+    std::cerr << "No more reaction can fire." << std::endl;
+    return Failure;
+  }
+
+ #ifdef NDEBUG
+  Sim_Method::fire_reaction(digest);
+ #else
+  if (!Sim_Method::fire_reaction(digest)) {
+    std::cerr << "Faile to fire a reaction." << std::endl;
+    return Failure;
+  }
+ #endif
+
+ #if defined(WCS_HAS_ROSS)
+  digest.m_sim_time = m_sim_time;
+ #endif // defined(WCS_HAS_ROSS)
+  m_sim_time += dt;
+  update_reactions(rd_fired, digest.m_reactions_affected, true);
+
+  bool is_recorded = check_to_record(rd_fired);
+
+  if (m_sim_time >= m_max_time) {
+    if (!is_recorded) {
+      record_final_state(rd_fired);
+    }
+    return Complete;
+  }
+  return Success;
+}
+
+
+#if defined(WCS_HAS_ROSS)
+Sim_Method::result_t SSA_SOD::backward(Sim_State_Change& digest)
+{
+  // The BGL vertex descriptor of the the reaction to undo
+  const auto& rd_fired = digest.m_reaction_fired;
+  // Undo the species update done by the reaction fired
+  undo_reaction(rd_fired);
+  // Undo the propensity updates done for the reactions affected
+  update_reactions(rd_fired, digest.m_reactions_affected, false);
+  // Restore the time
+  m_sim_time = digest.m_sim_time;
+  // Restore the RNG state
+  load_rgen_state(digest);
+  // Remove the last trace entry when tracing is on
+  pop_trace();
+  return Success;
+}
+#endif // defined(WCS_HAS_ROSS)
+
+
 std::pair<sim_iter_t, sim_time_t> SSA_SOD::run()
 {
-  // species to update as a result of the reaction fired
-  Sim_Method::update_list_t updating_species;
+  Sim_Method::result_t result = Success;
+  Sim_State_Change digest;
 
-  // Any other reaction that takes any of species being updated as a result of
-  // the current reaction as a reactant is affected. This assumes that species
-  // count never reaches 'Species::m_max_count'. Otherwise, those reactions
-  // that produce any of the updated species are affected as well. Here, we
-  // take the assumption for simplicity. However, if we consider compartments
-  // with population/concentration limits, we need to reconsider.
-  Sim_Method::affected_reactions_t affected_reactions;
-
-  bool is_recorded = true; // initial state recording done
-
-  for (; m_cur_iter < m_max_iter; ++ m_cur_iter) {
-    if (m_propensity.empty()) { // no reaction possible
-      std::cerr << "No reaction exists." << std::endl;
-      break;
-    }
-
-    const sim_time_t dt = get_reaction_time();
-    const auto firing = choose_reaction();
-    const auto& vd_firing = firing.m_rvd; // reaction vertex descriptor
-
-    if (dt >= wcs::Network::get_etime_ulimit()) {
-      std::cerr << "No more reaction can fire." << std::endl;
-      break;
-    }
-
-  #ifdef NDEBUG
-    Sim_Method::fire_reaction(vd_firing,
-                              updating_species,
-                              affected_reactions);
-  #else
-    if (!Sim_Method::fire_reaction(vd_firing,
-                                   updating_species,
-                                   affected_reactions)) {
-      std::cerr << "Faile to fire a reaction." << std::endl;
-      break;
-    }
-  #endif
-
-    m_sim_time += dt;
-    update_reactions(firing, affected_reactions);
-
-    is_recorded = check_to_record(vd_firing);
-
-    if (m_sim_time >= m_max_time) {
-      if (!is_recorded) {
-        record_final_state(vd_firing);
-      }
-      break;
-    }
-    is_recorded = false;
+  for (; (result == Success) && (m_cur_iter < m_max_iter); ++ m_cur_iter) {
+    result = forward(digest);
   }
 
   return std::make_pair(m_cur_iter, m_sim_time);

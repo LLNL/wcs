@@ -10,6 +10,13 @@
 
 #ifndef __WCS_SIM_METHODS_SIM_METHOD_HPP__
 #define __WCS_SIM_METHODS_SIM_METHOD_HPP__
+
+#if defined(WCS_HAS_CONFIG)
+#include "wcs_config.hpp"
+#else
+#error "no config"
+#endif
+
 #include <cmath>
 #include <limits>
 #include <unordered_map>

@@ -54,20 +54,31 @@ void Sim_Method::unset_tracing()
 
 void Sim_Method::set_sampling(const sim_time_t time_interval)
 {
+#if defined(WCS_HAS_ROSS)
+  // TODO: With ROSS, sampling will be performed at LP commit time.
+  // To support this tracing needs to be enabled, and sampling should
+  // be refactored to use tracing data
+  WCS_THROW("Sampling is not implemented.");
+#else
   m_enable_tracing = false;
   m_enable_sampling = true;
   m_sample_time_interval = time_interval;
   m_next_sample_time = m_sim_time + time_interval;
   m_next_sample_iter = std::numeric_limits<sim_iter_t>::max();
+#endif // defined(WCS_HAS_ROSS)
 }
 
 void Sim_Method::set_sampling(const sim_iter_t iter_interval)
 {
+#if defined(WCS_HAS_ROSS)
+  WCS_THROW("Sampling is not implemented.");
+#else
   m_enable_tracing = false;
   m_enable_sampling = true;
   m_sample_iter_interval = iter_interval;
   m_next_sample_iter = m_cur_iter + iter_interval;
   m_next_sample_time = std::numeric_limits<sim_time_t>::infinity();
+#endif // defined(WCS_HAS_ROSS)
 }
 
 void Sim_Method::unset_sampling()
@@ -99,7 +110,9 @@ bool Sim_Method::check_to_record(const v_desc_t rv)
   if (m_enable_tracing) {
     m_trace.record_reaction(m_sim_time, rv);
     return true;
-  } else if (m_enable_sampling) {
+  }
+#if defined(WCS_HAS_ROSS)
+  else if (m_enable_sampling) {
     m_samples.record_reaction(rv);
     if (m_cur_iter >= m_next_sample_iter) {
       m_next_sample_iter += m_sample_iter_interval;
@@ -113,6 +126,7 @@ bool Sim_Method::check_to_record(const v_desc_t rv)
       return false;
     }
   }
+#endif // defined(WCS_HAS_ROSS)
   return false;
 }
 

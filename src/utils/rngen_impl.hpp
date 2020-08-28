@@ -10,6 +10,8 @@
 
 #include <type_traits>
 #include <cassert>
+#include <algorithm>
+#include "utils/exception.hpp"
 
 namespace wcs {
 /** \addtogroup wcs_utils
@@ -77,11 +79,25 @@ inline const typename RNGen<D, V>::distribution_t& RNGen<D, V>::distribution() c
 template <template <typename> typename D, typename V>
 constexpr unsigned RNGen<D, V>::get_state_size()
 {
-  if constexpr (std::is_same<generator_type, std::mt19937>::value ) {
-    return generator_type::state_size;
-  } else if constexpr (std::is_same<generator_type, std::mt19937_64>::value ) {
-    return generator_type::state_size;
+  if constexpr (std::is_same<generator_type, std::mt19937>::value) {
+    return std::max(static_cast<unsigned>(std::mt19937::state_size), 5000u);
+  } else if constexpr (std::is_same<generator_type, std::mt19937_64>::value) {
+    return std::max(static_cast<unsigned>(std::mt19937_64::state_size), 2504u);
+  } else if constexpr (std::is_same<generator_type, std::minstd_rand0>::value) {
+    return 2u;
+  } else if constexpr (std::is_same<generator_type, std::minstd_rand>::value) {
+    return 2u;
+  } else if constexpr (std::is_same<generator_type, std::ranlux24_base>::value) {
+    return 208u;
+  } else if constexpr (std::is_same<generator_type, std::ranlux24>::value) {
+    return 216u;
+  } else if constexpr (std::is_same<generator_type, std::ranlux48_base>::value) {
+    return 112u;
+  } else if constexpr (std::is_same<generator_type, std::ranlux48>::value) {
+    return 120u;
   }
+  // This size is only used in determining seed_seq length, and it is not
+  // unsafe to use an inaccurate number for the purpose.
   return 1u;
 }
 

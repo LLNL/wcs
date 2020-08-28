@@ -27,7 +27,7 @@ public:
   /// Type of heap structure
   using priority_queue_t = std::vector<priority_t>;
   /// Type of the pair of BGL vertex descriptor for reaction and the its time
-  using reaction_times_t = std::vector<std::pair<v_desc_t, wcs::sim_time_t> >;
+  using reaction_times_t = Sim_State_Change::reaction_times_t;
 
 
   SSA_NRM();
@@ -38,6 +38,10 @@ public:
             const unsigned rng_seed) override;
 
   std::pair<sim_iter_t, sim_time_t> run() override;
+  Sim_Method::result_t forward(Sim_State_Change& digest);
+ #if defined(WCS_HAS_ROSS)
+  Sim_Method::result_t backward(Sim_State_Change& digest);
+ #endif // defined(WCS_HAS_ROSS)
 
   rng_t& rgen();
 
@@ -50,8 +54,10 @@ protected:
   void update_reactions(const priority_t& fired,
                         const Sim_Method::affected_reactions_t& affected,
                         reaction_times_t& affected_rtimes);
-  void revert_reaction_updates(const sim_time_t dt,
-                               const reaction_times_t& affected);
+  void revert_reaction_updates(const reaction_times_t& affected);
+
+  void save_rgen_state(Sim_State_Change& digest) const;
+  void load_rgen_state(const Sim_State_Change& digest);
 
 protected:
   /** In-heap index table maintains where in the heap each item can be found.

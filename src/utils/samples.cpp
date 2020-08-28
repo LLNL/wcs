@@ -36,13 +36,13 @@ void Samples::record_initial_condition(const std::shared_ptr<wcs::Network>& net_
     m_initial_counts[i++] = sp.get_count();
   }
 
-  num_events = static_cast<sim_iter_t>(0u);
+  m_num_events = static_cast<sim_iter_t>(0u);
 }
 
 void Samples::record_reaction(const Samples::r_desc_t r)
 {
   m_r_diffs[r] ++;
-  num_events ++;
+  m_num_events ++;
 }
 
 void Samples::take_sample(const sim_time_t t)
@@ -132,7 +132,7 @@ std::ostream& Samples::write_header(std::ostream& os, size_t num_reactions) cons
 
   std::string ostr = "num_species = " + std::to_string(num_species)
                    + "\tnum_reactions = " + std::to_string(num_reactions)
-                   + "\tnum_events = " + std::to_string(num_events)
+                   + "\tnum_events = " + std::to_string(m_num_events)
                    + "\nTime: ";
 
   ostr.reserve(ostr.size() + num_species*cnt_digits + num_reactions*2 + 1);

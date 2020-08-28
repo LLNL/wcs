@@ -51,15 +51,6 @@ void Trace::pop_back()
   m_trace.pop_back();
 }
 
-void Trace::write(const std::string filename)
-{
-  std::ofstream ofs;
-  ofs.open(filename, std::ofstream::out);
-  if (!ofs) return;
-  write(ofs);
-  ofs.close();
-}
-
 /**
  * Build the map from a vertex descriptor to an index of the
  * vector for species respectively.
@@ -74,6 +65,15 @@ void Trace::build_index_maps()
       m_s_id_map[sd] = idx++;
     }
   }
+}
+
+void Trace::write(const std::string filename)
+{
+  std::ofstream ofs;
+  ofs.open(filename, std::ofstream::out);
+  if (!ofs) return;
+  write(ofs);
+  ofs.close();
 }
 
 /**

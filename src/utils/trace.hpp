@@ -35,10 +35,11 @@ public:
 
   virtual ~Trace();
   void record_reaction(const sim_time_t t, const r_desc_t r);
-  virtual void write(const std::string filename);
-  virtual std::ostream& write(std::ostream& os);
   void record_initial_condition(const std::shared_ptr<wcs::Network>& net_ptr);
   void pop_back();
+
+  virtual void write(const std::string filename);
+  virtual std::ostream& write(std::ostream& os);
 
 protected:
   virtual void build_index_maps();

@@ -50,7 +50,8 @@ class RNGen {
   using result_type = V;
   using distribution_t = D<V>;
   using param_type = typename distribution_t::param_type;
-  using generator_type = std::mt19937;
+  //using generator_type = std::mt19937; // better quality but has large state
+  using generator_type = std::minstd_rand;
 
   RNGen();
 

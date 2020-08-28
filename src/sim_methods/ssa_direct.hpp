@@ -48,6 +48,10 @@ public:
 
   /// Main loop of SSA
   std::pair<unsigned, sim_time_t> run() override;
+  Sim_Method::result_t forward(Sim_State_Change& digest);
+ #if defined(WCS_HAS_ROSS)
+  Sim_Method::result_t backward(Sim_State_Change& digest);
+ #endif // defined(WCS_HAS_ROSS)
 
   static bool less(const priority_t& v1, const priority_t& v2);
 
@@ -59,7 +63,11 @@ protected:
   priority_t& choose_reaction();
   sim_time_t get_reaction_time();
   void update_reactions(priority_t& fired,
-                        const Sim_Method::affected_reactions_t& affected);
+                        const Sim_Method::affected_reactions_t& affected,
+                        const bool check_reaction);
+
+  void save_rgen_state(Sim_State_Change& digest);
+  void load_rgen_state(const Sim_State_Change& digest);
 
 protected:
   /// Cumulative propensity of reactions events

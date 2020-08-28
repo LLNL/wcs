@@ -54,20 +54,31 @@ void Sim_Method::unset_tracing()
 
 void Sim_Method::set_sampling(const sim_time_t time_interval)
 {
+#if defined(WCS_HAS_ROSS)
+  // TODO: With ROSS, sampling will be performed at LP commit time.
+  // To support this tracing needs to be enabled, and sampling should
+  // be refactored to use tracing data
+  WCS_THROW("Sampling is not implemented.");
+#else
   m_enable_tracing = false;
   m_enable_sampling = true;
   m_sample_time_interval = time_interval;
   m_next_sample_time = m_sim_time + time_interval;
   m_next_sample_iter = std::numeric_limits<sim_iter_t>::max();
+#endif // defined(WCS_HAS_ROSS)
 }
 
 void Sim_Method::set_sampling(const sim_iter_t iter_interval)
 {
+#if defined(WCS_HAS_ROSS)
+  WCS_THROW("Sampling is not implemented.");
+#else
   m_enable_tracing = false;
   m_enable_sampling = true;
   m_sample_iter_interval = iter_interval;
   m_next_sample_iter = m_cur_iter + iter_interval;
   m_next_sample_time = std::numeric_limits<sim_time_t>::infinity();
+#endif // defined(WCS_HAS_ROSS)
 }
 
 void Sim_Method::unset_sampling()
@@ -99,7 +110,9 @@ bool Sim_Method::check_to_record(const v_desc_t rv)
   if (m_enable_tracing) {
     m_trace.record_reaction(m_sim_time, rv);
     return true;
-  } else if (m_enable_sampling) {
+  }
+#if defined(WCS_HAS_ROSS)
+  else if (m_enable_sampling) {
     m_samples.record_reaction(rv);
     if (m_cur_iter >= m_next_sample_iter) {
       m_next_sample_iter += m_sample_iter_interval;
@@ -113,7 +126,15 @@ bool Sim_Method::check_to_record(const v_desc_t rv)
       return false;
     }
   }
+#endif // defined(WCS_HAS_ROSS)
   return false;
+}
+
+void Sim_Method::pop_trace()
+{
+  if (m_enable_tracing) {
+    m_trace.pop_back();
+  }
 }
 
 bool Sim_Method::check_to_record()
@@ -152,23 +173,24 @@ Sim_Method::samples_t& Sim_Method::samples() {
  * to update the propensity of the reactions affected by the changes in species
  * counts.
  */
-bool Sim_Method::fire_reaction(
-       const Sim_Method::v_desc_t vd_firing,
-       Sim_Method::update_list_t& updating_species,
-       Sim_Method::affected_reactions_t& affected_reactions)
+bool Sim_Method::fire_reaction(Sim_State_Change& digest)
 {
   using s_prop_t = wcs::Species;
 
   // Reactions do not change the connectivity, but only change the property
   // data, which are allocated outside of BGL graph, but only linked to it.
   const wcs::Network::graph_t& g = m_net_ptr->graph();
+  // The vertex descriptor of the reaction to undo
+  const auto& rd_firing = digest.m_reaction_fired;
+  auto& updating_species = digest.m_species_updated;
+  auto& reactions_affected = digest.m_reactions_affected;
 
   updating_species.clear();
-  affected_reactions.clear();
+  reactions_affected.clear();
 
   // reactant species
   for (const auto ei_in :
-       boost::make_iterator_range(boost::in_edges(vd_firing, g)))
+       boost::make_iterator_range(boost::in_edges(rd_firing, g)))
   {
     const auto vd_updating = boost::source(ei_in, g);
     const auto& sv_updating = g[vd_updating];
@@ -182,27 +204,33 @@ bool Sim_Method::fire_reaction(
     if (stoichio == static_cast<stoic_t>(0)) {
       continue;
     }
+  #ifdef NDEBUG
+    sp_updating.dec_count(stoichio);
+  #else
+    // This really should not happen because whether the reaction is feasible is
+    // checked before computing reaction time or propensity.
     if (!sp_updating.dec_count(stoichio)) { // State update
       std::string err = "Not enough reactants of " + sv_updating.get_label()
                       + "[" + std::to_string(sp_updating.get_count())
-                      + "] for reaction " + g[vd_firing].get_label();
+                      + "] for reaction " + g[rd_firing].get_label();
       WCS_THROW(err);
       return false;
     }
+  #endif
     updating_species.emplace_back(std::make_pair(vd_updating, -stoichio));
 
     for (const auto vi_affected :
          boost::make_iterator_range(boost::out_edges(vd_updating, g)))
     {
-      const auto vd_affected = boost::target(vi_affected, g);
-      if (vd_affected == vd_firing) continue;
-      affected_reactions.insert(vd_affected);
+      const auto rd_affected = boost::target(vi_affected, g);
+      if (rd_affected == rd_firing) continue;
+      reactions_affected.insert(rd_affected);
     }
   }
 
   // product species
   for (const auto ei_out :
-       boost::make_iterator_range(boost::out_edges(vd_firing, g)))
+       boost::make_iterator_range(boost::out_edges(rd_firing, g)))
   {
     const auto vd_updating = boost::target(ei_out, g);
     const auto& sv_updating = g[vd_updating];
@@ -216,21 +244,25 @@ bool Sim_Method::fire_reaction(
     if (stoichio == static_cast<stoic_t>(0)) {
       continue;
     }
+  #ifdef NDEBUG
+    sp_updating.inc_count(stoichio);
+  #else
     if (!sp_updating.inc_count(stoichio)) { // State update
       std::string err = "Can not produce more of " + sv_updating.get_label()
                       + "[" + std::to_string(sp_updating.get_count())
-                      + "] by reaction " + g[vd_firing].get_label();
+                      + "] by reaction " + g[rd_firing].get_label();
       WCS_THROW(err);
       return false;
     }
+  #endif
     updating_species.emplace_back(std::make_pair(vd_updating, stoichio));
 
     for (const auto vi_affected :
          boost::make_iterator_range(boost::out_edges(vd_updating, g)))
     {
-      const auto vd_affected = boost::target(vi_affected, g);
-      if (vd_affected == vd_firing) continue;
-      affected_reactions.insert(vd_affected);
+      const auto rd_affected = boost::target(vi_affected, g);
+      if (rd_affected == rd_firing) continue;
+      reactions_affected.insert(rd_affected);
     }
   }
 
@@ -264,18 +296,12 @@ void Sim_Method::undo_species_updates(
 }
 
 /**
- * Undo the state update done by the reaction executed.
- * This is different from `undo_species_updates()` in than this does not
- * require the list of updates done as it assumes that reaction to undo
- * has been completed. In addition, this returns which of the species are
- * restored, and which other reactions are affected. It is rather similar
- * to `fire_reaction()` except that it changes the species count in an
- * opposite way.
+ * Undo the species states updated by a reaction identified by the given
+ * vertex descriptor.
+ * It is similar to `fire_reaction()` except that it changes the species count
+ * in an opposite way.
  */
-bool Sim_Method::undo_reaction(
-  const Sim_Method::v_desc_t vd_undo,
-  Sim_Method::update_list_t& reverting_species,
-  Sim_Method::affected_reactions_t& affected_reactions) const
+bool Sim_Method::undo_reaction(const Sim_Method::v_desc_t& rd_undo) const
 {
   using s_prop_t = wcs::Species;
 
@@ -283,12 +309,9 @@ bool Sim_Method::undo_reaction(
   // data, which are allocated outside of BGL graph, but only linked to it.
   const wcs::Network::graph_t& g = m_net_ptr->graph();
 
-  reverting_species.clear();
-  affected_reactions.clear();
-
   // reactant species
   for (const auto ei_in :
-       boost::make_iterator_range(boost::in_edges(vd_undo, g)))
+       boost::make_iterator_range(boost::in_edges(rd_undo, g)))
   {
     const auto vd_reverting = boost::source(ei_in, g);
     const auto& sv_reverting = g[vd_reverting];
@@ -302,28 +325,23 @@ bool Sim_Method::undo_reaction(
     if (stoichio == static_cast<stoic_t>(0)) {
       continue;
     }
+  #ifdef NDEBUG
+    sp_reverting.inc_count(stoichio);
+  #else
     if (!sp_reverting.inc_count(stoichio)) { // State update
       std::string err = "Unable to undo the decrement of reactant "
                       + sv_reverting.get_label()
                       + "[" + std::to_string(sp_reverting.get_count())
-                      + "] for reaction " + g[vd_undo].get_label();
+                      + "] for reaction " + g[rd_undo].get_label();
       WCS_THROW(err);
       return false;
     }
-    reverting_species.emplace_back(std::make_pair(vd_reverting, stoichio));
-
-    for (const auto vi_affected :
-         boost::make_iterator_range(boost::out_edges(vd_reverting, g)))
-    {
-      const auto vd_affected = boost::target(vi_affected, g);
-      if (vd_affected == vd_undo) continue;
-      affected_reactions.insert(vd_affected);
-    }
+  #endif
   }
 
   // product species
   for (const auto ei_out :
-       boost::make_iterator_range(boost::out_edges(vd_undo, g)))
+       boost::make_iterator_range(boost::out_edges(rd_undo, g)))
   {
     const auto vd_reverting = boost::target(ei_out, g);
     const auto& sv_reverting = g[vd_reverting];
@@ -337,23 +355,18 @@ bool Sim_Method::undo_reaction(
     if (stoichio == static_cast<stoic_t>(0)) {
       continue;
     }
+  #ifdef NDEBUG
+    sp_reverting.dec_count(stoichio);
+  #else
     if (!sp_reverting.dec_count(stoichio)) { // State update
       std::string err = "Unable to undo the production of "
                       + sv_reverting.get_label()
                       + "[" + std::to_string(sp_reverting.get_count())
-                      + "] by reaction " + g[vd_undo].get_label();
+                      + "] by reaction " + g[rd_undo].get_label();
       WCS_THROW(err);
       return false;
     }
-    reverting_species.emplace_back(std::make_pair(vd_reverting, -stoichio));
-
-    for (const auto vi_affected :
-         boost::make_iterator_range(boost::out_edges(vd_reverting, g)))
-    {
-      const auto vd_affected = boost::target(vi_affected, g);
-      if (vd_affected == vd_undo) continue;
-      affected_reactions.insert(vd_affected);
-    }
+  #endif
   }
 
   return true;

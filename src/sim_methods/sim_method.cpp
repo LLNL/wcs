@@ -19,14 +19,10 @@ Sim_Method::Sim_Method()
 : m_net_ptr(nullptr),
   m_max_iter(static_cast<sim_iter_t>(0u)),
   m_max_time(static_cast<sim_time_t>(0)),
-  m_cur_iter(static_cast<sim_iter_t>(0u)),
+  m_sim_iter(static_cast<sim_iter_t>(0u)),
   m_sim_time(static_cast<sim_time_t>(0)),
   m_enable_tracing(false),
-  m_enable_sampling(false),
-  m_sample_iter_interval(static_cast<sim_iter_t>(0u)),
-  m_sample_time_interval(static_cast<sim_time_t>(0)),
-  m_next_sample_iter(static_cast<sim_iter_t>(0u)),
-  m_next_sample_time(static_cast<sim_time_t>(0))
+  m_enable_sampling(false)
 {
   using directed_category
     = typename boost::graph_traits<wcs::Network::graph_t>::directed_category;
@@ -54,31 +50,16 @@ void Sim_Method::unset_tracing()
 
 void Sim_Method::set_sampling(const sim_time_t time_interval)
 {
-#if defined(WCS_HAS_ROSS)
-  // TODO: With ROSS, sampling will be performed at LP commit time.
-  // To support this tracing needs to be enabled, and sampling should
-  // be refactored to use tracing data
-  WCS_THROW("Sampling is not implemented.");
-#else
   m_enable_tracing = false;
   m_enable_sampling = true;
-  m_sample_time_interval = time_interval;
-  m_next_sample_time = m_sim_time + time_interval;
-  m_next_sample_iter = std::numeric_limits<sim_iter_t>::max();
-#endif // defined(WCS_HAS_ROSS)
+  m_samples.set_time_interval(time_interval);
 }
 
 void Sim_Method::set_sampling(const sim_iter_t iter_interval)
 {
-#if defined(WCS_HAS_ROSS)
-  WCS_THROW("Sampling is not implemented.");
-#else
   m_enable_tracing = false;
   m_enable_sampling = true;
-  m_sample_iter_interval = iter_interval;
-  m_next_sample_iter = m_cur_iter + iter_interval;
-  m_next_sample_time = std::numeric_limits<sim_time_t>::infinity();
-#endif // defined(WCS_HAS_ROSS)
+  m_samples.set_iter_interval(iter_interval);
 }
 
 void Sim_Method::unset_sampling()
@@ -95,64 +76,22 @@ void Sim_Method::record_initial_state(const std::shared_ptr<wcs::Network>& net_p
   }
 }
 
-void Sim_Method::record_final_state(const v_desc_t rv)
+void Sim_Method::record(const v_desc_t rv)
 {
   if (m_enable_tracing) {
     m_trace.record_reaction(m_sim_time, rv);
   } else if (m_enable_sampling) {
-    m_samples.record_reaction(rv);
-    m_samples.take_sample(m_sim_time);
+    m_samples.record_reaction(m_sim_time, rv);
   }
 }
 
-bool Sim_Method::check_to_record(const v_desc_t rv)
+void Sim_Method::record(const sim_time_t t, const v_desc_t rv)
 {
   if (m_enable_tracing) {
-    m_trace.record_reaction(m_sim_time, rv);
-    return true;
-  }
-#if defined(WCS_HAS_ROSS)
-  else if (m_enable_sampling) {
-    m_samples.record_reaction(rv);
-    if (m_cur_iter >= m_next_sample_iter) {
-      m_next_sample_iter += m_sample_iter_interval;
-      m_samples.take_sample(m_sim_time);
-      return true;
-    } else if (m_sim_time >= m_next_sample_time) {
-      m_next_sample_time += m_sample_time_interval;
-      m_samples.take_sample(m_sim_time);
-      return true;
-    } else {
-      return false;
-    }
-  }
-#endif // defined(WCS_HAS_ROSS)
-  return false;
-}
-
-void Sim_Method::pop_trace()
-{
-  if (m_enable_tracing) {
-    m_trace.pop_back();
-  }
-}
-
-bool Sim_Method::check_to_record()
-{
-  if (m_enable_tracing) {
-    return true;
+    m_trace.record_reaction(t, rv);
   } else if (m_enable_sampling) {
-    if (m_cur_iter >= m_next_sample_iter) {
-      m_next_sample_iter += m_sample_iter_interval;
-      return true;
-    } else if (m_sim_time >= m_next_sample_time) {
-      m_next_sample_time += m_sample_time_interval;
-      return true;
-    } else {
-      return false;
-    }
+    m_samples.record_reaction(t, rv);
   }
-  return false;
 }
 
 Sim_Method::trace_t& Sim_Method::trace() {

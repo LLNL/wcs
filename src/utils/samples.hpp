@@ -42,9 +42,15 @@ public:
   using sample_t = std::tuple<sim_time_t, s_sample_t, r_sample_t>;
   using samples_t = std::list<sample_t>;
 
+  Samples();
+
+  void set_time_interval(const sim_time_t t_interval,
+                         const sim_time_t t_start = static_cast<sim_time_t>(0));
+  void set_iter_interval(const sim_iter_t i_interval,
+                         const sim_iter_t i_start = static_cast<sim_iter_t>(0u));
+
   void record_initial_condition(const std::shared_ptr<wcs::Network>& net_ptr);
-  void record_reaction(const r_desc_t r);
-  void take_sample(const sim_time_t t);
+  void record_reaction(const sim_time_t t, const r_desc_t r);
   std::ostream& write(std::ostream& os);
   void write(const std::string filename);
 
@@ -52,6 +58,7 @@ protected:
   using s_map_t = typename std::unordered_map<s_desc_t, s_diff_t>;
   using r_map_t = typename std::unordered_map<r_desc_t, r_cnt_t>;
 
+  void take_sample();
   void build_index_maps();
   std::ostream& write_header(std::ostream& os,
                              const size_t num_reactions) const;
@@ -90,8 +97,16 @@ protected:
   /// List of samples
   samples_t m_samples;
 
-  /// Number of events
-  sim_iter_t m_num_events;
+  sim_iter_t m_start_iter; ///< Simulation iteration of the first record
+
+  sim_iter_t m_cur_iter; ///< Simulation iteration of the current record
+  sim_time_t m_cur_time; ///< Simulation time of the current record
+
+  sim_iter_t m_sample_iter_interval; ///< Sampling interval in num of iterations
+  sim_time_t m_sample_time_interval; ///< Sampling interval in simulation time
+
+  sim_iter_t m_next_sample_iter; ///< Next iteration to sample
+  sim_time_t m_next_sample_time; ///< Next time to sample
 };
 
 /**@}*/

@@ -58,7 +58,7 @@ public:
   Sim_Method::result_t forward(Sim_State_Change& digest);
 
  #if defined(WCS_HAS_ROSS)
-  Sim_Method::result_t backward(Sim_State_Change& digest);
+  void backward(Sim_State_Change& digest);
 
   /** Record as many states as the given number of iterations from the
    *  beginning of the digest list */
@@ -80,6 +80,7 @@ protected:
 
   void save_rgen_state(Sim_State_Change& digest);
   void load_rgen_state(const Sim_State_Change& digest);
+  Sim_Method::result_t schedule();
 
 protected:
   /// Cumulative propensity of reactions events

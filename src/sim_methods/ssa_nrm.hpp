@@ -48,7 +48,7 @@ public:
   Sim_Method::result_t forward(Sim_State_Change& digest);
 
  #if defined(WCS_HAS_ROSS)
-  Sim_Method::result_t backward(Sim_State_Change& digest);
+  void backward(Sim_State_Change& digest);
 
   /** Record as many states as the given number of iterations from the
    *  beginning of the digest list */
@@ -60,7 +60,7 @@ public:
 protected:
   void build_heap();
   priority_t choose_reaction();
-  sim_time_t get_reaction_time(const priority_t& p);
+  sim_time_t get_reaction_time();
   wcs::sim_time_t recompute_reaction_time(const v_desc_t& vd);
   wcs::sim_time_t adjust_reaction_time(const v_desc_t& vd, wcs::sim_time_t rt);
   void update_reactions(const priority_t& fired,
@@ -70,6 +70,7 @@ protected:
 
   void save_rgen_state(Sim_State_Change& digest) const;
   void load_rgen_state(const Sim_State_Change& digest);
+  Sim_Method::result_t schedule();
 
 protected:
   /** In-heap index table maintains where in the heap each item can be found.

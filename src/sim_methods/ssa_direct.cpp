@@ -244,17 +244,12 @@ void SSA_Direct::load_rgen_state(const Sim_State_Change& digest)
 }
 
 
-Sim_Method::result_t SSA_Direct::forward(Sim_State_Change& digest)
+Sim_Method::result_t SSA_Direct::schedule()
 {
   if (m_propensity.empty()) { // no reaction possible
     std::cerr << "No reaction exists." << std::endl;
     return Empty;
   }
-
- #if defined(WCS_HAS_ROSS)
-  save_rgen_state(digest);
-  digest.m_sim_time = m_sim_time;
- #endif // defined(WCS_HAS_ROSS)
 
   // Determine the time when a next reaction to occur
   const sim_time_t dt = get_reaction_time();
@@ -265,10 +260,21 @@ Sim_Method::result_t SSA_Direct::forward(Sim_State_Change& digest)
   }
   m_sim_time += dt; // Scheduling a reaction event
 
+  return Success;
+}
+
+
+Sim_Method::result_t SSA_Direct::forward(Sim_State_Change& digest)
+{
+ #if defined(WCS_HAS_ROSS)
+  save_rgen_state(digest);
+  digest.m_sim_time = m_sim_time;
+ #endif // defined(WCS_HAS_ROSS)
+
   // Determine the reaction to occur at this time
   auto& firing = choose_reaction();
   // The BGL vertex descriptor of the the reaction being fired
-  const auto& rd_fired = digest.m_reaction_fired = firing.second;
+  digest.m_reaction_fired = firing.second;
 
   // Execute the reaction, updating species counts
   Sim_Method::fire_reaction(digest);
@@ -278,17 +284,15 @@ Sim_Method::result_t SSA_Direct::forward(Sim_State_Change& digest)
 
  #if !defined(WCS_HAS_ROSS)
   // With ROSS, tracing and sampling are moved to process at commit time
-  record(rd_fired);
- #else
-  (void) rd_fired;
+  record(digest.m_reaction_fired);
  #endif // defined(WCS_HAS_ROSS)
 
-  return Success;
+  return schedule();
 }
 
 
 #if defined(WCS_HAS_ROSS)
-Sim_Method::result_t SSA_Direct::backward(Sim_State_Change& digest)
+void SSA_Direct::backward(Sim_State_Change& digest)
 {
   // The BGL vertex descriptor of the the reaction to undo
   const auto& rd_fired = digest.m_reaction_fired;
@@ -301,8 +305,8 @@ Sim_Method::result_t SSA_Direct::backward(Sim_State_Change& digest)
   m_sim_time = digest.m_sim_time;
   // Restore the RNG state
   load_rgen_state(digest);
-  return Success;
 }
+
 
 void SSA_Direct::record_first_n(const sim_iter_t num)
 {
@@ -310,14 +314,12 @@ void SSA_Direct::record_first_n(const sim_iter_t num)
   sim_iter_t i = static_cast<sim_iter_t>(0u);
 
   digest_list_t::iterator it = m_digests.begin();
-  digest_list_t::iterator it_prev = it ++;
 
-  for (; it != m_digests.end(); ++it, ++it_prev) {
+  for (; it != m_digests.end(); ++it) {
     if (i >= num) break;
 
-    record(it->m_sim_time, it_prev->m_reaction_fired);
+    record(it->m_sim_time, it->m_reaction_fired);
   }
-  record(m_sim_time, it_prev->m_reaction_fired);
   m_digests.erase(m_digests.begin(), it);
 }
 #endif // defined(WCS_HAS_ROSS)
@@ -325,26 +327,27 @@ void SSA_Direct::record_first_n(const sim_iter_t num)
 
 std::pair<sim_iter_t, sim_time_t> SSA_Direct::run()
 {
-  Sim_Method::result_t result = Success;
+  Sim_Method::result_t result = schedule();
+  if (result != Success) {
+    WCS_THROW("Not able to schedule any reaction event!");
+  }
 
  #if defined(WCS_HAS_ROSS)
   for (; (m_sim_iter < m_max_iter) && (m_sim_time < m_max_time); ++ m_sim_iter) {
     m_digests.emplace_back();
     result = forward(m_digests.back());
     if (result != Success) {
-      if (result == Inactive) {
-        //undo_get_reaction_time();
-      }
-      m_digests.pop_back();
       break;
     }
 
+  /*
     { // rollback test
       backward(m_digests.back());
       m_digests.pop_back();
       m_digests.emplace_back();
       forward(m_digests.back());
     }
+  */
   }
   record_first_n(m_sim_iter);
  #else

@@ -47,7 +47,7 @@ public:
    *  firing reaction */
   using affected_reactions_t = Sim_State_Change::affected_reactions_t;
 
-  enum result_t {Success, Complete, Failure};
+  enum result_t {Success, Empty, Inactive};
 
   Sim_Method();
   virtual ~Sim_Method();
@@ -69,15 +69,18 @@ public:
 
   /// Record the initial state of simulation
   void record_initial_state(const std::shared_ptr<wcs::Network>& net_ptr);
-  /// Record the final state of simulation
-  void record_final_state(const v_desc_t rv);
 
-  /// Check whether to record the state at current step
-  bool check_to_record();
-  /// Record the state at current step as needed
-  bool check_to_record(const v_desc_t rv);
-  /// Remove the last tracing record
-  void pop_trace();
+  /// Record the state at current step
+  void record(const v_desc_t rv);
+  /// Record the state at time t. This allows tracing/sampling using history.
+  void record(const sim_time_t t, const v_desc_t rv);
+
+ #if defined(WCS_HAS_ROSS)
+  /**
+   * Record as many states as the given number of iterations from the beginning
+   * of the digest list */
+  virtual void record_first_n(const sim_iter_t num) = 0;
+ #endif // defined(WCS_HAS_ROSS)
 
   virtual std::pair<sim_iter_t, sim_time_t> run() = 0;
 
@@ -102,17 +105,11 @@ protected:
   sim_iter_t m_max_iter; ///< Upper bound on simulation iteration
   sim_time_t m_max_time; ///< Upper bound on simulation time
 
-  sim_iter_t m_cur_iter; ///< Current simulation iteration
+  sim_iter_t m_sim_iter; ///< Current simulation iteration
   sim_time_t m_sim_time; ///< Current simulation time
 
   bool m_enable_tracing; ///< Whether to enable tracing
   bool m_enable_sampling; ///< Whether to enable sampling
-
-  sim_iter_t m_sample_iter_interval;
-  sim_time_t m_sample_time_interval;
-
-  sim_iter_t m_next_sample_iter; ///< Next iteration to sample
-  sim_time_t m_next_sample_time; ///< Next time to sample
 
   trace_t m_trace; ///< Tracing record
   samples_t m_samples; ///< Sampling record

@@ -10,6 +10,13 @@
 
 #ifndef __WCS_SIM_METHODS_SSA_NRM_HPP__
 #define __WCS_SIM_METHODS_SSA_NRM_HPP__
+
+#if defined(WCS_HAS_CONFIG)
+#include "wcs_config.hpp"
+#else
+#error "no config"
+#endif
+
 #include <cmath>
 #include <limits>
 #include <unordered_map>
@@ -39,8 +46,13 @@ public:
 
   std::pair<sim_iter_t, sim_time_t> run() override;
   Sim_Method::result_t forward(Sim_State_Change& digest);
+
  #if defined(WCS_HAS_ROSS)
-  Sim_Method::result_t backward(Sim_State_Change& digest);
+  void backward(Sim_State_Change& digest);
+
+  /** Record as many states as the given number of iterations from the
+   *  beginning of the digest list */
+  void record_first_n(const sim_iter_t num) override;
  #endif // defined(WCS_HAS_ROSS)
 
   rng_t& rgen();
@@ -48,7 +60,7 @@ public:
 protected:
   void build_heap();
   priority_t choose_reaction();
-  sim_time_t get_reaction_time(const priority_t& p);
+  sim_time_t get_reaction_time();
   wcs::sim_time_t recompute_reaction_time(const v_desc_t& vd);
   wcs::sim_time_t adjust_reaction_time(const v_desc_t& vd, wcs::sim_time_t rt);
   void update_reactions(const priority_t& fired,
@@ -58,6 +70,7 @@ protected:
 
   void save_rgen_state(Sim_State_Change& digest) const;
   void load_rgen_state(const Sim_State_Change& digest);
+  Sim_Method::result_t schedule();
 
 protected:
   /** In-heap index table maintains where in the heap each item can be found.
@@ -68,6 +81,11 @@ protected:
   in_heap_index_table_t m_idx_table;
   priority_queue_t m_heap;
   rng_t m_rgen;
+
+ #if defined(WCS_HAS_ROSS)
+  using digest_list_t = std::list<Sim_State_Change>;
+  digest_list_t m_digests;
+ #endif // defined(WCS_HAS_ROSS)
 };
 
 /**@}*/

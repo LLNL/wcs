@@ -15,6 +15,39 @@ namespace wcs {
 /** \addtogroup wcs_utils
  *  @{ */
 
+Samples::Samples()
+: m_start_iter(static_cast<sim_iter_t>(0u)),
+  m_cur_iter(static_cast<sim_iter_t>(0u)),
+  m_cur_time(static_cast<sim_time_t>(0)),
+  m_sample_iter_interval(static_cast<sim_iter_t>(0u)),
+  m_sample_time_interval(static_cast<sim_time_t>(0)),
+  m_next_sample_iter(std::numeric_limits<sim_iter_t>::max()),
+  m_next_sample_time(std::numeric_limits<sim_time_t>::infinity())
+{
+}
+
+void Samples::set_time_interval(const sim_time_t t_interval,
+                                const sim_time_t t_start)
+{
+  m_sample_time_interval = t_interval;
+  if (t_start > static_cast<sim_time_t>(0)) {
+    m_cur_time = t_start;
+  } else if (!m_samples.empty()) {
+    m_cur_time = std::get<0>(m_samples.back());
+  } else {
+    m_cur_time = static_cast<sim_time_t>(0);
+  }
+  m_next_sample_time = m_cur_time + t_interval;
+}
+
+void Samples::set_iter_interval(const sim_iter_t i_interval,
+                                const sim_iter_t i_start)
+{
+  m_sample_iter_interval = i_interval;
+  m_start_iter = m_cur_iter = i_start;
+  m_next_sample_iter = m_cur_iter + i_interval;
+}
+
 void Samples::record_initial_condition(const std::shared_ptr<wcs::Network>& net_ptr)
 {
   m_net_ptr = net_ptr;
@@ -35,17 +68,23 @@ void Samples::record_initial_condition(const std::shared_ptr<wcs::Network>& net_
     //m_s_id_map[vd] = i; // done in build_index()
     m_initial_counts[i++] = sp.get_count();
   }
-
-  m_num_events = static_cast<sim_iter_t>(0u);
 }
 
-void Samples::record_reaction(const Samples::r_desc_t r)
+void Samples::record_reaction(const sim_time_t t, const Samples::r_desc_t r)
 {
   m_r_diffs[r] ++;
-  m_num_events ++;
+  m_cur_time = t;
+
+  if (m_cur_iter ++ >= m_next_sample_iter) {
+    m_next_sample_iter += m_sample_iter_interval;
+    take_sample();
+  } else if (m_cur_time >= m_next_sample_time) {
+    m_next_sample_time += m_sample_time_interval;
+    take_sample();
+  }
 }
 
-void Samples::take_sample(const sim_time_t t)
+void Samples::take_sample()
 {
   if (!m_net_ptr) {
     WCS_THROW("Invaid pointer for reaction network.");
@@ -93,7 +132,7 @@ void Samples::take_sample(const sim_time_t t)
   m_r_diffs.clear();
   m_s_diffs.clear();
   m_samples.emplace_back(std::make_tuple(
-                           t,
+                           m_cur_time,
                            std::move(s_sample),
                            std::move(r_sample)));
 }
@@ -129,6 +168,8 @@ void Samples::build_index_maps()
 std::ostream& Samples::write_header(std::ostream& os, size_t num_reactions) const
 { // write the header to show the species labels and the initial population
   const auto num_species = m_net_ptr->get_num_species();
+
+  sim_iter_t m_num_events = m_cur_iter - m_start_iter;
 
   std::string ostr = "num_species = " + std::to_string(num_species)
                    + "\tnum_reactions = " + std::to_string(num_reactions)
@@ -204,6 +245,9 @@ std::ostream& Samples::write(std::ostream& os)
 
   std::string tmpstr;
 
+  if (!m_r_diffs.empty()) {
+    take_sample();
+  }
   build_index_maps();
   write_header(os, reactions.size());
 

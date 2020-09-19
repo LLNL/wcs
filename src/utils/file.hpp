@@ -8,36 +8,20 @@
  *                                                                            *
  ******************************************************************************/
 
-#ifndef  __WCS_UTILS_EXCEPTION__
-#define  __WCS_UTILS_EXCEPTION__
+#ifndef  __WCS_UTILS_FILE__
+#define  __WCS_UTILS_FILE__
 #include <string>
-#include <iostream>
-#include <exception>
-
-#define WCS_THROW(_MSG_)                                     \
-  do {                                                       \
-    throw wcs::exception(std::string( __FILE__) + " : line " \
-                         + std::to_string(__LINE__) + " : "  \
-                         + _MSG_ + '\n');                    \
-  } while (0)
+#include <filesystem>
+// TODO: switch to boost:filesystem if filesystem is not supported
+// C++ preprocessor definition set by cmake if cmake tests true
 
 namespace wcs {
 /** \addtogroup wcs_utils
  *  @{ */
 
-class exception : public std::exception {
- public:
-  exception(const std::string message = "");
-  const char* what() const noexcept override;
-
- private:
-  std::string m_message;
-};
-
-using exception = ::wcs::exception;
-
-std::ostream& operator<<(std::ostream& os, const exception& e);
+void extract_file_component(const std::string path, std::string& parent_dir,
+                            std::string& stem, std::string& extension);
 
 /**@}*/
 } // end of namespace wcs
-#endif //  __WCS_UTILS_EXCEPTION__
+#endif //  __WCS_UTILS_FILE__

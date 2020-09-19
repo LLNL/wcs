@@ -267,7 +267,7 @@ void SSA_NRM::init(std::shared_ptr<wcs::Network>& net_ptr,
     m_rgen.param(typename rng_t::param_type(100, uint_max-100));
   }
 
-  Sim_Method::record_initial_state(m_net_ptr);
+  Sim_Method::initialize_recording(m_net_ptr);
 
   build_heap(); // prepare internal priority queue
 }

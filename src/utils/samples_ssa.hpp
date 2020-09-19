@@ -8,8 +8,8 @@
  *                                                                            *
  ******************************************************************************/
 
-#ifndef	 __WCS_UTILS_SAMPLE_HPP__
-#define	 __WCS_UTILS_SAMPLE_HPP__
+#ifndef	 __WCS_UTILS_SAMPLE_SSA_HPP__
+#define	 __WCS_UTILS_SAMPLE_SSA_HPP__
 #include <string>
 #include <unordered_map>
 #include <list>
@@ -18,23 +18,29 @@
 #include <iostream>
 #include "wcs_types.hpp"
 #include "reaction_network/network.hpp"
+#include "utils/trajectory.hpp"
 
 namespace wcs {
 /** \addtogroup wcs_utils
  *  @{ */
 
-class Samples {
+/**
+ * Record aggregate changes in the species population at a regular interval
+ * predefined by users. The interval can be specified as either the number
+ * of operations or the amount of simulation time passed. Upon completion of
+ * simulation, write a file that shows how the species population has
+ * changed over time at a regular interval.
+ * During simulation, operation records are kept in a memory buffer. The
+ * buffer can be configured to flush out to a file as it fills up to an
+ * amount predefined by users.
+ * At finalization, the history of species population change is reconstructed
+ * from the buffer or the history fragment files, and written into a file.
+ */
+class SamplesSSA : public Trajectory {
 
 public:
-  /// The type of BGL vertex descriptor for graph_t
-  using v_desc_t = wcs::Network::v_desc_t;
-  using r_prop_t = wcs::Reaction<wcs::Network::v_desc_t>;
-  using s_prop_t = wcs::Species;
-  using r_desc_t = v_desc_t;
-  using s_desc_t = v_desc_t;
-
   using s_diff_t = wcs::species_cnt_diff_t;
-  using r_cnt_t = wcs::species_cnt_t;
+  // TODO: convert s_track_t and r_track_t to use integer instead of descriptors
   using s_track_t = typename std::pair<s_desc_t, s_diff_t>;
   using r_track_t = typename std::pair<r_desc_t, r_cnt_t>;
   using s_sample_t = std::vector<s_track_t>;
@@ -42,45 +48,33 @@ public:
   using sample_t = std::tuple<sim_time_t, s_sample_t, r_sample_t>;
   using samples_t = std::list<sample_t>;
 
-  Samples();
+  SamplesSSA();
+  ~SamplesSSA() override;
 
   void set_time_interval(const sim_time_t t_interval,
                          const sim_time_t t_start = static_cast<sim_time_t>(0));
   void set_iter_interval(const sim_iter_t i_interval,
                          const sim_iter_t i_start = static_cast<sim_iter_t>(0u));
 
-  void record_initial_condition(const std::shared_ptr<wcs::Network>& net_ptr);
-  void record_reaction(const sim_time_t t, const r_desc_t r);
-  std::ostream& write(std::ostream& os);
-  void write(const std::string filename);
+  void record_step(const sim_time_t t, const r_desc_t r) override;
+  void finalize() override;
 
 protected:
   using s_map_t = typename std::unordered_map<s_desc_t, s_diff_t>;
   using r_map_t = typename std::unordered_map<r_desc_t, r_cnt_t>;
 
+  void build_index_maps() override;
   void take_sample();
-  void build_index_maps();
-  std::ostream& write_header(std::ostream& os,
-                             const size_t num_reactions) const;
-  void count_species(const s_sample_t& ss,
-                     std::vector<species_cnt_t>& speices) const;
-  void count_reactions(const r_sample_t& ss,
-                       std::vector<r_cnt_t>& reactions) const;
+  size_t estimate_tmpstr_size() const;
+  std::ostream& write_header(std::ostream& os) const override;
+  void count_species(const s_sample_t& ss);
+  void count_reactions(const r_sample_t& ss);
   std::ostream& print_stats(const sim_time_t sim_time,
-                            const std::vector<species_cnt_t>& species,
-                            const std::vector<r_cnt_t>& reactions,
                             std::string& tmpstr, std::ostream& os) const;
+  std::ostream& write(std::ostream& os) override;
+  void flush() override;
 
 protected:
-  /// Initial species population
-  std::vector<species_cnt_t> m_initial_counts;
-  /** The pointer to the reaction network being monitored.
-   *  Make sure the network object does not get destroyed
-   *  while the trace refers to it.
-   */
-  std::shared_ptr<const wcs::Network> m_net_ptr;
-  /// Map a BGL vertex descriptor to the species index
-  std::unordered_map<s_desc_t, size_t> m_s_id_map;
   /// Map a BGL vertex descriptor to the reaction index
   std::unordered_map<r_desc_t, size_t> m_r_id_map;
   /**
@@ -97,6 +91,9 @@ protected:
   /// List of samples
   samples_t m_samples;
 
+  /// Show how many times each reaction fires
+  std::vector<r_cnt_t> m_reaction_counts;
+
   sim_iter_t m_start_iter; ///< Simulation iteration of the first record
 
   sim_iter_t m_cur_iter; ///< Simulation iteration of the current record
@@ -111,4 +108,4 @@ protected:
 
 /**@}*/
 } // end of namespace wcs
-#endif // __WCS_UTILS_SAMPLE_HPP__
+#endif // __WCS_UTILS_SAMPLE_SSA_HPP__

@@ -387,7 +387,7 @@ target_include_directories(reaction-bin PUBLIC
   $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/src>
   $<INSTALL_INTERFACE:${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_INCLUDEDIR}>)
 
-target_link_libraries(reaction-bin PRIVATE wcs)
+target_link_libraries(reaction-bin PRIVATE wcs stdc++fs)
 set_target_properties(reaction-bin PROPERTIES OUTPUT_NAME reaction)
 set_target_properties(reaction-bin PROPERTIES CMAKE_INSTALL_RPATH
                       "${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}")
@@ -400,7 +400,7 @@ target_include_directories(ssa-bin PUBLIC
   $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/src>
   $<INSTALL_INTERFACE:${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_INCLUDEDIR}>)
 
-target_link_libraries(ssa-bin PRIVATE wcs)
+target_link_libraries(ssa-bin PRIVATE wcs stdc++fs)
 set_target_properties(ssa-bin PROPERTIES OUTPUT_NAME ssa)
 set_target_properties(ssa-bin PROPERTIES CMAKE_INSTALL_RPATH
                       "${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}")
@@ -409,7 +409,7 @@ list(APPEND WCS_EXEC_TARGETS ssa-bin)
 # add executable graphml2dot
 add_executable( graphml2dot-bin src/utils/graphml2dot.cpp )
 set_target_properties(graphml2dot-bin PROPERTIES OUTPUT_NAME graphml2dot)
-target_link_libraries(graphml2dot-bin PRIVATE wcs)
+target_link_libraries(graphml2dot-bin PRIVATE wcs stdc++fs)
 
 list(APPEND WCS_EXEC_TARGETS graphml2dot-bin)
 
@@ -420,7 +420,7 @@ target_include_directories(partition-bin PUBLIC
   $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/src>
   $<INSTALL_INTERFACE:${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_INCLUDEDIR}>)
 
-target_link_libraries(partition-bin PRIVATE wcs)
+target_link_libraries(partition-bin PRIVATE wcs stdc++fs)
 set_target_properties(partition-bin PROPERTIES OUTPUT_NAME partition)
 set_target_properties(partition-bin PROPERTIES CMAKE_INSTALL_RPATH
                       "${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}")
@@ -454,7 +454,7 @@ if (WCS_HAS_ROSS)
     $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}>
     $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/src>
     $<INSTALL_INTERFACE:${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_INCLUDEDIR}>)
-  target_link_libraries(des-bin PRIVATE ROSS::ROSS wcs)
+  target_link_libraries(des-bin PRIVATE ROSS::ROSS wcs stdc++fs)
   set_target_properties(des-bin PROPERTIES OUTPUT_NAME des)
   list(APPEND WCS_EXEC_TARGETS des-bin)
 endif (WCS_HAS_ROSS)
@@ -466,7 +466,7 @@ target_include_directories(t_state_rngen-bin PUBLIC
   $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/src>
   $<INSTALL_INTERFACE:${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_INCLUDEDIR}>)
 
-target_link_libraries(t_state_rngen-bin PRIVATE wcs)
+target_link_libraries(t_state_rngen-bin PRIVATE wcs stdc++fs)
 set_target_properties(t_state_rngen-bin PROPERTIES OUTPUT_NAME t_state_rngen)
 set_target_properties(t_state_rngen-bin PROPERTIES CMAKE_INSTALL_RPATH
                       "${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}")

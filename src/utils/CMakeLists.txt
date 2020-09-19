@@ -2,12 +2,14 @@
 set_full_path(THIS_DIR_HEADERS
   detect_methods.hpp
   exception.hpp
+  file.hpp
   graph_factory.hpp
   input_filetype.hpp
   partition.hpp
+  print_vertices.hpp
   rngen.hpp
   rngen_impl.hpp
-  samples.hpp
+  samples_ssa.hpp
   sbml_utils.hpp
   seed.hpp
   state_io.hpp
@@ -18,8 +20,9 @@ set_full_path(THIS_DIR_HEADERS
   streamvec.hpp
   streamvec_impl.hpp
   timer.hpp
-  trace.hpp
+  trajectory.hpp
   trace_ssa.hpp
+  trace_ode.hpp
   traits.hpp
   write_graphviz.hpp
   write_graphviz_impl.hpp
@@ -27,13 +30,16 @@ set_full_path(THIS_DIR_HEADERS
 
 set_full_path(THIS_DIR_SOURCES
   exception.cpp
+  file.cpp
   graph_factory.cpp
   input_filetype.cpp
   partition.cpp
-  samples.cpp
+  print_vertices.cpp
+  samples_ssa.cpp
   sbml_utils.cpp
-  trace.cpp
+  trajectory.cpp
   trace_ssa.cpp
+  trace_ode.cpp
   )
 
 # Add the subdirectories

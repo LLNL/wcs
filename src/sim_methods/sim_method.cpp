@@ -21,8 +21,7 @@ Sim_Method::Sim_Method()
   m_max_time(static_cast<sim_time_t>(0)),
   m_sim_iter(static_cast<sim_iter_t>(0u)),
   m_sim_time(static_cast<sim_time_t>(0)),
-  m_enable_tracing(false),
-  m_enable_sampling(false)
+  m_recording(false)
 {
   using directed_category
     = typename boost::graph_traits<wcs::Network::graph_t>::directed_category;
@@ -37,71 +36,38 @@ Sim_Method::Sim_Method()
 
 Sim_Method::~Sim_Method() {}
 
-void Sim_Method::set_tracing()
+
+void Sim_Method::unset_recording()
 {
-  m_enable_tracing = true;
-  m_enable_sampling = false;
+  m_recording = false;
 }
 
-void Sim_Method::unset_tracing()
-{
-  m_enable_tracing = false;
-}
-
-void Sim_Method::set_sampling(const sim_time_t time_interval)
-{
-  m_enable_tracing = false;
-  m_enable_sampling = true;
-  m_samples.set_time_interval(time_interval);
-}
-
-void Sim_Method::set_sampling(const sim_iter_t iter_interval)
-{
-  m_enable_tracing = false;
-  m_enable_sampling = true;
-  m_samples.set_iter_interval(iter_interval);
-}
-
-void Sim_Method::unset_sampling()
-{
-  m_enable_sampling = false;
-}
-
-void Sim_Method::record_initial_state(const std::shared_ptr<wcs::Network>& net_ptr)
+void Sim_Method::initialize_recording(const std::shared_ptr<wcs::Network>& net_ptr)
 { // record initial state of the network
-  if (m_enable_tracing) {
-    m_trace.record_initial_condition(m_net_ptr);
-  } else if (m_enable_sampling) {
-    m_samples.record_initial_condition(m_net_ptr);
+  if (m_recording) {
+    m_trajectory->initialize(m_net_ptr);
   }
 }
 
 void Sim_Method::record(const v_desc_t rv)
 {
-  if (m_enable_tracing) {
-    m_trace.record_reaction(m_sim_time, rv);
-  } else if (m_enable_sampling) {
-    m_samples.record_reaction(m_sim_time, rv);
+  if (m_recording) {
+    m_trajectory->record_step(m_sim_time, rv);
   }
 }
 
 void Sim_Method::record(const sim_time_t t, const v_desc_t rv)
 {
-  if (m_enable_tracing) {
-    m_trace.record_reaction(t, rv);
-  } else if (m_enable_sampling) {
-    m_samples.record_reaction(t, rv);
+  if (m_recording) {
+    m_trajectory->record_step(t, rv);
   }
 }
 
-Sim_Method::trace_t& Sim_Method::trace() {
-  return m_trace;
+void Sim_Method::finalize_recording() {
+  if (m_recording) {
+    m_trajectory->finalize();
+  }
 }
-
-Sim_Method::samples_t& Sim_Method::samples() {
-  return m_samples;
-}
-
 
 /**
  * Execute the chosen reaction.

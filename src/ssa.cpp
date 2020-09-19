@@ -18,8 +18,6 @@
 #include <boost/filesystem.hpp>
 #include "reaction_network/network.hpp"
 #include "utils/write_graphviz.hpp"
-#include "utils/rngen.hpp"
-#include "utils/trace_ssa.hpp"
 #include "utils/timer.hpp"
 #include "sim_methods/ssa_nrm.hpp"
 #include "sim_methods/ssa_direct.hpp"
@@ -30,9 +28,10 @@ __itt_domain* vtune_domain_sim = __itt_domain_create("Simulate");
 __itt_string_handle* vtune_handle_sim = __itt_string_handle_create("simulate");
 #endif // WCS_HAS_VTUNE
 
-#define OPTIONS "dg:hi:o:s:t:m:r:"
+#define OPTIONS "df:g:hi:o:s:t:m:r:"
 static const struct option longopts[] = {
     {"diag",     no_argument,        0, 'd'},
+    {"frag_sz",  required_argument,  0, 'f'},
     {"graphviz", required_argument,  0, 'g'},
     {"help",     no_argument,        0, 'h'},
     {"iter",     required_argument,  0, 'i'},
@@ -52,7 +51,9 @@ struct Config {
     tracing(false),
     sampling(false),
     iter_interval(0u),
-    time_interval(0.0)
+    time_interval(0.0),
+    frag_size(0),
+    is_frag_size_set(false)
   {}
 
   void getopt(int& argc, char** &argv);
@@ -66,6 +67,8 @@ struct Config {
   bool sampling;
   wcs::sim_iter_t iter_interval;
   wcs::sim_time_t time_interval;
+  unsigned frag_size;
+  bool is_frag_size_set;
 
   std::string infile;
   std::string outfile;
@@ -83,6 +86,10 @@ void Config::getopt(int& argc, char** &argv)
       case 'd': /* --diag */
         tracing = true;
         sampling = false;
+        break;
+      case 'f': /* --frag_sz */
+        frag_size = static_cast<unsigned>(atoi(optarg));
+        is_frag_size_set = true;
         break;
       case 'g': /* --graphviz */
         gvizfile = std::string(optarg);
@@ -137,6 +144,9 @@ void Config::getopt(int& argc, char** &argv)
   if (!is_iter_set && is_time_set) {
     max_iter = std::numeric_limits<decltype(max_iter)>::max();
   }
+  if ((sampling || tracing) && !is_frag_size_set) {
+    frag_size = wcs::default_frag_size;
+  }
 }
 
 void Config::print_usage(const std::string exec, int code)
@@ -150,18 +160,8 @@ void Config::print_usage(const std::string exec, int code)
     "    write the reaction network into a GraphViz-formatted file.\n"
     "\n"
     "    OPTIONS:\n"
-    "    -d, --diag\n"
-    "            Specify whether to enable tracing for a posteriori diagnosis.\n"
-    "\n"
-    "    -g, --graphviz\n"
-    "            Specify the name of the file to export the reaction\n"
-    "            network into in the GraphViz format.\n"
-    "\n"
     "    -h, --help\n"
     "            Display this usage information\n"
-    "\n"
-    "    -o, --outfile\n"
-    "            Specify the output file name for tracing/sampling.\n"
     "\n"
     "    -s, --seed\n"
     "            Specify the seed for random number generator. Without this,\n"
@@ -180,9 +180,23 @@ void Config::print_usage(const std::string exec, int code)
     "                                    2 = Sorted optimized direct method."
     " (feat. propensity sorting)\n"
     "\n"
+    "    -g, --graphviz\n"
+    "            Specify the name of the file to export the reaction\n"
+    "            network into in the GraphViz format.\n"
+    "\n"
+    "    -d, --diag\n"
+    "            Specify whether to enable tracing for a posteriori diagnosis.\n"
+    "\n"
     "    -r, --record\n"
     "            Specify whether to enable sampling at a time/step interval.\n"
     "            (e.g. t5 for every 5 simulation seconds or i5 for every 5 steps).\n"
+    "\n"
+    "    -o, --outfile\n"
+    "            Specify the output file name for tracing/sampling.\n"
+    "\n"
+    "    -f, --frag_sz\n"
+    "            Specify how many records per temporary output file fragment \n"
+    "            in tracing/sampling.\n"
     "\n";
   exit(code);
 }
@@ -193,7 +207,7 @@ int main(int argc, char** argv)
  #ifdef WCS_HAS_VTUNE
   __itt_pause();
  #endif // WCS_HAS_VTUNE
-  int rc = 0;
+  int rc = EXIT_SUCCESS;
   Config cfg;
   cfg.getopt(argc, argv);
 
@@ -207,7 +221,7 @@ int main(int argc, char** argv)
       !wcs::write_graphviz(cfg.gvizfile, g))
   {
     std::cerr << "Failed to write " << cfg.gvizfile << std::endl;
-    rc = -1;
+    rc = EXIT_FAILURE;
   }
 
   wcs::Sim_Method* ssa = nullptr;
@@ -223,18 +237,18 @@ int main(int argc, char** argv)
     ssa = new wcs::SSA_SOD;
   } else {
     std::cerr << "Unknown SSA method (" << cfg.method << ')' << std::endl;
-    return -1;
+    return EXIT_FAILURE;
   }
   if (cfg.tracing) {
-    ssa->set_tracing();
+    ssa->set_tracing<wcs::TraceSSA>(cfg.outfile, cfg.frag_size);
     std::cerr << "Enable tracing" << std::endl;
   } else if (cfg.sampling) {
     if (cfg.iter_interval > 0u) {
-      ssa->set_sampling(cfg.iter_interval);
+      ssa->set_sampling<wcs::SamplesSSA>(cfg.iter_interval, cfg.outfile, cfg.frag_size);
       std::cerr << "Enable sampling at " << cfg.iter_interval 
                 << " steps interval" << std::endl;
     } else {
-      ssa->set_sampling(cfg.time_interval);
+      ssa->set_sampling<wcs::SamplesSSA>(cfg.time_interval, cfg.outfile, cfg.frag_size);
       std::cerr << "Enable sampling at " << cfg.time_interval 
                 << " secs interval" << std::endl;
     }
@@ -256,18 +270,8 @@ int main(int argc, char** argv)
   __itt_pause();
  #endif // WCS_HAS_VTUNE
 
-  if (cfg.tracing) {
-    if (!cfg.outfile.empty()) {
-      ssa->trace().write(cfg.outfile);
-    } else {
-      ssa->trace().write(std::cout);
-    }
-  } else if (cfg.sampling) {
-    if (!cfg.outfile.empty()) {
-      ssa->samples().write(cfg.outfile);
-    } else {
-      ssa->samples().write(std::cout);
-    }
+  if (cfg.tracing || cfg.sampling) {
+    ssa->finalize_recording();
   } else {
     std::cout << "Species   : " << rnet.show_species_labels("") << std::endl;
     std::cout << "FinalState: " << rnet.show_species_counts() << std::endl;

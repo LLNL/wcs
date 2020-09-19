@@ -20,11 +20,12 @@
 #include <cmath>
 #include <limits>
 #include <unordered_map>
+#include <memory> // unique_ptr
 #include "wcs_types.hpp"
 #include "reaction_network/network.hpp"
 #include "utils/rngen.hpp"
 #include "utils/trace_ssa.hpp"
-#include "utils/samples.hpp"
+#include "utils/samples_ssa.hpp"
 #include "sim_methods/sim_state_change.hpp"
 
 namespace wcs {
@@ -34,8 +35,6 @@ namespace wcs {
 class Sim_Method {
 public:
   using v_desc_t = wcs::Network::v_desc_t;
-  using trace_t = wcs::TraceSSA;
-  using samples_t = wcs::Samples;
   using sim_time_t = wcs::sim_time_t;
   using reaction_rate_t = wcs::reaction_rate_t;
 
@@ -57,23 +56,34 @@ public:
                     const unsigned rng_seed) = 0;
 
   /// Enable tracing to record state at every event
-  void set_tracing();
-  /// Disable tracing to record state at every event
-  void unset_tracing();
-  /// Enable sampling to record state at every given time interval
-  void set_sampling(const sim_time_t time_interval);
-  /// Enable sampling to record state at every given iteration interval
-  void set_sampling(const sim_iter_t iter_interval);
-  /// Disable sampling
-  void unset_sampling();
+  template <typename T>
+  void set_tracing(const std::string outfile = "",
+                   const unsigned frag_size = default_frag_size);
 
-  /// Record the initial state of simulation
-  void record_initial_state(const std::shared_ptr<wcs::Network>& net_ptr);
+  /// Enable sampling to record state at every given time interval
+  template <typename S>
+  void set_sampling(const sim_time_t time_interval,
+                    const std::string outfile = "",
+                    const unsigned frag_size = default_frag_size);
+
+  /// Enable sampling to record state at every given iteration interval
+  template <typename S>
+  void set_sampling(const sim_iter_t iter_interval,
+                    const std::string outfile = "",
+                    const unsigned frag_size = default_frag_size);
+
+  /// Disable trajectory recording (tracing/sampling)
+  void unset_recording();
+
+  /// Record the initial state of simulation for tracing/sampling
+  void initialize_recording(const std::shared_ptr<wcs::Network>& net_ptr);
 
   /// Record the state at current step
   void record(const v_desc_t rv);
+
   /// Record the state at time t. This allows tracing/sampling using history.
   void record(const sim_time_t t, const v_desc_t rv);
+  // TODO: record(const sim_time_t, const updatest_t& u);
 
  #if defined(WCS_HAS_ROSS)
   /**
@@ -82,12 +92,10 @@ public:
   virtual void record_first_n(const sim_iter_t num) = 0;
  #endif // defined(WCS_HAS_ROSS)
 
-  virtual std::pair<sim_iter_t, sim_time_t> run() = 0;
+  /// Finalize the internal trajectory recorder
+  void finalize_recording();
 
-  /// Allow access to the internal tracer
-  trace_t& trace();
-  /// Allow access to the internal sampler
-  samples_t& samples();
+  virtual std::pair<sim_iter_t, sim_time_t> run() = 0;
 
   bool fire_reaction(Sim_State_Change& digest);
 
@@ -108,12 +116,57 @@ protected:
   sim_iter_t m_sim_iter; ///< Current simulation iteration
   sim_time_t m_sim_time; ///< Current simulation time
 
-  bool m_enable_tracing; ///< Whether to enable tracing
-  bool m_enable_sampling; ///< Whether to enable sampling
+  bool m_recording; ///< Whether to enable tracing or sampling
 
-  trace_t m_trace; ///< Tracing record
-  samples_t m_samples; ///< Sampling record
+  std::unique_ptr<Trajectory> m_trajectory; ///< Trajectory recorder
 };
+
+
+template <typename T>
+void Sim_Method::set_tracing(const std::string outfile,
+                             const unsigned frag_size)
+{
+  if (!m_trajectory) {
+    m_trajectory = std::make_unique<T>();
+    if (!m_trajectory) {
+      WCS_THROW("Cannot start tracing.");
+    }
+  }
+  m_recording = true;
+  m_trajectory->set_outfile(outfile, frag_size);
+}
+
+template <typename S>
+void Sim_Method::set_sampling(const sim_time_t time_interval,
+                              const std::string outfile,
+                              const unsigned frag_size)
+{
+  if (!m_trajectory) {
+    m_trajectory = std::make_unique<S>();
+    if (!m_trajectory) {
+      WCS_THROW("Cannot start sampling.");
+    }
+  }
+  m_recording = true;
+  dynamic_cast<S&>(*m_trajectory).set_time_interval(time_interval);
+  m_trajectory->set_outfile(outfile, frag_size);
+}
+
+template <typename S>
+void Sim_Method::set_sampling(const sim_iter_t iter_interval,
+                              const std::string outfile,
+                              const unsigned frag_size)
+{
+  if (!m_trajectory) {
+    m_trajectory = std::make_unique<S>();
+    if (!m_trajectory) {
+      WCS_THROW("Cannot start sampling.");
+    }
+  }
+  m_recording = true;
+  dynamic_cast<S&>(*m_trajectory).set_iter_interval(iter_interval);
+  m_trajectory->set_outfile(outfile, frag_size);
+}
 
 /**@}*/
 } // end of namespace wcs

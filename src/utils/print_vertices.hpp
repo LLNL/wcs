@@ -8,36 +8,19 @@
  *                                                                            *
  ******************************************************************************/
 
-#ifndef  __WCS_UTILS_EXCEPTION__
-#define  __WCS_UTILS_EXCEPTION__
+#ifndef PRINT_VERTICES_HPP
+#define PRINT_VERTICES_HPP
 #include <string>
-#include <iostream>
-#include <exception>
-
-#define WCS_THROW(_MSG_)                                     \
-  do {                                                       \
-    throw wcs::exception(std::string( __FILE__) + " : line " \
-                         + std::to_string(__LINE__) + " : "  \
-                         + _MSG_ + '\n');                    \
-  } while (0)
+#include "reaction_network/network.hpp"
 
 namespace wcs {
 /** \addtogroup wcs_utils
  *  @{ */
 
-class exception : public std::exception {
- public:
-  exception(const std::string message = "");
-  const char* what() const noexcept override;
-
- private:
-  std::string m_message;
-};
-
-using exception = ::wcs::exception;
-
-std::ostream& operator<<(std::ostream& os, const exception& e);
+void print_vertices(const std::shared_ptr<wcs::Network>& net_ptr,
+                    const std::string& outfile_name);
 
 /**@}*/
-} // end of namespace wcs
-#endif //  __WCS_UTILS_EXCEPTION__
+} // end of namespasce wcs
+#endif // PRINT_VERTICES_HPP
+

@@ -13,7 +13,7 @@
 #include <iostream>
 #include <utility> // std::move
 #include <memory>  // std::unique_ptr
-#include <limits>
+#include <limits>  // std::numeric_limits
 
 namespace wcs {
 /** \addtogroup wcs_global
@@ -26,6 +26,7 @@ using sim_time_t = double;
 using sim_iter_t = unsigned;
 using stoic_t = int;
 using partition_id_t = unsigned;
+using concentration_t = double;
 
 constexpr partition_id_t unassigned_partition
   = std::numeric_limits<partition_id_t>::max();
@@ -38,6 +39,10 @@ class GraphFactory;
 constexpr size_t num_in_edges_to_reserve = 8ul;
 /// ceil(log10(2^sizeof(species_cnt_t))) + sizeof('\t')
 constexpr size_t cnt_digits = 21ul;
+
+/// The default number of records per tracing/sampling output file fragment
+using frag_size_t = unsigned;
+constexpr frag_size_t default_frag_size = 16384u;
 
 /**@}*/
 } // end of namespace wcs

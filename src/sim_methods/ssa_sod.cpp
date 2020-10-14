@@ -201,7 +201,7 @@ void SSA_SOD::init(std::shared_ptr<wcs::Network>& net_ptr,
     m_rgen_tm.param(typename rng_t::param_type(0.0, 1.0));
   }
 
-  Sim_Method::record_initial_state(m_net_ptr);
+  Sim_Method::initialize_recording(m_net_ptr);
 
   build_propensity_list(); // prepare internal priority queue
 }

@@ -8,36 +8,39 @@
  *                                                                            *
  ******************************************************************************/
 
-#ifndef  __WCS_UTILS_EXCEPTION__
-#define  __WCS_UTILS_EXCEPTION__
-#include <string>
-#include <iostream>
-#include <exception>
-
-#define WCS_THROW(_MSG_)                                     \
-  do {                                                       \
-    throw wcs::exception(std::string( __FILE__) + " : line " \
-                         + std::to_string(__LINE__) + " : "  \
-                         + _MSG_ + '\n');                    \
-  } while (0)
+#include "utils/file.hpp"
+#include "utils/exception.hpp"
 
 namespace wcs {
 /** \addtogroup wcs_utils
  *  @{ */
 
-class exception : public std::exception {
- public:
-  exception(const std::string message = "");
-  const char* what() const noexcept override;
+void extract_file_component(const std::string path,
+                            std::string& parent_dir,
+                            std::string& stem,
+                            std::string& ext)
+{
+  const auto fn = std::filesystem::path(path);
+  if (!fn.has_stem()) {
+    parent_dir.clear();
+    stem.clear();
+    ext.clear();
+    return;
+  }
+  stem = fn.stem();
 
- private:
-  std::string m_message;
-};
+  if (!fn.has_extension()) {
+    ext = "";
+  } else {
+    ext = std::string(fn.extension());
+  }
 
-using exception = ::wcs::exception;
-
-std::ostream& operator<<(std::ostream& os, const exception& e);
+  if (!fn.has_parent_path()) {
+    parent_dir = "";
+  } else {
+    parent_dir = std::string(fn.parent_path()) + '/';
+  }
+}
 
 /**@}*/
 } // end of namespace wcs
-#endif //  __WCS_UTILS_EXCEPTION__

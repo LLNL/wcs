@@ -5,6 +5,7 @@ set_full_path(THIS_DIR_HEADERS
   ssa_nrm.hpp
   ssa_direct.hpp
   ssa_sod.hpp
+  update.hpp
   )
 
 set_full_path(THIS_DIR_SOURCES

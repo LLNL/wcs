@@ -10,6 +10,8 @@
 
 #ifndef	 __WCS_UTILS_TRACE_SSA_HPP__
 #define	 __WCS_UTILS_TRACE_SSA_HPP__
+#include <list>
+#include <vector>
 #include "utils/trajectory.hpp"
 
 namespace wcs {

@@ -110,12 +110,20 @@ void Trajectory::build_index_maps()
 
 void Trajectory::record_step(const sim_time_t t, const r_desc_t r)
 {
-  WCS_THROW("Base class does not implement this 'record_step(t, r)' method");
+  WCS_THROW("Base class does not implement this " \
+            "'record_step(t, reaction)' method");
 }
 
-void Trajectory::record_step(const sim_time_t t, const update_list_t& updates)
+void Trajectory::record_step(const sim_time_t t, cnt_updates_t&& updates)
 {
-  WCS_THROW("Base class does not implement this 'record_step(t, u)' method");
+  WCS_THROW("Base class does not implement this " \
+            "'record_step(t, cnt_updates)' method");
+}
+
+void Trajectory::record_step(const sim_time_t t, conc_updates_t&& updates)
+{
+  WCS_THROW("Base class does not implement this " \
+            "'record_step(t, conc_updates)' method");
 }
 
 void Trajectory::flush()

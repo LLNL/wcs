@@ -21,12 +21,11 @@
 #include <limits>
 #include <unordered_map>
 #include <memory> // unique_ptr
-#include "wcs_types.hpp"
-#include "reaction_network/network.hpp"
+#include "sim_methods/sim_state_change.hpp"
 #include "utils/rngen.hpp"
 #include "utils/trace_ssa.hpp"
+#include "utils/trace_generic.hpp"
 #include "utils/samples_ssa.hpp"
-#include "sim_methods/sim_state_change.hpp"
 
 namespace wcs {
 /** \addtogroup wcs_sim_methods
@@ -38,10 +37,6 @@ public:
   using sim_time_t = wcs::sim_time_t;
   using reaction_rate_t = wcs::reaction_rate_t;
 
-  /** Type for keeping track of species updates to facilitate undoing
-   *  reaction processing.  */
-  using update_t = Sim_State_Change::update_t;
-  using update_list_t = Sim_State_Change::update_list_t;
   /** Type for the list of reactions that share any of the species with the
    *  firing reaction */
   using affected_reactions_t = Sim_State_Change::affected_reactions_t;
@@ -81,9 +76,23 @@ public:
   /// Record the state at current step
   void record(const v_desc_t rv);
 
-  /// Record the state at time t. This allows tracing/sampling using history.
+  /**
+   *  Record the reaction that updated the state at time t. This allows
+   *  tracing/sampling using a history of events rather than as they occur.
+   */
   void record(const sim_time_t t, const v_desc_t rv);
-  // TODO: record(const sim_time_t, const updatest_t& u);
+
+  /// Record the updates in species counts at the current step
+  void record(cnt_updates_t&& u);
+
+  /// Record the the state update at time t
+  void record(const sim_time_t t, cnt_updates_t&& u);
+
+  /// Record the updates in species concentration at the current step
+  void record(conc_updates_t&& u);
+
+  /// Record the the state update at time t
+  void record(const sim_time_t t, conc_updates_t&& u);
 
  #if defined(WCS_HAS_ROSS)
   /**
@@ -99,7 +108,7 @@ public:
 
   bool fire_reaction(Sim_State_Change& digest);
 
-  void undo_species_updates(const update_list_t& updates) const;
+  void undo_species_updates(const cnt_updates_t& updates) const;
   bool undo_reaction(const Sim_Method::v_desc_t& rd_undo) const;
 
 protected:

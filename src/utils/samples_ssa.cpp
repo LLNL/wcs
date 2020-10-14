@@ -22,6 +22,7 @@
 #include <cereal/types/tuple.hpp>
 #endif // WCS_HAS_CEREAL
 
+#include <fstream>
 #include "utils/samples_ssa.hpp"
 #include "utils/to_string.hpp"
 #include "utils/exception.hpp"

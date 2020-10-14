@@ -8,9 +8,9 @@
  *                                                                            *
  ******************************************************************************/
 
-#ifndef	 __WCS_UTILS_TRACE_ODE_HPP__
-#define	 __WCS_UTILS_TRACE_ODE_HPP__
-#include <vector>
+#ifndef	 __WCS_UTILS_TRACE_GENERIC_HPP__
+#define	 __WCS_UTILS_TRACE_GENERIC_HPP__
+#include <list>
 #include "wcs_types.hpp"
 #include "utils/trajectory.hpp"
 
@@ -18,20 +18,20 @@ namespace wcs {
 /** \addtogroup wcs_utils
  *  @{ */
 
-class TraceODE : Trajectory
+class TraceGeneric : public Trajectory
 {
 public:
-  using tentry_t = typename std::pair<sim_time_t, update_list_t>;
+  using tentry_t = typename std::pair<sim_time_t, cnt_updates_t>;
   using trace_t = typename std::list<tentry_t>;
 
-  ~TraceODE() override;
-  void record_step(const sim_time_t t, const update_list_t& updates) override;
+  ~TraceGeneric() override;
+  void record_step(const sim_time_t t, cnt_updates_t&& updates) override;
   void finalize() override;
 
 protected:
   void build_index_maps() override;
-  std::ostream& write_header(std::ostream& os) const override;
   size_t estimate_tmpstr_size() const;
+  std::ostream& write_header(std::ostream& os) const override;
   std::ostream& print_stats(const sim_time_t sim_time,
                             const std::string rlabel,
                             std::string& tmpstr, std::ostream& os) const;
@@ -45,4 +45,4 @@ protected:
 
 /**@}*/
 } // end of namespace wcs
-#endif // __WCS_UTILS_TRACE_ODE_HPP__
+#endif // __WCS_UTILS_TRACE_GENERIC_HPP__

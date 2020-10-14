@@ -21,7 +21,8 @@
 #include <cereal/types/utility.hpp>
 #endif // WCS_HAS_CEREAL
 
-#include "utils/trace_ode.hpp"
+#include <fstream>
+#include "utils/trace_generic.hpp"
 #include "utils/exception.hpp"
 #include "utils/to_string.hpp"
 
@@ -29,12 +30,12 @@ namespace wcs {
 /** \addtogroup wcs_utils
  *  @{ */
 
-TraceODE::~TraceODE()
+TraceGeneric::~TraceGeneric()
 {}
 
-void TraceODE::record_step(const sim_time_t t, const update_list_t& updates)
+void TraceGeneric::record_step(const sim_time_t t, cnt_updates_t&& updates)
 {
-  m_trace.emplace_back(std::make_pair(t, updates));
+  m_trace.emplace_back(std::make_pair(t, std::forward<cnt_updates_t>(updates)));
 
  #if defined(WCS_HAS_CEREAL)
   if (++m_cur_record_in_frag >= m_frag_size) {
@@ -47,7 +48,7 @@ void TraceODE::record_step(const sim_time_t t, const update_list_t& updates)
  * Build the map from a vertex descriptor to an index of the
  * vector for species respectively.
  */
-void TraceODE::build_index_maps()
+void TraceGeneric::build_index_maps()
 {
   if (m_s_id_map.empty()) {
     r_idx_t idx = static_cast<r_idx_t>(0u);
@@ -59,7 +60,7 @@ void TraceODE::build_index_maps()
   }
 }
 
-void TraceODE::finalize()
+void TraceGeneric::finalize()
 {
   if (m_outfile_stem.empty()) {
     m_num_steps = m_trace.size();
@@ -103,7 +104,7 @@ void TraceODE::finalize()
 /**
  * Write the header (species labels), and write the initial species population.
  */
-std::ostream& TraceODE::write_header(std::ostream& os) const
+std::ostream& TraceGeneric::write_header(std::ostream& os) const
 { // write the header to show the species labels and the initial population
   const auto num_species = m_net_ptr->get_num_species();
   const auto num_reactions = m_net_ptr->get_num_reactions();
@@ -126,12 +127,12 @@ std::ostream& TraceODE::write_header(std::ostream& os) const
   return os;
 }
 
-size_t TraceODE::estimate_tmpstr_size() const
+size_t TraceGeneric::estimate_tmpstr_size() const
 {
   return m_species_counts.size()*cnt_digits;
 }
 
-std::ostream& TraceODE::print_stats(const sim_time_t sim_time,
+std::ostream& TraceGeneric::print_stats(const sim_time_t sim_time,
                                     const std::string elabel,
                                     std::string& tmpstr,
                                     std::ostream& os) const
@@ -148,7 +149,7 @@ std::ostream& TraceODE::print_stats(const sim_time_t sim_time,
   return os;
 }
 
-std::ostream& TraceODE::write(std::ostream& os)
+std::ostream& TraceGeneric::write(std::ostream& os)
 {
   if (!m_net_ptr) {
     WCS_THROW("Invaid pointer for reaction network.");
@@ -177,7 +178,7 @@ std::ostream& TraceODE::write(std::ostream& os)
   return os;
 }
 
-void TraceODE::flush()
+void TraceGeneric::flush()
 {
  #if defined(WCS_HAS_CEREAL)
   const auto freg_file = m_outfile_stem + '.' + std::to_string(m_cur_frag_id++)

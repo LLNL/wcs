@@ -10,14 +10,9 @@
 
 #ifndef	 __WCS_UTILS_SAMPLE_SSA_HPP__
 #define	 __WCS_UTILS_SAMPLE_SSA_HPP__
-#include <string>
-#include <unordered_map>
 #include <list>
 #include <tuple>
-#include <fstream>
 #include <iostream>
-#include "wcs_types.hpp"
-#include "reaction_network/network.hpp"
 #include "utils/trajectory.hpp"
 
 namespace wcs {

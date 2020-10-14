@@ -10,13 +10,10 @@
 
 #ifndef	 __WCS_UTILS_TRAJECTORY_HPP__
 #define	 __WCS_UTILS_TRAJECTORY_HPP__
-#include <map>
-#include <list>
+#include <unordered_map>
 #include <string>
-#include <fstream>
 #include <iostream>
-#include "wcs_types.hpp"
-#include "reaction_network/network.hpp"
+#include "sim_methods/update.hpp"
 
 namespace wcs {
 /** \addtogroup wcs_utils
@@ -39,13 +36,10 @@ public:
   /// The type of BGL vertex descriptor for graph_t
   using v_desc_t = wcs::Network::v_desc_t;
   using s_prop_t = wcs::Species;
-  using s_desc_t = v_desc_t;
   using r_desc_t = v_desc_t;
   using r_prop_t = wcs::Reaction<wcs::Network::v_desc_t>;
   using r_cnt_t = wcs::species_cnt_t;
   using r_idx_t = unsigned;
-  using update_t = std::pair<Trajectory::s_desc_t, concentration_t>;
-  using update_list_t = std::vector<update_t>;
   using frag_id_t = size_t;
 
   Trajectory();
@@ -55,7 +49,8 @@ public:
 
   virtual void initialize(const std::shared_ptr<wcs::Network>& net_ptr);
   virtual void record_step(const sim_time_t t, const r_desc_t r);
-  virtual void record_step(const sim_time_t t, const update_list_t& updates);
+  virtual void record_step(const sim_time_t t, cnt_updates_t&& updates);
+  virtual void record_step(const sim_time_t t, conc_updates_t&& updates);
   virtual void finalize() = 0;
 
 protected:

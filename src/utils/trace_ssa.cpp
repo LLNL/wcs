@@ -21,6 +21,7 @@
 #include <cereal/types/utility.hpp>
 #endif // WCS_HAS_CEREAL
 
+#include <fstream>
 #include "utils/trace_ssa.hpp"
 #include "utils/exception.hpp"
 #include "utils/to_string.hpp"

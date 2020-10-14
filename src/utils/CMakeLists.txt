@@ -22,7 +22,7 @@ set_full_path(THIS_DIR_HEADERS
   timer.hpp
   trajectory.hpp
   trace_ssa.hpp
-  trace_ode.hpp
+  trace_generic.hpp
   traits.hpp
   write_graphviz.hpp
   write_graphviz_impl.hpp
@@ -39,7 +39,7 @@ set_full_path(THIS_DIR_SOURCES
   sbml_utils.cpp
   trajectory.cpp
   trace_ssa.cpp
-  trace_ode.cpp
+  trace_generic.cpp
   )
 
 # Add the subdirectories

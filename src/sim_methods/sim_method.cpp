@@ -8,8 +8,9 @@
  *                                                                            *
  ******************************************************************************/
 
-#include "sim_methods/sim_method.hpp"
 #include <limits>
+#include <utility> // std::forward
+#include "sim_methods/sim_method.hpp"
 
 namespace wcs {
 /** \addtogroup wcs_reaction_network
@@ -60,6 +61,36 @@ void Sim_Method::record(const sim_time_t t, const v_desc_t rv)
 {
   if (m_recording) {
     m_trajectory->record_step(t, rv);
+  }
+}
+
+void Sim_Method::record(cnt_updates_t&& u)
+{
+  if (m_recording) {
+    m_trajectory->record_step(m_sim_time, std::forward<cnt_updates_t>(u));
+  }
+}
+
+void Sim_Method::record(const sim_time_t t,
+                        cnt_updates_t&& u)
+{
+  if (m_recording) {
+    m_trajectory->record_step(t, std::forward<cnt_updates_t>(u));
+  }
+}
+
+void Sim_Method::record(conc_updates_t&& u)
+{
+  if (m_recording) {
+    m_trajectory->record_step(m_sim_time, std::forward<conc_updates_t>(u));
+  }
+}
+
+void Sim_Method::record(const sim_time_t t,
+                        conc_updates_t&& u)
+{
+  if (m_recording) {
+    m_trajectory->record_step(t, std::forward<conc_updates_t>(u));
   }
 }
 
@@ -179,8 +210,7 @@ bool Sim_Method::fire_reaction(Sim_State_Change& digest)
  * Undo the species updates applied during incomplete reaction processing.
  * This relies on the list of updates made to species, and revert them.
  */
-void Sim_Method::undo_species_updates(
-  const Sim_Method::update_list_t& updates) const
+void Sim_Method::undo_species_updates(const cnt_updates_t& updates) const
 {
   bool ok = true;
   const wcs::Network::graph_t& g = m_net_ptr->graph();

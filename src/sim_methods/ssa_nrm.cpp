@@ -28,8 +28,8 @@
  */
 #define lambdas_for_indexed_heap \
   auto indexer = [this](const v_desc_t& key) -> heap_idx_t& { \
-    auto it = m_idx_table.find(key); \
-    if (it == m_idx_table.end()) { \
+    auto it = this->m_idx_table.find(key); \
+    if (it == this->m_idx_table.end()) { \
       WCS_THROW("The key (reaction vertex descriptor) does not exist."); \
     } \
     return it->second; \
@@ -38,12 +38,12 @@
   auto less_reaction = [this] \
     (const v_desc_t& r1, const v_desc_t& r2) -> bool \
   { \
-    const auto rate1 = m_net_ptr->get_reaction_rate(r1); \
-    const auto rate2 = m_net_ptr->get_reaction_rate(r2); \
+    const auto rate1 = this->m_net_ptr->get_reaction_rate(r1); \
+    const auto rate2 = this->m_net_ptr->get_reaction_rate(r2); \
     return (rate1 < rate2) || ((rate1 == rate2) && (r1 > r2)); \
   }; \
   \
-  auto less_priority = [this, &less_reaction] \
+  auto less_priority = [&less_reaction] \
        (const priority_t& p1, const priority_t& p2) -> bool \
   { \
     return (p1.first > p2.first) || \

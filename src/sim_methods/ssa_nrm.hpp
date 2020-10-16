@@ -47,9 +47,16 @@ public:
   std::pair<sim_iter_t, sim_time_t> run() override;
   Sim_Method::result_t forward(Sim_State_Change& digest);
 
+  void init_des(std::shared_ptr<wcs::Network>& net_ptr,
+                const unsigned rng_seed);
+   
  #if defined(WCS_HAS_ROSS)
   void backward(Sim_State_Change& digest);
 
+  void forward_des(priority_t firing);
+  void backward_des(priority_t firing);
+  void commit_des();
+   
   /** Record as many states as the given number of iterations from the
    *  beginning of the digest list */
   void record_first_n(const sim_iter_t num) override;

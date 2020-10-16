@@ -232,21 +232,12 @@ void SSA_NRM::revert_reaction_updates(
   }
 }
 
-void SSA_NRM::init(std::shared_ptr<wcs::Network>& net_ptr,
-                   const sim_iter_t max_iter,
-                   const sim_time_t max_time,
-                   const unsigned rng_seed)
+void SSA_NRM::init_des(std::shared_ptr<wcs::Network>& net_ptr,
+                       const unsigned rng_seed)
 {
   if (!net_ptr) {
     WCS_THROW("Invalid pointer to the reaction network.");
   }
-
-  m_net_ptr = net_ptr;
-  m_max_time = max_time;
-  m_max_iter = max_iter;
-  m_sim_time = static_cast<sim_time_t>(0);
-  m_sim_iter = static_cast<sim_iter_t>(0u);
-
   { // initialize the random number generator
     if (rng_seed == 0u) {
       m_rgen.set_seed();
@@ -270,6 +261,21 @@ void SSA_NRM::init(std::shared_ptr<wcs::Network>& net_ptr,
   Sim_Method::initialize_recording(m_net_ptr);
 
   build_heap(); // prepare internal priority queue
+}
+
+void SSA_NRM::init(std::shared_ptr<wcs::Network>& net_ptr,
+                   const sim_iter_t max_iter,
+                   const sim_time_t max_time,
+                   const unsigned rng_seed)
+{
+
+  m_net_ptr = net_ptr;
+  m_max_time = max_time;
+  m_max_iter = max_iter;
+  m_sim_time = static_cast<sim_time_t>(0);
+  m_sim_iter = static_cast<sim_iter_t>(0u);
+
+  init_des(net_ptr, rng_seed);
 }
 
 
@@ -322,6 +328,31 @@ Sim_Method::result_t SSA_NRM::schedule()
   return Success;
 }
 
+
+void SSA_NRM::forward_des(SSA_NRM::priority_t firing)
+{
+   Sim_State_Change& digest = m_digests.emplace_back();
+   save_rgen_state(digest);
+
+   digest.m_reaction_fired = firing.second;
+   
+   fire_reaction(digest);
+   record(firing.second);
+   update_reactions(firing, digest.m_reactions_affected, digest.m_reaction_times);
+}
+
+void SSA_NRM::backward_des(SSA_NRM::priority_t firing)
+{
+   Sim_State_Change digest = m_digests.pop_back();
+   undo_reaction(digest.m_reaction_fired);
+   revert_reaction_updates(digest.m_reaction_times);
+   load_rgen_state(digest);
+}
+
+void SSA_NRM::commit_des()
+{
+   m_digests.pop_front();
+}
 
 Sim_Method::result_t SSA_NRM::forward(Sim_State_Change& digest)
 {
@@ -378,6 +409,7 @@ void SSA_NRM::record_first_n(const sim_iter_t num)
     if (i >= num) break;
 
     record(it->m_sim_time, it->m_reaction_fired);
+    i++;
   }
   m_digests.erase(m_digests.begin(), it);
 }

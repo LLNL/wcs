@@ -167,7 +167,7 @@ std::ostream& TraceGeneric::write(std::ostream& os)
     const auto sim_time = it->first; // time of event
     const auto& updates = it->second; // population updates
 
-    for (const auto u : updates) {
+    for (const auto& u : updates) {
       species.at(m_s_id_map.at(u.first))
         += static_cast<species_cnt_diff_t>(u.second);
     }

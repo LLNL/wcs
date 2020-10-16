@@ -323,6 +323,11 @@ Sim_Method::result_t SSA_NRM::schedule(revent_t& evt)
 }
 
 
+void SSA_NRM::commit_des()
+{
+  m_digests.pop_front();
+}
+
 bool SSA_NRM::forward(const revent_t firing)
 {
   const auto& t = firing.first;

@@ -325,8 +325,11 @@ Sim_Method::result_t SSA_NRM::schedule(revent_t& evt)
 
 void SSA_NRM::commit_des()
 {
-  m_digests.pop_front();
+   auto digest = m_digests.front();
+   record(digest.m_sim_time, digest.m_reaction_fired);
+   m_digests.pop_front();
 }
+
 
 bool SSA_NRM::forward(const revent_t firing)
 {

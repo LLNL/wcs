@@ -343,7 +343,8 @@ void SSA_NRM::forward_des(SSA_NRM::priority_t firing)
 
 void SSA_NRM::backward_des(SSA_NRM::priority_t firing)
 {
-   Sim_State_Change digest = m_digests.pop_back();
+   Sim_State_Change digest = m_digests.back();
+   m_digests.pop_back();
    undo_reaction(digest.m_reaction_fired);
    revert_reaction_updates(digest.m_reaction_times);
    load_rgen_state(digest);

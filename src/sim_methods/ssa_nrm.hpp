@@ -64,9 +64,10 @@ public:
 
   rng_t& rgen();
 
+  priority_t choose_reaction();
+   
 protected:
   void build_heap();
-  priority_t choose_reaction();
   sim_time_t get_reaction_time();
   wcs::sim_time_t recompute_reaction_time(const v_desc_t& vd);
   wcs::sim_time_t adjust_reaction_time(const v_desc_t& vd, wcs::sim_time_t rt);

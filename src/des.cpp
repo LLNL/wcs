@@ -92,7 +92,7 @@ int main (int argc, char* argv[])
 
 void wcs_init(wcs_state *s, tw_lp *lp)
 {
-   s->ssa->init(s->net_ptr, lp->gid);
+   s->ssa->init_des(s->net_ptr, lp->gid);
 }
 
 void wcs_event(wcs_state *s, tw_bf *bf, wcs_message *msg, tw_lp *lp)
@@ -104,7 +104,7 @@ void wcs_event(wcs_state *s, tw_bf *bf, wcs_message *msg, tw_lp *lp)
 
    const auto new_firing = s->ssa->choose_reaction();
 
-   tw_event* next_event = tw_event_new(lp, new_firing.first, lp);
+   tw_event* next_event = tw_event_new(lp->gid, new_firing.first, lp);
    wcs_message* next_msg = reinterpret_cast<wcs_message*>(tw_event_data(next_event));
    next_msg->fired_reaction = new_firing.second;
    tw_event_send(next_event);
@@ -115,7 +115,7 @@ void wcs_event_reverse(wcs_state *s, tw_bf *bf, wcs_message *msg, tw_lp *lp)
    wcs::SSA_NRM::priority_t firing;
    firing.first = tw_now(lp);
    firing.second = msg->fired_reaction;
-   s->ssa->backwards_des(firing);
+   s->ssa->backward_des(firing);
 }
 
 void wcs_event_commit(wcs_state* s, tw_bf *bf, wcs_message *msg, tw_lp *lp)

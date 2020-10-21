@@ -20,6 +20,7 @@ void extract_file_component(const std::string path,
                             std::string& stem,
                             std::string& ext)
 {
+#if defined(WCS_HAS_STD_FILESYSTEM)
   const auto fn = std::filesystem::path(path);
   if (!fn.has_stem()) {
     parent_dir.clear();
@@ -27,7 +28,7 @@ void extract_file_component(const std::string path,
     ext.clear();
     return;
   }
-  stem = fn.stem();
+  stem = std::string(fn.stem());
 
   if (!fn.has_extension()) {
     ext = "";
@@ -40,6 +41,28 @@ void extract_file_component(const std::string path,
   } else {
     parent_dir = std::string(fn.parent_path()) + '/';
   }
+#else
+  const auto fn = boost::filesystem::path(path);
+  if (!fn.has_stem()) {
+    parent_dir.clear();
+    stem.clear();
+    ext.clear();
+    return;
+  }
+  stem = fn.stem().string();
+
+  if (!fn.has_extension()) {
+    ext = "";
+  } else {
+    ext = fn.extension().string();
+  }
+
+  if (!fn.has_parent_path()) {
+    parent_dir = "";
+  } else {
+    parent_dir = fn.parent_path().string() + '/';
+  }
+#endif
 }
 
 /**@}*/

@@ -98,6 +98,20 @@ endif ()
 
 
 ################################################################
+# Check if std::filesystem is available
+################################################################
+try_compile(WCS_HAS_STD_FILESYSTEM "${CMAKE_BINARY_DIR}/temp"
+            "${CMAKE_SOURCE_DIR}/cmake/tests/has_filesystem.cpp"
+            CMAKE_FLAGS ${CMAKE_CXX_FLAGS}
+            LINK_LIBRARIES stdc++fs)
+if (WCS_HAS_STD_FILESYSTEM)
+  message(STATUS "Compiler has std::filesystem support")
+else ()
+  message(STATUS "Compiler does not have std::filesystem support. Using boost::filesystem")
+endif (WCS_HAS_STD_FILESYSTEM)
+
+
+################################################################
 # Initialize RPATH (always full RPATH)
 # Note: see https://cmake.org/Wiki/CMake_RPATH_handling
 ################################################################

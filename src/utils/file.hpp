@@ -11,9 +11,18 @@
 #ifndef  __WCS_UTILS_FILE__
 #define  __WCS_UTILS_FILE__
 #include <string>
+
+#if defined(WCS_HAS_CONFIG)
+#include "wcs_config.hpp"
+#else
+#error "no config"
+#endif
+
+#if defined(WCS_HAS_STD_FILESYSTEM)
 #include <filesystem>
-// TODO: switch to boost:filesystem if filesystem is not supported
-// C++ preprocessor definition set by cmake if cmake tests true
+#else
+#include <boost/filesystem.hpp>
+#endif
 
 namespace wcs {
 /** \addtogroup wcs_utils

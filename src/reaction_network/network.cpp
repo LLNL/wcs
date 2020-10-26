@@ -17,6 +17,7 @@
 #include "reaction_network/network.hpp"
 #include "utils/graph_factory.hpp"
 #include "utils/input_filetype.hpp"
+#include "utils/generate_cxx_code.hpp"
 #include <type_traits> // is_same<>
 #include <algorithm> // lexicographical_compare(), sort()
 #include <limits> // numeric_limits
@@ -95,7 +96,14 @@ void Network::loadSBML(const std::string sbml_filename)
     return;
   }
 
-  gfactory.convert_to(*model, m_graph);
+  #if !defined(WCS_HAS_EXPRTK)
+  const std::string genfile = wcs::generate_cxx_code::generate_code(*model);
+  const std::string library_file = wcs::generate_cxx_code::compile_code(genfile);
+  gfactory.convert_to(*model, m_graph, library_file);
+  #else
+  gfactory.convert_to(*model, m_graph, "");
+  #endif // !defined(WCS_HAS_EXPRTK)
+
   delete document;
 
   #else
@@ -132,9 +140,9 @@ void Network::init()
       // implemented.
       s_involved_t involved_species;
 
-    #if defined(WCS_HAS_EXPRTK)
+    #if defined(WCS_HAS_EXPRTK) || defined(WCS_HAS_SBML)
       s_involved_t products;
-    #endif // defined(WCS_HAS_EXPRTK)
+    #endif // defined(WCS_HAS_EXPRTK) || defined(WCS_HAS_SBML)
 
       if constexpr (is_bidirectional) {
         for(const auto ei_in :
@@ -149,22 +157,25 @@ void Network::init()
       for(const auto ei_out :
           boost::make_iterator_range(boost::out_edges(reaction, m_graph))) {
         v_desc_t product = boost::target(ei_out, m_graph);
-    #if defined(WCS_HAS_EXPRTK)
+    #if defined(WCS_HAS_EXPRTK) || defined(WCS_HAS_SBML)
         products.insert(std::make_pair(m_graph[product].get_label(),
                                        std::make_pair(product, 1)));
     #else
         involved_species.insert(std::make_pair(m_graph[product].get_label(),
                                                std::make_pair(product, 1)));
-    #endif // defined(WCS_HAS_EXPRTK)
+    #endif // defined(WCS_HAS_EXPRTK) || defined(WCS_HAS_SBML)
       }
 
       m_reactions.emplace_back(reaction);
 
       auto& r = m_graph[*vi].checked_property< Reaction<v_desc_t> >();
+
       r.set_rate_inputs(involved_species);
-    #if defined(WCS_HAS_EXPRTK)
+
+    #if defined(WCS_HAS_EXPRTK) || defined(WCS_HAS_SBML)
       r.set_products(products);
-    #endif // defined(WCS_HAS_EXPRTK)
+    #endif // defined(WCS_HAS_EXPRTK) || defined(WCS_HAS_SBML)
+
       set_reaction_rate(*vi);
     }
   }
@@ -192,9 +203,9 @@ reaction_rate_t Network::set_reaction_rate(const Network::v_desc_t r) const
   std::vector<reaction_rate_t> params;
   // GG: rate constant is part of the Reaction object
   params.reserve(ri.size()+1u); // reserve space for species count and rate constant
-  #if !defined(WCS_HAS_EXPRTK)
+  #if !defined(WCS_HAS_EXPRTK) && !defined(WCS_HAS_SBML)
   auto denominator = static_cast<stoic_t>(1);
-  #endif
+  #endif // !defined(WCS_HAS_EXPRTK) && !defined(WCS_HAS_SBML)
 
   for (auto driver : ri) { // add species counts here and the rate constant will be appended later
     const auto& s = m_graph[driver.first].checked_property<Species>();
@@ -205,12 +216,13 @@ reaction_rate_t Network::set_reaction_rate(const Network::v_desc_t r) const
     // In the example, the reaction rate is computed as [X]([X]-1)/2
     // TODO: move this logic into ReactionBase::set_rate_fn()
     species_cnt_t n = s.get_count();
+
     if (num_same == static_cast<stoic_t>(0)) {
         // This is a parameter that the reaction rate is dependent on but
         // not modified by the reaction (i.e., neither reactant nor product)
         params.push_back(static_cast<reaction_rate_t>(n));
     } else {
-    #if defined(WCS_HAS_EXPRTK)
+    #if defined(WCS_HAS_EXPRTK) || defined(WCS_HAS_SBML)
       params.push_back(static_cast<reaction_rate_t>(n));
     #else
       for (stoic_t i = static_cast<stoic_t>(0); i < num_same ; ++i) {
@@ -221,10 +233,10 @@ reaction_rate_t Network::set_reaction_rate(const Network::v_desc_t r) const
         }
         -- n;
       }
-    #endif
+    #endif // defined(WCS_HAS_EXPRTK) || defined(WCS_HAS_SBML)
     }
   }
-  #if !defined(WCS_HAS_EXPRTK)
+  #if !defined(WCS_HAS_EXPRTK) && !defined(WCS_HAS_SBML)
   params.push_back(static_cast<reaction_rate_t>(1.0/
                      static_cast<reaction_rate_t>(denominator)));
   #endif

@@ -43,6 +43,7 @@
 #include "reaction_network/reaction.hpp"
 #include "utils/sbml_utils.hpp"
 
+
 #if defined(WCS_HAS_SBML)
 #include <sbml/SBMLTypes.h>
 #include <sbml/common/extern.h>
@@ -51,6 +52,8 @@
 namespace wcs {
 /** \addtogroup wcs_reaction_network
  *  @{ */
+
+typedef reaction_rate_t ( * rate_function_pointer)(const std::vector<reaction_rate_t>&);
 
 class Vertex {
  public:
@@ -71,8 +74,8 @@ class Vertex {
 
   template <typename G>
   Vertex(const LIBSBML_CPP_NAMESPACE::Model& model, const
-
-  LIBSBML_CPP_NAMESPACE::Reaction& reaction, const G& g);
+   LIBSBML_CPP_NAMESPACE::Reaction& reaction, const G& g, const
+  std::function<reaction_rate_t (const std::vector<reaction_rate_t>&)>&  reaction_function_rate);
   #endif // defined(WCS_HAS_SBML)
 
   virtual ~Vertex();
@@ -169,7 +172,9 @@ template <typename G>
 Vertex::Vertex(
   const LIBSBML_CPP_NAMESPACE::Model& model,
   const LIBSBML_CPP_NAMESPACE::Reaction& reaction,
-  const G& g)
+  const G& g,
+  const std::function<reaction_rate_t (const std::vector<reaction_rate_t>&)>&  reaction_function_rate
+  )
 : m_type(_reaction_),
   m_typeid(static_cast<int>(_reaction_)),
   m_label(reaction.getIdAttribute()),
@@ -186,7 +191,7 @@ Vertex::Vertex(
 
   std::string formula = SBML_formulaToString(reaction.getKineticLaw()->getMath());
 
-  //remove spaves from formula
+  //remove spaces from formula
   formula.erase(remove(formula.begin(), formula.end(), ' '), formula.end());
 
   std::string wholeformula("");
@@ -239,7 +244,12 @@ Vertex::Vertex(
   }
 
   wholeformula = wholeformula + "m_rate := " + formula + ";";
+
   dynamic_cast<Reaction<v_desc_t>*>(m_p.get())->set_rate_formula(wholeformula);
+
+  #if !defined(WCS_HAS_EXPRTK)
+  dynamic_cast<Reaction<v_desc_t>*>(m_p.get())->ReactionBase::set_calc_rate_fn(reaction_function_rate);
+  #endif // !defined(WCS_HAS_EXPRTK)
 }
 #endif // defined(WCS_HAS_SBML)
 

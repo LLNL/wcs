@@ -5,6 +5,17 @@
 #define WCS_VERSION @WCS_VERSION@
 #cmakedefine WCS_GIT_VERSION @WCS_GIT_VERSION@
 
+/* Defined for the generation of the c++ code of a sbml file */
+#cmakedefine CMAKE_CXX_COMPILER "@CMAKE_CXX_COMPILER@"
+#ifndef CMAKE_CXX_COMPILER
+#define CMAKE_CXX_COMPILER "cc"
+#endif
+
+#cmakedefine CMAKE_CXX_SHARED_LIBRARY_FLAGS "@CMAKE_CXX_SHARED_LIBRARY_FLAGS@"
+#ifndef CMAKE_CXX_SHARED_LIBRARY_FLAGS
+#define CMAKE_CXX_SHARED_LIBRARY_FLAGS ""
+#endif
+
 /* Defined if WCS is in debug mode */
 #cmakedefine WCS_DEBUG
 

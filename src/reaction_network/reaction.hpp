@@ -40,9 +40,12 @@ class Reaction : public ReactionBase {
 
   void set_rate_inputs(const std::map<std::string, rdriver_t>& species_involved);
   const involved_species_t& get_rate_inputs() const;
-#if defined(WCS_HAS_EXPRTK)
+#if defined(WCS_HAS_EXPRTK) || defined(WCS_HAS_SBML)
   void set_products(const std::map<std::string, rdriver_t>& products);
   reaction_rate_t calc_rate(std::vector<reaction_rate_t>&& params) override;
+#endif // defined(WCS_HAS_EXPRTK) || defined(WCS_HAS_SBML)
+
+#if defined(WCS_HAS_EXPRTK)
   void show_compile_error() const;
   bool detect_composite() const;
 #endif // defined(WCS_HAS_EXPRTK)
@@ -53,12 +56,14 @@ class Reaction : public ReactionBase {
  private:
   Reaction* clone_impl() const override;
 
-#if defined(WCS_HAS_EXPRTK)
+#if defined(WCS_HAS_EXPRTK) || defined(WCS_HAS_SBML)
   std::vector<reaction_rate_t> m_params;
+  bool m_is_composite;
+#endif // defined(WCS_HAS_EXPRTK) || defined(WCS_HAS_SBML)
+#if defined(WCS_HAS_EXPRTK)
   exprtk::symbol_table<reaction_rate_t> m_sym_table;
   exprtk::parser<reaction_rate_t> m_parser;
   exprtk::expression<reaction_rate_t> m_expr;
-  bool m_is_composite;
 #endif // defined(WCS_HAS_EXPRTK)
 
  protected:

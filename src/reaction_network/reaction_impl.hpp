@@ -9,6 +9,7 @@
  ******************************************************************************/
 
 #include <iostream>
+#include <string>
 
 namespace wcs {
 /** \addtogroup wcs_reaction_network
@@ -184,6 +185,138 @@ inline bool Reaction<VD>::detect_composite() const
              ( pos3 < pos4)
            )
          );
+}
+#elif defined(WCS_HAS_SBML)
+template <typename VD>
+inline void Reaction<VD>::set_rate_inputs(const std::map<std::string, rdriver_t>& species_involved)
+{
+  const auto num_inputs = species_involved.size();
+  m_rate_inputs = std::vector<rdriver_t>( num_inputs );
+  m_params.resize(num_inputs);
+  size_t i = 0;
+  /*for(auto &e : species_involved ) {
+      std::string var_str = e.first;
+      m_rate_inputs[i] = e.second;
+      i++;
+  } */
+
+  std::set<std::string> var_names;
+  using new_species_involvedt = std::map<std::string, rdriver_t> ;
+  typename new_species_involvedt::const_iterator it_species;
+  new_species_involvedt new_species_involved;
+
+  std::string formula = this->get_rate_formula();
+  std::string str2 ("m_rate := ");
+  std::size_t found = formula.find(str2);
+  formula.replace(formula.begin(), formula.begin() + found + 10,""); //remove vars before formula
+  formula.replace(formula.end()-1, formula.end(),""); //remove ; from the end of the formula
+
+  using std::operator<<;
+  for (auto& x: species_involved) {
+    //std::cout << " " << x.first << " ,";
+    var_names.insert(x.first);
+  }
+  //std::cout << '\n';
+
+  // put the function parameters with the order met in the formula
+  static const std::regex symbol_name("[\\w_]+"); // sequence of alnum or '_'
+  std::unordered_map<std::string, size_t> input_map;
+  std::sregex_token_iterator p(formula.cbegin(), formula.cend(), symbol_name);
+  std::sregex_token_iterator e;
+  i = 0ul;
+  for ( ; p!=e ; ++p) {
+    for (const auto& vn : var_names) {
+      if (vn == *p) {
+        if (input_map.count(vn) == 0u) {
+          input_map.insert(std::make_pair(vn, i++));
+        }
+        if (input_map.size() == var_names.size()) {
+          break;
+        }
+      }
+    }
+  }
+
+  std::vector<std::string> var_names_ord (input_map.size());
+  for (auto& x: input_map) {
+    var_names_ord[x.second] = x.first;
+  }
+
+    //put first parameters in formula taking input
+    std::vector<std::string>::iterator it;
+    size_t j = 0;
+    for (it = var_names_ord.begin(); it < var_names_ord.end(); it++){
+      it_species = species_involved.find(*it);
+      if (it_species != species_involved.end()){
+        //new_species_involved.insert(std::make_pair(it_species->first, it_species->second));
+        std::string var_str = it_species->first;
+        m_rate_inputs[j] = it_species->second;
+        j++;
+        var_names.erase(*it);
+      }
+    }
+    //put rest parameters (not in formula) taking input
+    for (auto& x: var_names) {
+      it_species = species_involved.find(x);
+      if (it_species != species_involved.end()){
+        //new_species_involved.insert(std::make_pair(it_species->first, it_species->second));
+        std::string var_str = it_species->first;
+        m_rate_inputs[j] = it_species->second;
+        j++;
+      }
+    }
+/*    for (auto& x: species_involved) {
+     std::cout << " " << x.first << " ,";
+    }
+    std::cout << '\n';  */
+   /* i = 0;
+    for(auto &e : new_species_involved ) {
+      std::string var_str = e.first;
+      std::cout << " " << e.first << " ,";
+      m_rate_inputs[i] = e.second;
+      i++;
+    }
+    std::cout << '\n';*/
+
+}
+
+template <typename VD>
+reaction_rate_t Reaction<VD>::calc_rate(std::vector<reaction_rate_t>&& params)
+{
+  // GG: This copy could be avoided by directly linking species count to sym_table
+  if (m_params.size() != params.size()) {
+    using std::operator<<;
+    WCS_THROW("The number of involved species differs from what is expected");
+    // If params is larger than m_params, m_params will reallocate its data.
+    // Then, the symbol table needs to reset, and re-registered.
+    // If it is smaller, some values are missing, and the symbol table may
+    // not make sense at all.
+  }
+  // The order of parameters is the same as the one in the return of
+  // get_rate_inputs()
+  m_params.assign(params.begin(), params.end());
+
+  if (!m_is_composite) {
+    m_rate = m_calc_rate(m_params);
+  } else {
+    m_rate = static_cast<reaction_rate_t>(0.0);
+    m_calc_rate(m_params);
+  }
+  // Depending on the species population, reaction rate formula can evaluate
+  // to a negative value. Rather than having a formula include a conditional
+  // logic, we deal with it here.
+  if (m_rate < static_cast<reaction_rate_t>(0.0)) {
+    m_rate = static_cast<reaction_rate_t>(0.0);
+  }
+
+  return m_rate;
+}
+
+template <typename VD>
+inline void Reaction<VD>::set_products(const std::map<std::string, rdriver_t>& products)
+{
+  for( auto &e: products )
+      m_products.push_back( e.second );
 }
 #else
 template <typename VD>

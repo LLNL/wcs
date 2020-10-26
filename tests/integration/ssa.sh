@@ -20,11 +20,11 @@
 #   - Some tests rely on runing simulations and comparing the results against
 #     the past results of the same simulations.
 # - Setup Global test parameters
-#   - Defines two probems: one is simple and the other is complex
+#   - Defines two problems: one is simple and the other is complex
 #   - Multiple random seeds to use
 #   - SSA methods
 # - Define SSA tests for correctness, sampling, and performance.
-#   - Test correctnes by comparing a new tracing result with the reference one
+#   - Test correctness by comparing a new tracing result with the reference one
 #     and see if they differ. If so, there is likely an error.
 #   - Test if sampling results are consistent with the tracing results.
 #   - Test performance by measuring the wall clock time multiple times and
@@ -126,7 +126,11 @@ function compare_output () {
 
     for p in ${co_probs_to_compare}
     do
-        local co_prob=`basename ${p} | sed 's/\.graphml//'`
+        if [ ${file_format} == "graphml" ] ; then
+          local co_prob=`basename ${p} | sed 's/\.graphml//'`
+        elif [ ${file_format} == "sbml" ] ; then
+          local co_prob=`basename ${p} | sed 's/\.xml//'`
+        fi
         local co_prob_list="${co_prob_list}${co_prob} "
     done
 
@@ -360,9 +364,17 @@ echo "========================================================================"
 seeds="47 147 1147"
 methods="0 1 2"
 frag_sz=0
+file_format="graphml"
 
-prob_simple="${WCS_TEST_DIR}/problem/Gillespie/eq29-exprtk.graphml"
-prob_complex="${WCS_TEST_DIR}/problem/Birtwhistle/birtwistle.rate.graphml"
+if [ ${file_format} == "graphml" ] ; then
+  file_ext="graphml"
+  prob_simple="${WCS_TEST_DIR}/problem/Gillespie/eq29-exprtk.${file_ext}"
+elif [ ${file_format} == "sbml" ] ; then
+  file_ext="xml"
+  prob_simple="${WCS_TEST_DIR}/problem/Gillespie/eqn29-sbml.${file_ext}"
+fi
+
+prob_complex="${WCS_TEST_DIR}/problem/Birtwhistle/birtwistle.rate.${file_ext}"
 problems="${prob_simple} ${prob_complex}"
 
 
@@ -386,12 +398,14 @@ function sanity_checks () {
         fi
     done
 
-   local  compile_check=$(grep '#define WCS_HAS_EXPRTK' ${WCS_INSTALL_DIR}/include/wcs_config.hpp)
-    if [ "${compile_check}" == "" ] ; then
-        echo "These tests requires the 'WCS_WITH_EXPRTK=ON' cmake option set because"
-        echo "the reference results are produced with the binary compiled with it."
-        exit 1
-    fi
+   local  compile_check1=$(grep '#define WCS_HAS_EXPRTK' ${WCS_INSTALL_DIR}/include/wcs_config.hpp)
+   local  compile_check2=$(grep '#define WCS_HAS_SBML' ${WCS_INSTALL_DIR}/include/wcs_config.hpp)
+   if [ "${compile_check1}" == "" ] && [ "${compile_check2}" == "" ] ; then
+       echo "These tests requires the 'WCS_WITH_EXPRTK=ON' cmake option set or"
+       echo "WCS_WITH_SBML=ON because the reference results are produced with"
+       echo "the binary compiled with it."
+       exit 1
+   fi
 }
 
 ###############################################################################
@@ -413,7 +427,11 @@ function ssa_correctness () {
 
     for sc_p in ${problems}
     do
-        local sc_prob=`basename ${sc_p} | sed 's/\.graphml//'`
+        if [ ${file_format} == "graphml" ] ; then
+          local sc_prob=`basename ${sc_p} | sed 's/\.graphml//'`
+        elif [ ${file_format} == "sbml" ] ; then
+          local sc_prob=`basename ${sc_p} | sed 's/\.xml//'`
+        fi
 
         for sc_m in ${methods}
         do
@@ -421,7 +439,7 @@ function ssa_correctness () {
             do
                 local sc_of=${sc_tname}/${sc_prob}.m${sc_m}.s${sc_s}.i${sc_n_step}.txt
                 local sc_arg="-d -i ${sc_n_step} -m ${sc_m} -s ${sc_s} -o ${sc_of} -f ${frag_sz}"
-                echo "ssa ${sc_arg} ${sc_prob}.graphml"
+                echo "ssa ${sc_arg} ${sc_prob}.${file_ext}"
                 eval "${sc_exec} ${sc_arg} ${sc_p}"
                 echo ""
             done
@@ -459,7 +477,11 @@ function ssa_sampling () {
 
     for ss_p in ${prob_simple}
     do
-        local ss_prob=`basename ${ss_p} | sed 's/\.graphml//'`
+        if [ ${file_format} == "graphml" ] ; then
+          local ss_prob=`basename ${ss_p} | sed 's/\.graphml//'`
+        elif [ ${file_format} == "sbml" ] ; then
+          local ss_prob=`basename ${ss_p} | sed 's/\.xml//'`
+        fi
 
         for ss_m in ${methods}
         do
@@ -469,12 +491,12 @@ function ssa_sampling () {
                 local ss_arg
                 ss_of=${ss_tname}/${ss_prob}.m${ss_m}.s${ss_s}.i${ss_n_step}.r${ss_ismpl}.txt
                 ss_arg="-i ${ss_n_step} -m ${ss_m} -s ${ss_s} -o ${ss_of} -f ${frag_sz} -r ${ss_ismpl}"
-                echo "ssa ${ss_arg} ${ss_prob}.graphml"
+                echo "ssa ${ss_arg} ${ss_prob}.${file_ext}"
                 eval "${ss_exec} ${ss_arg} ${ss_p}" 2>&1
                 echo ""
                 ss_of=${ss_tname}/${ss_prob}.m${ss_m}.s${ss_s}.i${ss_n_step}.r${ss_tsmpl}.txt
                 ss_arg="-i ${ss_n_step} -m ${ss_m} -s ${ss_s} -o ${ss_of} -f ${frag_sz} -r ${ss_tsmpl}"
-                echo "ssa ${ss_arg} ${ss_prob}.graphml"
+                echo "ssa ${ss_arg} ${ss_prob}.${file_ext}"
                 eval "${ss_exec} ${ss_arg} ${ss_p}" 2>&1
                 echo ""
             done
@@ -514,12 +536,20 @@ function check_sample_file () {
     local cs_i=${4}     # sampling interval option used
     local cs_tdir="ssa_correctness" # tracing result dir
     local cs_sdir="ssa_sampling"   # sampling result dir
-    local cs_p=$(basename "${prob_simple}" | sed 's/\.graphml//')
+    if [ ${file_format} == "graphml" ] ; then
+      local cs_p=$(basename "${prob_simple}" | sed 's/\.graphml//')
+    elif [ ${file_format} == "sbml" ] ; then
+      local cs_p=$(basename "${prob_simple}" | sed 's/\.xml//')
+    fi
 
     if [ $# -eq 7 ] ; then
         cs_tdir=${5}
         cs_sdir=${6}
-        cs_p=$(basename "${7}" | sed 's/\.graphml//')
+        if [ ${file_format} == "graphml" ] ; then
+          cs_p=$(basename "${7}" | sed 's/\.graphml//')
+        elif [ ${file_format} == "sbml" ] ; then
+          cs_p=$(basename "${7}" | sed 's/\.xml//')
+        fi
     fi
 
     local cs_tfile=${cs_tdir}/${cs_p}.m${cs_m}.s${cs_s}.i${cs_n}.txt
@@ -617,7 +647,11 @@ function ssa_performance () {
         local sp_logf=${sp_tname}/log.m${sp_m}.i${sp_n_step}.txt
 
         local sp_p=${prob_complex}
-        local sp_prob=`basename ${sp_p} | sed 's/\.graphml//'`
+        if [ ${file_format} == "graphml" ] ; then
+          local sp_prob=`basename ${sp_p} | sed 's/\.graphml//'`
+        elif [ ${file_format} == "sbml" ] ; then
+          local sp_prob=`basename ${sp_p} | sed 's/\.xml//'`
+        fi
         local sp_n_measure=$(echo ${seeds} | awk -v nr=${sp_n_repeat} '{ print NF*nr; }')
 
         for sp_c in `seq 1 ${sp_n_repeat}`
@@ -625,12 +659,12 @@ function ssa_performance () {
             for sp_s in ${seeds}
             do
                 local sp_arg="-i ${sp_n_step} -m ${sp_m} -s ${sp_s}"
-                echo "ssa ${sp_arg} ${sp_prob}.graphml"
+                echo "ssa ${sp_arg} ${sp_prob}.${file_ext}"
                 eval "${sp_exec} ${sp_arg} ${sp_p}"
                 echo ""
                 local sp_of=${sp_tname}/${sp_prob}.m${sp_m}.s${sp_s}.i${sp_n_step}.c${sp_c}.tr.txt
                 local sp_arg_tr="${sp_arg} -f ${frag_sz} -d -o ${sp_of}"
-                echo "ssa ${sp_arg_tr} ${sp_prob}.graphml"
+                echo "ssa ${sp_arg_tr} ${sp_prob}.${file_ext}"
                 eval "${sp_exec} ${sp_arg_tr} ${sp_p}"
                 echo ""
             done

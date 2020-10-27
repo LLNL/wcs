@@ -319,11 +319,7 @@ inline void Reaction<VD>::set_products(const std::map<std::string, rdriver_t>& p
       m_products.push_back( e.second );
 }
 #else
-template <typename VD>
-inline void Reaction<VD>::set_rate_inputs(const std::map<std::string, rdriver_t>& species_involved)
-{
-  m_rate_inputs = ReactionBase::interpret_species_name(this->get_rate_formula(), species_involved);
-}
+#error "Must enable either ExprTk or SBML"
 #endif
 
 template <typename VD>

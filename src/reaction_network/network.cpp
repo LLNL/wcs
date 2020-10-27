@@ -54,6 +54,10 @@ void Network::load(const std::string filename)
 
 void Network::loadGraphML(const std::string graphml_filename)
 {
+  #if !defined(WCS_HAS_EXPRTK)
+  WCS_THROW("Must enable ExprTk for .graphml files.");
+  return;
+  #endif
   ::wcs::GraphFactory gfactory;
 
   if (!gfactory.read_graphml(graphml_filename)) {
@@ -114,6 +118,9 @@ void Network::loadSBML(const std::string sbml_filename)
 
 void Network::init()
 {
+  #if !defined(WCS_HAS_EXPRTK) && !defined(WCS_HAS_SBML)
+  WCS_THROW("Must enable either ExprTk or SBML.");
+  #endif
   const size_t num_vertices = get_num_vertices();
 
   m_reactions.reserve(num_vertices);
@@ -133,16 +140,14 @@ void Network::init()
         = std::is_same<directed_category, boost::bidirectional_tag>::value;
 
       const v_desc_t reaction = *vi;
-      // `involved_speices` include all the species involved in the reaction:
+      // `involved_species` include all the species involved in the reaction:
       // the rate-determining species as the reactants, the enzymes and the
       // inhibiters, as well as the products.
       // They may exclude products depending on how formula parsing is
       // implemented.
       s_involved_t involved_species;
 
-    #if defined(WCS_HAS_EXPRTK) || defined(WCS_HAS_SBML)
       s_involved_t products;
-    #endif // defined(WCS_HAS_EXPRTK) || defined(WCS_HAS_SBML)
 
       if constexpr (is_bidirectional) {
         for(const auto ei_in :
@@ -157,13 +162,8 @@ void Network::init()
       for(const auto ei_out :
           boost::make_iterator_range(boost::out_edges(reaction, m_graph))) {
         v_desc_t product = boost::target(ei_out, m_graph);
-    #if defined(WCS_HAS_EXPRTK) || defined(WCS_HAS_SBML)
         products.insert(std::make_pair(m_graph[product].get_label(),
                                        std::make_pair(product, 1)));
-    #else
-        involved_species.insert(std::make_pair(m_graph[product].get_label(),
-                                               std::make_pair(product, 1)));
-    #endif // defined(WCS_HAS_EXPRTK) || defined(WCS_HAS_SBML)
       }
 
       m_reactions.emplace_back(reaction);
@@ -172,9 +172,7 @@ void Network::init()
 
       r.set_rate_inputs(involved_species);
 
-    #if defined(WCS_HAS_EXPRTK) || defined(WCS_HAS_SBML)
       r.set_products(products);
-    #endif // defined(WCS_HAS_EXPRTK) || defined(WCS_HAS_SBML)
 
       set_reaction_rate(*vi);
     }
@@ -203,9 +201,6 @@ reaction_rate_t Network::set_reaction_rate(const Network::v_desc_t r) const
   std::vector<reaction_rate_t> params;
   // GG: rate constant is part of the Reaction object
   params.reserve(ri.size()+1u); // reserve space for species count and rate constant
-  #if !defined(WCS_HAS_EXPRTK) && !defined(WCS_HAS_SBML)
-  auto denominator = static_cast<stoic_t>(1);
-  #endif // !defined(WCS_HAS_EXPRTK) && !defined(WCS_HAS_SBML)
 
   for (auto driver : ri) { // add species counts here and the rate constant will be appended later
     const auto& s = m_graph[driver.first].checked_property<Species>();
@@ -222,24 +217,9 @@ reaction_rate_t Network::set_reaction_rate(const Network::v_desc_t r) const
         // not modified by the reaction (i.e., neither reactant nor product)
         params.push_back(static_cast<reaction_rate_t>(n));
     } else {
-    #if defined(WCS_HAS_EXPRTK) || defined(WCS_HAS_SBML)
       params.push_back(static_cast<reaction_rate_t>(n));
-    #else
-      for (stoic_t i = static_cast<stoic_t>(0); i < num_same ; ++i) {
-        denominator *= (num_same - i);
-        params.push_back(static_cast<reaction_rate_t>(n));
-        if (n <= static_cast<species_cnt_t>(0)) {
-          break;
-        }
-        -- n;
-      }
-    #endif // defined(WCS_HAS_EXPRTK) || defined(WCS_HAS_SBML)
     }
   }
-  #if !defined(WCS_HAS_EXPRTK) && !defined(WCS_HAS_SBML)
-  params.push_back(static_cast<reaction_rate_t>(1.0/
-                     static_cast<reaction_rate_t>(denominator)));
-  #endif
   return rprop.calc_rate(std::move(params));
 }
 

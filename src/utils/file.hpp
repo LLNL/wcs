@@ -28,8 +28,12 @@ namespace wcs {
 /** \addtogroup wcs_utils
  *  @{ */
 
+/// Split a path string into three components: parent dir, stem, and extension
 void extract_file_component(const std::string path, std::string& parent_dir,
                             std::string& stem, std::string& extension);
+
+/// Returns a new path string that has a stem appended with the given str
+std::string append_to_stem(const std::string path, const std::string str);
 
 /**@}*/
 } // end of namespace wcs

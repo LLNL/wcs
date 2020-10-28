@@ -176,7 +176,6 @@ void Network::init()
 void Network::set_reaction_rate(const Network::v_desc_t r,
                                 const wcs::reaction_rate_t rate) const
 {
-  using r_prop_t = wcs::Reaction<v_desc_t>;
   const auto& rv = m_graph[r]; // vertex (property) of the reaction
   auto& rp = rv.property<r_prop_t>(); // detailed vertex property data
   rp.set_rate(rate);
@@ -234,7 +233,6 @@ reaction_rate_t Network::set_reaction_rate(const Network::v_desc_t r) const
 
 reaction_rate_t Network::get_reaction_rate(const Network::v_desc_t r) const
 {
-  using r_prop_t = wcs::Reaction<v_desc_t>;
   const auto& rv = m_graph[r]; // vertex (property) of the reaction
   const auto& rp = rv.property<r_prop_t>(); // detailed vertex property data
   return rp.get_rate();
@@ -371,6 +369,25 @@ bool Network::check_reaction(const wcs::Network::v_desc_t r) const
   return true;
 }
 
+std::tuple<reaction_rate_t, reaction_rate_t, reaction_rate_t>
+Network::find_min_max_rate() const
+{
+  reaction_rate_t r_min = std::numeric_limits<reaction_rate_t>::max();
+  reaction_rate_t r_max = std::numeric_limits<reaction_rate_t>::min();
+  reaction_rate_t r_sum = static_cast<reaction_rate_t>(0);
+
+  for(const auto& vd : reaction_list()) {
+    const auto& rv = m_graph[vd]; // vertex (property) of the reaction
+    const auto& rp = rv.property<r_prop_t>(); // detailed vertex property data
+    const auto r = rp.get_rate();
+    r_min = std::min(r_min, r);
+    r_max = std::max(r_max, r);
+    r_sum += r;
+  }
+
+  return std::make_tuple(r_min, r_max, r_sum);
+}
+
 std::string Network::show_species_labels(const std::string title) const
 {
   std::string str(title);
@@ -410,8 +427,6 @@ std::string Network::show_species_counts() const
 
 std::string Network::show_reaction_rates() const
 {
-  using r_prop_t = wcs::Reaction<wcs::Network::v_desc_t>;
-
   std::string str;
   str.reserve(get_num_reactions()*15);
 

@@ -113,6 +113,8 @@ option(WCS_WITH_VTUNE
 
 option(WCS_WITH_ROSS "Use ROSS" OFF)
 
+option(WCS_WITH_METIS "Enable METIS library" OFF)
+
 option(WCS_WITH_UNIT_TESTING
   "Enable the unit testing framework (requires Catch2)" OFF)
 
@@ -293,6 +295,14 @@ if (WCS_WITH_ROSS)
   endif (ROSS_FOUND)
 endif (WCS_WITH_ROSS)
 
+if (WCS_WITH_METIS)
+  set(WCS_HAS_METIS FALSE)
+  find_package(Metis MODULE)
+  if (METIS_FOUND)
+    set(WCS_HAS_METIS TRUE)
+  endif (METIS_FOUND)
+endif (WCS_WITH_METIS)
+
 
 if (WCS_WITH_UNIT_TESTING)
   include(SetupCatch2)
@@ -366,6 +376,11 @@ if (WCS_HAS_VTUNE)
   target_include_directories(wcs SYSTEM PUBLIC ${VTUNE_INCLUDE_PATH})
 endif ()
 
+if (WCS_HAS_METIS)
+  target_link_libraries(wcs PUBLIC METIS::METIS)
+  target_include_directories(wcs SYSTEM PUBLIC ${METIS_INCLUDE_DIR})
+endif (WCS_HAS_METIS)
+
 if (WCS_WITH_UNIT_TESTING)
   add_dependencies(wcs CATCH2)
   target_include_directories(wcs PUBLIC
@@ -425,6 +440,10 @@ target_include_directories(partition-bin PUBLIC
   $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}>
   $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/src>
   $<INSTALL_INTERFACE:${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_INCLUDEDIR}>)
+
+if (WCS_HAS_METIS)
+  target_include_directories(partition-bin SYSTEM PUBLIC ${METIS_INCLUDE_DIR})
+endif (WCS_HAS_METIS)
 
 target_link_libraries(partition-bin PRIVATE wcs ${LIB_FILESYSTEM})
 set_target_properties(partition-bin PROPERTIES OUTPUT_NAME partition)
@@ -701,7 +720,8 @@ append_str_tf(_str
   WCS_HAS_CATCH2
   WCS_HAS_VTUNE
   WCS_HAS_DOXYGEN
-  WCS_HAS_ROSS)
+  WCS_HAS_ROSS
+  WCS_HAS_METIS)
 string(APPEND _str
   "\n== End WCS Configuration Summary ==\n")
 

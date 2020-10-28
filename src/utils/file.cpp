@@ -65,5 +65,14 @@ void extract_file_component(const std::string path,
 #endif
 }
 
+std::string append_to_stem(const std::string path, const std::string str)
+{
+  std::string parent_dir;
+  std::string stem;
+  std::string ext;
+  extract_file_component(path, parent_dir, stem, ext);
+  return (parent_dir + stem + str + ext);
+}
+
 /**@}*/
 } // end of namespace wcs

@@ -11,7 +11,6 @@ set_full_path(THIS_DIR_SOURCES
 add_subdirectory(reaction_network)
 add_subdirectory(sim_methods)
 add_subdirectory(utils)
-add_subdirectory(partition)
 
 # Propagate the files up the tree
 set(WCS_HEADERS "${WCS_HEADERS}" "${THIS_DIR_HEADERS}" PARENT_SCOPE)

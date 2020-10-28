@@ -26,7 +26,6 @@
 
 #include <string>
 #include <unordered_map>
-#include <tuple>
 #include "bgl.hpp"
 #include "reaction_network/species.hpp"
 #include "reaction_network/reaction.hpp"
@@ -65,16 +64,14 @@ class Network {
   using vertex_type = v_prop_t::vertex_type;
   using v_label_t = std::string;
 
-  /// Type of the species name
+  // Type of the species name
   using s_label_t = v_label_t;
-  /// reaction driver type, std::pair<v_desc_t, stoic_t>
+  // reaction driver type, std::pair<v_desc_t, stoic_t>
   using rdriver_t = Reaction<v_desc_t>::rdriver_t;
-  /// Type of the map of species involve in a reaction
+  // Type of the map of species involve in a reaction
   using s_involved_t = std::map<s_label_t, rdriver_t>;
-  /// Reaction descriptor type
+  // Reaction descriptor type
   using r_desc_t = std::pair<v_desc_t, s_involved_t>;
-  /// Reaction property type
-  using r_prop_t = wcs::Reaction<v_desc_t>;
 
   using rand_access
     = typename boost::detail::is_random_access<typename graph_t::vertex_list_selector>::type;
@@ -112,8 +109,6 @@ class Network {
   static sim_time_t get_etime_ulimit();
 
   bool check_reaction(const v_desc_t r) const;
-  std::tuple<reaction_rate_t, reaction_rate_t, reaction_rate_t>
-    find_min_max_rate() const;
 
   std::string show_species_labels(const std::string title="Species: ") const;
   std::string show_reaction_labels(const std::string title="Reaction:") const;

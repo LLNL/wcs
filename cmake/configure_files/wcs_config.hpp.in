@@ -17,7 +17,6 @@
 #cmakedefine WCS_HAS_CATCH2
 #cmakedefine WCS_HAS_VTUNE
 #cmakedefine WCS_HAS_ROSS
-#cmakedefine WCS_HAS_METIS
 #cmakedefine WCS_HAS_STD_FILESYSTEM
 
 #cmakedefine WCS_VERTEX_LIST_TYPE @WCS_VERTEX_LIST_TYPE@

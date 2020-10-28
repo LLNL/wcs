@@ -13,7 +13,7 @@
 #include "utils/exception.hpp"
 
 namespace wcs {
-/** \addtogroup wcs_utils
+/** \addtogroup wcs_partition
  *  @{ */
 
 Metis_Params::Metis_Params()

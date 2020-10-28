@@ -8,8 +8,8 @@
  *                                                                            *
  ******************************************************************************/
 
-#ifndef  __WCS_METIS_PARTITION__
-#define  __WCS_METIS_PARTITION__
+#ifndef  __WCS_PARTITION_METIS_PARTITION__
+#define  __WCS_PARTITION_METIS_PARTITION__
 
 #if defined(WCS_HAS_CONFIG)
 #include "wcs_config.hpp"
@@ -29,7 +29,7 @@
 #include "partition/metis_params.hpp"
 
 namespace wcs {
-/** \addtogroup wcs_utils
+/** \addtogroup wcs_partition
  *  @{ */
 
 class Metis_Partition {
@@ -122,4 +122,4 @@ class Metis_Partition {
 /**@}*/
 } // end of namespace wcs
 #endif // defined(WCS_HAS_CONFIG)
-#endif //  __WCS_METIS_PARTITION__
+#endif //  __WCS_PARTITION_METIS_PARTITION__

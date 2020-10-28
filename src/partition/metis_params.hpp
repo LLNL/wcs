@@ -8,8 +8,8 @@
  *                                                                            *
  ******************************************************************************/
 
-#ifndef  __WCS_METIS_PARAMS__
-#define  __WCS_METIS_PARAMS__
+#ifndef  __WCS_PARTITION_METIS_PARAMS__
+#define  __WCS_PARTITION_METIS_PARAMS__
 
 #if defined(WCS_HAS_CONFIG)
 #include "wcs_config.hpp"
@@ -24,7 +24,7 @@
 #include "reaction_network/network.hpp"
 
 namespace wcs {
-/** \addtogroup wcs_utils
+/** \addtogroup wcs_partition
  *  @{ */
 
 struct Metis_Params {
@@ -77,4 +77,4 @@ struct Metis_Params {
 /**@}*/
 } // end of namespace wcs
 #endif // defined(WCS_HAS_METIS)
-#endif //  __WCS_METIS_PARAMS__
+#endif //  __WCS_PARTITION_METIS_PARAMS__

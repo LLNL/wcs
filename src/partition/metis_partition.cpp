@@ -23,7 +23,7 @@
 #include "utils/exception.hpp"
 
 namespace wcs {
-/** \addtogroup wcs_utils
+/** \addtogroup wcs_partition
  *  @{ */
 
 Metis_Partition::Metis_Partition(const Metis_Params& mp)

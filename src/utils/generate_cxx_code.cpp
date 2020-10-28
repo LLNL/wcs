@@ -27,7 +27,6 @@
 
 
 #include <string>
-#include <filesystem>
 
 //#include <stdio.h>
 
@@ -279,9 +278,11 @@ const std::string  wcs::generate_cxx_code::generate_code(const LIBSBML_CPP_NAMES
   // Put reactions in a map
   for (unsigned int ic = 0; ic < reactionsSize; ic++) {
     const LIBSBML_CPP_NAMESPACE::Reaction& reaction = *(reaction_list->get(ic));
+    if (!reaction.isSetKineticLaw()) {
+      WCS_THROW("The formula of the reaction " + reaction.getIdAttribute() + " should be set.");
+    }
     model_reactions_set.insert(std::make_pair(reaction.getIdAttribute(),
                                               reaction.getKineticLaw()->getMath()));
-
   }
 
   // Put initial assignments in map
@@ -666,6 +667,7 @@ const std::string  wcs::generate_cxx_code::generate_code(const LIBSBML_CPP_NAMES
     genfile << "extern \"C\" " << Real << " wcs__rate_" << reaction.getIdAttribute()
               << "(const std::vector<" << Real <<">& __input) {\n";
     genfile << "  int __ii=0;\n";
+    //genfile << "printf(\" Number of input arguments of %s: %u \\n\", \"" << reaction.getIdAttribute() << "\", __input.size());\n";
     //genfile << "printf(\"nfunction: %s \\n\", \"" << reaction.getIdAttribute() << "\");\n";
     std::vector<std::string> dependencies_set
       = get_all_dependencies(*reaction.getKineticLaw()->getMath(),
@@ -808,8 +810,12 @@ const std::string  wcs::generate_cxx_code::compile_code(const std::string genera
   std::string lib_filename1 = stem + ".o";
   std::string lib_filename2 = stem + ".so";
 
-  std::string system1 = std::string(CMAKE_CXX_COMPILER) + " -std=c++17 -g -fPIC " + CMAKE_CXX_SHARED_LIBRARY_FLAGS + " -c " + generated_filename;
-  std::string system2 = std::string(CMAKE_CXX_COMPILER) + " -std=c++17 -g -fPIC " + CMAKE_CXX_SHARED_LIBRARY_FLAGS  + " -shared -export-dynamic " + lib_filename1 + " -o " + lib_filename2;
+  std::string system1 = std::string(CMAKE_CXX_COMPILER) + " " + CMAKE_CXX_FLAGS +
+  " -std=c++17 -g -fPIC " + CMAKE_CXX_SHARED_LIBRARY_FLAGS + " -c " + generated_filename;
+
+  std::string system2 = std::string(CMAKE_CXX_COMPILER) + " " + CMAKE_CXX_FLAGS +
+  " -std=c++17 -g -fPIC " + CMAKE_CXX_SHARED_LIBRARY_FLAGS  + " -shared -export-dynamic "
+  + lib_filename1 + " -o " + lib_filename2;
 
   system(system1.c_str());
   system(system2.c_str());

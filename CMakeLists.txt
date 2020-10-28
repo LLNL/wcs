@@ -466,7 +466,7 @@ if (WCS_HAS_SBML)
   target_compile_definitions(generate_cxx_code-bin PRIVATE WCS_HAS_CONFIG)
   target_include_directories(generate_cxx_code-bin
     PRIVATE $<TARGET_PROPERTY:wcs,INTERFACE_INCLUDE_DIRECTORIES> ${SBML_INCLUDE_DIR})
-  target_link_libraries(generate_cxx_code-bin PRIVATE SBML::SBML wcs stdc++fs)
+  target_link_libraries(generate_cxx_code-bin PRIVATE SBML::SBML wcs ${LIB_FILESYSTEM})
   set_target_properties(generate_cxx_code-bin PROPERTIES OUTPUT_NAME generate_cxx_code)
   list(APPEND WCS_EXEC_TARGETS generate_cxx_code-bin)
 endif (WCS_HAS_SBML)

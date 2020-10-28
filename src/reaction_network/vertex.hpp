@@ -74,8 +74,9 @@ class Vertex {
 
   template <typename G>
   Vertex(const LIBSBML_CPP_NAMESPACE::Model& model, const
-   LIBSBML_CPP_NAMESPACE::Reaction& reaction, const G& g, const
-  std::function<reaction_rate_t (const std::vector<reaction_rate_t>&)>&  reaction_function_rate);
+    LIBSBML_CPP_NAMESPACE::Reaction& reaction, const G& g, const
+    std::function<reaction_rate_t (const std::vector<reaction_rate_t>&)>&
+    reaction_function_rate);
   #endif // defined(WCS_HAS_SBML)
 
   virtual ~Vertex();
@@ -173,7 +174,8 @@ Vertex::Vertex(
   const LIBSBML_CPP_NAMESPACE::Model& model,
   const LIBSBML_CPP_NAMESPACE::Reaction& reaction,
   const G& g,
-  const std::function<reaction_rate_t (const std::vector<reaction_rate_t>&)>&  reaction_function_rate
+  const std::function<reaction_rate_t (const std::vector<reaction_rate_t>&)>&
+  reaction_function_rate
   )
 : m_type(_reaction_),
   m_typeid(static_cast<int>(_reaction_)),
@@ -188,9 +190,13 @@ Vertex::Vertex(
   typename reaction_parameters::const_iterator mpit;
   reaction_parameters mpset;
   reaction_parameters pset;
+  std::string formula;
 
-  std::string formula = SBML_formulaToString(reaction.getKineticLaw()->getMath());
-
+  if (reaction.isSetKineticLaw()) {
+    formula = SBML_formulaToString(reaction.getKineticLaw()->getMath());
+  } else {
+    WCS_THROW("The formula of the reaction " + reaction.getIdAttribute() + " should be set.");
+  }
   //remove spaces from formula
   formula.erase(remove(formula.begin(), formula.end(), ' '), formula.end());
 

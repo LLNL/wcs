@@ -242,41 +242,31 @@ inline void Reaction<VD>::set_rate_inputs(const std::map<std::string, rdriver_t>
     var_names_ord[x.second] = x.first;
   }
 
-    //put first parameters in formula taking input
-    std::vector<std::string>::iterator it;
-    size_t j = 0;
-    for (it = var_names_ord.begin(); it < var_names_ord.end(); it++){
-      it_species = species_involved.find(*it);
-      if (it_species != species_involved.end()){
-        //new_species_involved.insert(std::make_pair(it_species->first, it_species->second));
-        std::string var_str = it_species->first;
-        m_rate_inputs[j] = it_species->second;
-        j++;
-        var_names.erase(*it);
-      }
+  //put first parameters in formula taking input
+  std::vector<std::string>::iterator it;
+  size_t j = 0;
+  for (it = var_names_ord.begin(); it < var_names_ord.end(); it++){
+    it_species = species_involved.find(*it);
+    if (it_species != species_involved.end()){
+      std::string var_str = it_species->first;
+      m_rate_inputs[j] = it_species->second;
+      j++;
+      var_names.erase(*it);
     }
-    //put rest parameters (not in formula) taking input
-    for (auto& x: var_names) {
-      it_species = species_involved.find(x);
-      if (it_species != species_involved.end()){
-        //new_species_involved.insert(std::make_pair(it_species->first, it_species->second));
-        std::string var_str = it_species->first;
-        m_rate_inputs[j] = it_species->second;
-        j++;
-      }
+  }
+  //put rest parameters (not in formula) taking input
+  for (auto& x: var_names) {
+    it_species = species_involved.find(x);
+    if (it_species != species_involved.end()){
+      std::string var_str = it_species->first;
+      m_rate_inputs[j] = it_species->second;
+      j++;
     }
+  }
 /*    for (auto& x: species_involved) {
      std::cout << " " << x.first << " ,";
     }
     std::cout << '\n';  */
-   /* i = 0;
-    for(auto &e : new_species_involved ) {
-      std::string var_str = e.first;
-      std::cout << " " << e.first << " ,";
-      m_rate_inputs[i] = e.second;
-      i++;
-    }
-    std::cout << '\n';*/
 
 }
 

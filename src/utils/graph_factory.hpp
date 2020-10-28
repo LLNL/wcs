@@ -15,7 +15,7 @@
 #include <unordered_map>
 #include <type_traits>
 #include <dlfcn.h> //dlopen
-#include <filesystem>
+#include "utils/file.hpp"
 
 #if !defined(__clang__) && defined(__GNUC__)
 #pragma GCC diagnostic push
@@ -76,13 +76,14 @@ class GraphFactory {
   GraphFactory(const GraphFactory &o);
   const graph_t &graph() const;
   bool read_graphml(const std::string &ifn);
-  /** Export the internal adjacency list to g, which might be of a differen
+  /** Export the internal adjacency list to g, which might be of a different
       type in terms of the random accessibility but of a compatible one (G). */
   template<typename G> void copy_to(G& g) const;
 
   #if defined(WCS_HAS_SBML)
   template<typename G>
-  void convert_to(const LIBSBML_CPP_NAMESPACE::Model& model, G& g, const std::string library_file) const;
+  void convert_to(const LIBSBML_CPP_NAMESPACE::Model& model, G& g,
+    const std::string library_file) const;
   #endif // defined(WCS_HAS_SBML)
 
   template<typename G>
@@ -180,7 +181,9 @@ template<typename G> void GraphFactory::copy_to(G& g) const
 #if defined(WCS_HAS_SBML)
 /// Create a Boost graph out of an SBML model
 template<typename G> void
-GraphFactory::convert_to(const LIBSBML_CPP_NAMESPACE::Model& model, G& g, const std::string library_file) const
+GraphFactory::convert_to(
+  const LIBSBML_CPP_NAMESPACE::Model& model, G& g,
+  const std::string library_file) const
 {
   using v_new_desc_t = typename boost::graph_traits<G>::vertex_descriptor;
   using e_new_desc_t = typename boost::graph_traits<G>::edge_descriptor;
@@ -261,7 +264,7 @@ GraphFactory::convert_to(const LIBSBML_CPP_NAMESPACE::Model& model, G& g, const 
     }
 
     std::function<reaction_rate_t(const std::vector<reaction_rate_t>&)> f_rate =
-    reinterpret_cast<rate_function_pointer>(reaction_function_rate);
+      reinterpret_cast<rate_function_pointer>(reaction_function_rate);
     wcs::Vertex v(model, reaction, g, f_rate);
     #else
     wcs::Vertex v(model, reaction, g, NULL);
@@ -428,8 +431,10 @@ GraphFactory::convert_to(const LIBSBML_CPP_NAMESPACE::Model& model, G& g, const 
   }
   #if !defined(WCS_HAS_EXPRTK)
   // delete .o and .so files
-  const auto fn = std::filesystem::path(library_file);
-  std::string stem = fn.stem();
+  std::string dir;
+  std::string stem;
+  std::string ext;
+  extract_file_component(library_file, dir, stem, ext);
   std::string lib_filename1 = stem + ".o";
   std::string system1 = " rm " + library_file + " " + lib_filename1;
   system(system1.c_str());

@@ -20,7 +20,7 @@
 #include "utils/generate_cxx_code.hpp"
 
 #if defined(WCS_HAS_SBML)
-//#include <iostream>
+#include <iostream>
 
 #include <sbml/SBMLTypes.h>
 #include <sbml/common/extern.h>

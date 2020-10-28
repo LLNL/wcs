@@ -18,7 +18,7 @@
 #include <getopt.h>
 #include <boost/filesystem.hpp>
 #include "utils/write_graphviz.hpp"
-#include "utils/partition.hpp"
+#include "partition/partition.hpp"
 #include "utils/file.hpp"
 #include <fstream>
 

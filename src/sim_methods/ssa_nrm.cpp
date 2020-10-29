@@ -337,7 +337,6 @@ void SSA_NRM::forward_des(SSA_NRM::priority_t firing)
    digest.m_reaction_fired = firing.second;
    
    fire_reaction(digest);
-   record(firing.second);
    update_reactions(firing, digest.m_reactions_affected, digest.m_reaction_times);
 }
 
@@ -352,6 +351,8 @@ void SSA_NRM::backward_des(SSA_NRM::priority_t firing)
 
 void SSA_NRM::commit_des()
 {
+   auto digest = m_digests.front();
+   record(digest.m_sim_time, digest.m_reaction_fired);
    m_digests.pop_front();
 }
 

@@ -24,6 +24,8 @@
 
 #if defined(WCS_HAS_METIS)
 #include "partition/metis_partition.hpp"
+#else
+using idx_t = int;
 #endif // defined(WCS_HAS_METIS)
 
 

@@ -71,8 +71,6 @@ class Network {
   using rdriver_t = Reaction<v_desc_t>::rdriver_t;
   /// Type of the map of species involve in a reaction
   using s_involved_t = std::map<s_label_t, rdriver_t>;
-  /// Reaction descriptor type
-  using r_desc_t = std::pair<v_desc_t, s_involved_t>;
   /// Reaction property type
   using r_prop_t = wcs::Reaction<v_desc_t>;
 
@@ -84,6 +82,9 @@ class Network {
   /** The type of the list of species. This is chosen for the memory efficiency
       than for the lookup performance. */
   using species_list_t  = std::vector<v_desc_t>;
+
+  /// Map a BGL vertex descriptor to the reaction index
+  using map_desc2idx_t = std::unordered_map<v_desc_t, v_idx_t>;
 
  public:
   /// Load an input Graph ML file
@@ -120,9 +121,19 @@ class Network {
   std::string show_species_counts() const;
   std::string show_reaction_rates() const;
 
+  const map_desc2idx_t& get_reaction_map() const;
+  const map_desc2idx_t& get_species_map() const;
+
+  v_idx_t reaction_d2i(v_desc_t d) const;
+  v_desc_t reaction_i2d(v_idx_t i) const;
+  v_idx_t species_d2i(v_desc_t d) const;
+  v_desc_t species_i2d(v_idx_t i) const;
+
+
  protected:
   /// Sort the species list by the label (in lexicogrphical order)
   void sort_species();
+  void build_index_maps();
   void loadGraphML(const std::string graphml_filename);
   void loadSBML(const std::string sbml_filename);
 
@@ -135,6 +146,12 @@ class Network {
 
   /// List of the BGL descriptors of species type vertices
   species_list_t m_species;
+
+  /// Map a BGL vertex descriptor to the reaction index
+  map_desc2idx_t m_r_idx_map;
+
+  /// Map a BGL vertex descriptor to the species index
+  map_desc2idx_t m_s_idx_map;
 
   /**
    * The upper limit of the delay period for an active reaction to fire beyond

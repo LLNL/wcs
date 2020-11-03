@@ -13,6 +13,7 @@
 #include <list>
 #include <tuple>
 #include <iostream>
+#include <unordered_map>
 #include "utils/trajectory.hpp"
 
 namespace wcs {
@@ -43,7 +44,12 @@ public:
   using sample_t = std::tuple<sim_time_t, s_sample_t, r_sample_t>;
   using samples_t = std::list<sample_t>;
 
-  SamplesSSA();
+  SamplesSSA(const std::shared_ptr<wcs::Network>& net_ptr);
+  SamplesSSA(const SamplesSSA& other) = default;
+  SamplesSSA(SamplesSSA&& other) = default;
+  SamplesSSA& operator=(const SamplesSSA& other) = default;
+  SamplesSSA& operator=(SamplesSSA&& other) = default;
+
   ~SamplesSSA() override;
 
   void set_time_interval(const sim_time_t t_interval,
@@ -51,6 +57,7 @@ public:
   void set_iter_interval(const sim_iter_t i_interval,
                          const sim_iter_t i_start = static_cast<sim_iter_t>(0u));
 
+  void initialize() override;
   void record_step(const sim_time_t t, const r_desc_t r) override;
   void finalize() override;
 
@@ -58,20 +65,15 @@ protected:
   using s_map_t = typename std::unordered_map<s_desc_t, s_diff_t>;
   using r_map_t = typename std::unordered_map<r_desc_t, r_cnt_t>;
 
-  void build_index_maps() override;
   void take_sample();
   size_t estimate_tmpstr_size() const;
   std::ostream& write_header(std::ostream& os) const override;
-  void count_species(const s_sample_t& ss);
-  void count_reactions(const r_sample_t& ss);
   std::ostream& print_stats(const sim_time_t sim_time,
                             std::string& tmpstr, std::ostream& os) const;
   std::ostream& write(std::ostream& os) override;
   void flush() override;
 
 protected:
-  /// Map a BGL vertex descriptor to the reaction index
-  std::unordered_map<r_desc_t, size_t> m_r_id_map;
   /**
     * Temporary data structure to keep track of the species count differences
     * over the current sampling interval

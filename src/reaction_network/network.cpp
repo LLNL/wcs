@@ -170,6 +170,7 @@ void Network::init()
   }
 
   sort_species();
+  build_index_maps();
 }
 
 /// Overwrite the reaction rate to a given value
@@ -437,5 +438,62 @@ std::string Network::show_reaction_rates() const
   }
   return str;
 }
+
+/**
+ * Build the maps from the vertex descriptor to the index for species and
+ * reactions respectively.
+ */
+void Network::build_index_maps()
+{
+  { // build a map from the vertex descriptor and the index for species
+    m_s_idx_map.clear();
+    m_s_idx_map.reserve(m_species.size());
+
+    v_idx_t sidx = static_cast<v_idx_t>(0u);
+    for (const auto& sd : m_species) {
+      m_s_idx_map[sd] = sidx++;
+    }
+  }
+  { // build a map from the vertex descriptor and the index for reactions
+    m_r_idx_map.clear();
+    m_r_idx_map.reserve(m_reactions.size());
+
+    v_idx_t ridx = static_cast<v_idx_t>(0u);
+    for (const auto& rd : m_reactions) {
+      m_r_idx_map[rd] = ridx++;
+    }
+  }
+}
+
+const Network::map_desc2idx_t& Network::get_reaction_map() const
+{
+  return m_r_idx_map;
+}
+
+const Network::map_desc2idx_t& Network::get_species_map() const
+{
+  return m_s_idx_map;
+}
+
+v_idx_t Network::reaction_d2i(v_desc_t d) const
+{
+  return m_r_idx_map.at(d);
+}
+
+Network::v_desc_t Network::reaction_i2d(v_idx_t i) const
+{
+  return m_reactions.at(i);
+}
+
+v_idx_t Network::species_d2i(v_desc_t d) const
+{
+  return m_s_idx_map.at(d);
+}
+
+Network::v_desc_t Network::species_i2d(v_idx_t i) const
+{
+  return m_species.at(i);
+}
+
 /**@}*/
 } // end of namespace wcs

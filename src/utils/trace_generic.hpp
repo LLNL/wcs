@@ -24,12 +24,17 @@ public:
   using tentry_t = typename std::pair<sim_time_t, cnt_updates_t>;
   using trace_t = typename std::list<tentry_t>;
 
+  TraceGeneric(const std::shared_ptr<wcs::Network>& net_ptr);
+  TraceGeneric(const TraceGeneric& other) = default;
+  TraceGeneric(TraceGeneric&& other) = default;
+  TraceGeneric& operator=(const TraceGeneric& other) = default;
+  TraceGeneric& operator=(TraceGeneric&& other) = default;
+
   ~TraceGeneric() override;
   void record_step(const sim_time_t t, cnt_updates_t&& updates) override;
   void finalize() override;
 
 protected:
-  void build_index_maps() override;
   size_t estimate_tmpstr_size() const;
   std::ostream& write_header(std::ostream& os) const override;
   std::ostream& print_stats(const sim_time_t sim_time,

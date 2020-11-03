@@ -23,14 +23,19 @@ public:
   using tentry_t = typename std::pair<sim_time_t, r_desc_t>;
   using trace_t = typename std::list<tentry_t>;
 
+  TraceSSA(const std::shared_ptr<wcs::Network>& net_ptr);
+  TraceSSA(const TraceSSA& other) = default;
+  TraceSSA(TraceSSA&& other) = default;
+  TraceSSA& operator=(const TraceSSA& other) = default;
+  TraceSSA& operator=(TraceSSA&& other) = default;
+
   ~TraceSSA() override;
+  void initialize() override;
   void record_step(const sim_time_t t, const r_desc_t r) override;
   void finalize() override;
 
 protected:
-  void build_index_maps() override;
   std::ostream& write_header(std::ostream& os) const override;
-  void count_reaction(r_desc_t r);
   size_t estimate_tmpstr_size() const;
   std::ostream& print_stats(const sim_time_t sim_time,
                             const std::string rlabel,
@@ -43,10 +48,6 @@ protected:
   trace_t m_trace;
   /// Show how many times each reaction fires
   std::vector<r_cnt_t> m_reaction_counts;
-  /// Map a BGL vertex descriptor to the reaction index
-  std::unordered_map<r_desc_t, r_idx_t> m_r_id_map;
-  /// Map a reaction index to a BGL vertex descriptor
-  std::vector<r_desc_t> m_r_desc_map;
 };
 
 /**@}*/

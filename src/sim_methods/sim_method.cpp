@@ -16,14 +16,18 @@ namespace wcs {
 /** \addtogroup wcs_reaction_network
  *  @{ */
 
-Sim_Method::Sim_Method()
-: m_net_ptr(nullptr),
+Sim_Method::Sim_Method(const std::shared_ptr<wcs::Network>& net_ptr) try
+: m_net_ptr(net_ptr),
   m_max_iter(static_cast<sim_iter_t>(0u)),
   m_max_time(static_cast<sim_time_t>(0)),
   m_sim_iter(static_cast<sim_iter_t>(0u)),
   m_sim_time(static_cast<sim_time_t>(0)),
   m_recording(false)
 {
+  if (!m_net_ptr) {
+    WCS_THROW("Invalid pointer to the reaction network.");
+  }
+
   using directed_category
     = typename boost::graph_traits<wcs::Network::graph_t>::directed_category;
 
@@ -33,6 +37,9 @@ Sim_Method::Sim_Method()
   if constexpr (!is_bidirectional) {
     WCS_THROW("Cannot get species population without in-edges.");
   }
+}
+catch (const std::exception& e) {
+  WCS_THROW("Invalid pointer to the reaction network.");
 }
 
 Sim_Method::~Sim_Method() {}
@@ -46,7 +53,7 @@ void Sim_Method::unset_recording()
 void Sim_Method::initialize_recording(const std::shared_ptr<wcs::Network>& net_ptr)
 { // record initial state of the network
   if (m_recording) {
-    m_trajectory->initialize(m_net_ptr);
+    m_trajectory->initialize();
   }
 }
 

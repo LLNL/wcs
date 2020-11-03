@@ -334,7 +334,6 @@ int main (int argc, char* argv[])
 
 void wcs_init(wcs_state *s, tw_lp *lp)
 {
-   s->ssa->init_des(s->net_ptr, lp->gid+147); //TODO: fill with seed from command line
 }
 
 void wcs_event(wcs_state *s, tw_bf *bf, wcs_message *msg, tw_lp *lp)

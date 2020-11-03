@@ -62,9 +62,6 @@ public:
   /// Main loop of SSA
   std::pair<sim_iter_t, sim_time_t> run() override;
 
-  void init_des(std::shared_ptr<wcs::Network>& net_ptr,
-                const unsigned rng_seed);
-   
  #if defined(WCS_HAS_ROSS)
   void backward(revent_t& evt);
 

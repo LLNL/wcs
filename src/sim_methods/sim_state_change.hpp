@@ -28,6 +28,7 @@ struct Sim_State_Change {
    *  firing reaction */
   using affected_reactions_t = std::set<v_desc_t>;
   using reaction_times_t = std::vector<std::pair<v_desc_t, sim_time_t> >;
+  using revent_t = std::pair<sim_time_t, v_desc_t>;
 
   sim_time_t m_sim_time; ///< Current simulation time
   v_desc_t m_reaction_fired;
@@ -52,6 +53,15 @@ struct Sim_State_Change {
 
   /// Serialized RNG states
   std::vector<char> m_rng_state;
+
+  Sim_State_Change(const revent_t& firing)
+  : m_sim_time(firing.first), m_reaction_fired(firing.second) {}
+
+  Sim_State_Change() = default;
+  Sim_State_Change(const Sim_State_Change& other) = default;
+  Sim_State_Change(Sim_State_Change&& other) = default;
+  Sim_State_Change& operator=(const Sim_State_Change& other) = default;
+  Sim_State_Change& operator=(Sim_State_Change&& other) = default;
 
   void clear() {
     m_sim_time = wcs::Network::get_etime_ulimit();

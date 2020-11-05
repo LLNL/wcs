@@ -301,38 +301,45 @@ void SSA_NRM::load_rgen_state(const Sim_State_Change& digest)
 }
 
 
-Sim_Method::result_t SSA_NRM::schedule()
+Sim_Method::result_t SSA_NRM::schedule(revent_t& evt)
 {
-  if (m_heap.empty()) { // no reaction possible
+  if (BOOST_UNLIKELY(m_heap.empty())) { // no reaction possible
     std::cerr << "No reaction exists." << std::endl;
     return Empty;
   }
 
-  // Determine the time when a next reaction to occur
-  const sim_time_t t = get_reaction_time();
+  evt = choose_reaction();
 
-  if (t >= wcs::Network::get_etime_ulimit()) {
+  if (BOOST_UNLIKELY(evt.first > m_max_time)) {
     std::cerr << "No more reaction can fire." << std::endl;
     return Inactive;
   }
-  m_sim_time = t; // Scheduling a reaction event
 
   return Success;
 }
 
 
-Sim_Method::result_t SSA_NRM::forward(Sim_State_Change& digest)
+bool SSA_NRM::forward(const revent_t firing)
 {
+  const auto& t = firing.first;
+
+  if (BOOST_UNLIKELY((m_sim_iter >= m_max_iter) || (t > m_max_time))) {
+    return false; // do not continue simulation
+  }
+  ++ m_sim_iter;
+  m_sim_time = t;
+
  #if defined(WCS_HAS_ROSS)
+  m_digests.emplace_back(firing);
+  auto& digest = m_digests.back();
+
+  // Backup RNG state
   save_rgen_state(digest);
-  digest.m_sim_time = m_sim_time;
+  // Time of this reaction
+ #else
+  Sim_State_Change digest(firing);
  #endif // defined(WCS_HAS_ROSS)
 
-  // Determine the next reaction and the time when it occurs
-  const auto firing = choose_reaction();
-
-  // The BGL vertex descriptor of the the reaction being fired
-  digest.m_reaction_fired = firing.second;
 
   // Execute the reaction, updating species counts
   Sim_Method::fire_reaction(digest);
@@ -342,10 +349,10 @@ Sim_Method::result_t SSA_NRM::forward(Sim_State_Change& digest)
 
  #if !defined(WCS_HAS_ROSS)
   // With ROSS, tracing and sampling are moved to process at commit time
-  record(digest.m_reaction_fired);
+  record(firing.second);
  #endif // defined(WCS_HAS_ROSS)
 
-  return schedule();
+  return true;
 }
 
 
@@ -374,8 +381,8 @@ void SSA_NRM::record_first_n(const sim_iter_t num)
 
   for (; it != m_digests.end(); ++it) {
     if (i >= num) break;
-
     record(it->m_sim_time, it->m_reaction_fired);
+    i ++;
   }
   m_digests.erase(m_digests.begin(), it);
 }
@@ -384,16 +391,15 @@ void SSA_NRM::record_first_n(const sim_iter_t num)
 
 std::pair<sim_iter_t, sim_time_t> SSA_NRM::run()
 {
-  Sim_Method::result_t result = schedule();
-  if (result != Success) {
+  priority_t next_reaction;
+
+  if (schedule(next_reaction) != Success) {
     WCS_THROW("Not able to schedule any reaction event!");
   }
 
  #if defined(WCS_HAS_ROSS)
-  for (; (m_sim_iter < m_max_iter) && (m_sim_time < m_max_time); ++ m_sim_iter) {
-    m_digests.emplace_back();
-    result = forward(m_digests.back());
-    if (result != Success) {
+  while (BOOST_LIKELY(forward(next_reaction))) {
+    if (BOOST_UNLIKELY(schedule(next_reaction) != Success)) {
       break;
     }
 
@@ -401,17 +407,15 @@ std::pair<sim_iter_t, sim_time_t> SSA_NRM::run()
     { // rollback test
       backward(m_digests.back());
       m_digests.pop_back();
-      m_digests.emplace_back();
-      forward(m_digests.back());
+      schedule(next_reaction);
+      forward(nex_reaction));
     }
     */
   }
   record_first_n(m_sim_iter);
  #else
-  Sim_State_Change digest;
-  for (; (m_sim_iter < m_max_iter) && (m_sim_time < m_max_time); ++ m_sim_iter) {
-    result = forward(digest);
-    if (result != Success) {
+  while (BOOST_LIKELY(forward(next_reaction))) {
+    if (BOOST_UNLIKELY(schedule(next_reaction) != Success)) {
       break;
     }
   }

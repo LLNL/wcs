@@ -15,6 +15,9 @@
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
 #endif
+
+#include <boost/config.hpp> // for BOOST_LIKELY
+
 // To suppress the gcc compiler warning 'maybe-uninitialized'
 // from the boost graph source code.
 // clang does not recognize this particular diagnostic flag.

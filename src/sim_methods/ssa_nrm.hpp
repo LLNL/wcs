@@ -46,8 +46,21 @@ public:
             const sim_time_t max_time,
             const unsigned rng_seed) override;
 
+  /**
+   * Determines the next reaction and the time when it occurs.
+   * When successful, this function returns Sim_Method::Success. Otherwise,
+   * it returns a failure code.
+   */
+  Sim_Method::result_t schedule(revent_t& evt);
+  /**
+   * Execute a reaction event.
+   * Check the simulation termination condition at the beginning. If it is not
+   * to be terminated yet, proceed and return true. Otherwise, stop immediately
+   * and return false.
+   */
+  bool forward(const revent_t evt);
+  /// Main loop of SSA
   std::pair<sim_iter_t, sim_time_t> run() override;
-  SSA_NRM::result_t forward(Sim_State_Change& digest);
 
  #if defined(WCS_HAS_ROSS)
   void backward(Sim_State_Change& digest);
@@ -72,7 +85,6 @@ protected:
 
   void save_rgen_state(Sim_State_Change& digest) const;
   void load_rgen_state(const Sim_State_Change& digest);
-  SSA_NRM::result_t schedule();
 
 protected:
   /** In-heap index table maintains where in the heap each item can be found.

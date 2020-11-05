@@ -226,34 +226,40 @@ int main(int argc, char** argv)
 
   wcs::Sim_Method* ssa = nullptr;
 
-  if (cfg.method == 0) {
-    ssa = new wcs::SSA_Direct;
-    std::cerr << "Direct SSA method." << std::endl;
-  } else if (cfg.method == 1) {
-    std::cerr << "Next Reaction SSA method." << std::endl;
-    ssa = new wcs::SSA_NRM;
-  } else if (cfg.method == 2) {
-    std::cerr << "Sorted optimized direct SSA method." << std::endl;
-    ssa = new wcs::SSA_SOD;
-  } else {
-    std::cerr << "Unknown SSA method (" << cfg.method << ')' << std::endl;
+  try {
+    if (cfg.method == 0) {
+      ssa = new wcs::SSA_Direct(rnet_ptr);
+      std::cerr << "Direct SSA method." << std::endl;
+    } else if (cfg.method == 1) {
+      std::cerr << "Next Reaction SSA method." << std::endl;
+      ssa = new wcs::SSA_NRM(rnet_ptr);
+    } else if (cfg.method == 2) {
+      std::cerr << "Sorted optimized direct SSA method." << std::endl;
+      ssa = new wcs::SSA_SOD(rnet_ptr);
+    } else {
+      std::cerr << "Unknown SSA method (" << cfg.method << ')' << std::endl;
+      return EXIT_FAILURE;
+    }
+  } catch (const std::exception& e) {
+    std::cerr << "Fail to setup SSA method." << std::endl;
     return EXIT_FAILURE;
   }
+
   if (cfg.tracing) {
     ssa->set_tracing<wcs::TraceSSA>(cfg.outfile, cfg.frag_size);
     std::cerr << "Enable tracing" << std::endl;
   } else if (cfg.sampling) {
     if (cfg.iter_interval > 0u) {
       ssa->set_sampling<wcs::SamplesSSA>(cfg.iter_interval, cfg.outfile, cfg.frag_size);
-      std::cerr << "Enable sampling at " << cfg.iter_interval 
+      std::cerr << "Enable sampling at " << cfg.iter_interval
                 << " steps interval" << std::endl;
     } else {
       ssa->set_sampling<wcs::SamplesSSA>(cfg.time_interval, cfg.outfile, cfg.frag_size);
-      std::cerr << "Enable sampling at " << cfg.time_interval 
+      std::cerr << "Enable sampling at " << cfg.time_interval
                 << " secs interval" << std::endl;
     }
   }
-  ssa->init(rnet_ptr, cfg.max_iter, cfg.max_time, cfg.seed);
+  ssa->init(cfg.max_iter, cfg.max_time, cfg.seed);
 
  #ifdef WCS_HAS_VTUNE
   __itt_resume();

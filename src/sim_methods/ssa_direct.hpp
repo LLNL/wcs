@@ -45,11 +45,13 @@ public:
   using propensisty_list_t = std::vector<priority_t>;
 
 
-  SSA_Direct();
+  SSA_Direct(const std::shared_ptr<wcs::Network>& net_ptr);
+  SSA_Direct(SSA_Direct&& other) = default;
+  SSA_Direct& operator=(SSA_Direct&& other) = default;
   ~SSA_Direct() override;
+
   /// Initialize propensity list
-  void init(std::shared_ptr<wcs::Network>& net_ptr,
-            const unsigned max_iter,
+  void init(const unsigned max_iter,
             const double max_time,
             const unsigned rng_seed) override;
 

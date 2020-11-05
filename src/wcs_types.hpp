@@ -27,6 +27,7 @@ using sim_iter_t = unsigned;
 using stoic_t = int;
 using partition_id_t = unsigned;
 using concentration_t = double;
+using v_idx_t = unsigned; ///< vertex index type
 
 constexpr partition_id_t unassigned_partition
   = std::numeric_limits<partition_id_t>::max();

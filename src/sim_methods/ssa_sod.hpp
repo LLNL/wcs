@@ -85,11 +85,13 @@ public:
   using rvd_idx_t = propensity_list_t::index<tag_rvd>::type;
 
 
-  SSA_SOD();
+  SSA_SOD(const std::shared_ptr<wcs::Network>& net_ptr);
+  SSA_SOD(SSA_SOD&& other) = default;
+  SSA_SOD& operator=(SSA_SOD&& other) = default;
   ~SSA_SOD() override;
+
   /// Initialize propensity list
-  void init(std::shared_ptr<wcs::Network>& net_ptr,
-            const unsigned max_iter,
+  void init(const unsigned max_iter,
             const double max_time,
             const unsigned rng_seed) override;
 

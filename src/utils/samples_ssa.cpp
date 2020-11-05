@@ -31,8 +31,8 @@ namespace wcs {
 /** \addtogroup wcs_utils
  *  @{ */
 
-SamplesSSA::SamplesSSA()
-: Trajectory(),
+SamplesSSA::SamplesSSA(const std::shared_ptr<wcs::Network>& net_ptr)
+: Trajectory(net_ptr),
   m_start_iter(static_cast<sim_iter_t>(0u)),
   m_cur_iter(static_cast<sim_iter_t>(0u)),
   m_cur_time(static_cast<sim_time_t>(0)),
@@ -47,7 +47,7 @@ SamplesSSA::~SamplesSSA()
 {}
 
 void SamplesSSA::set_time_interval(const sim_time_t t_interval,
-                                const sim_time_t t_start)
+                                   const sim_time_t t_start)
 {
   m_sample_time_interval = t_interval;
   if (t_start > static_cast<sim_time_t>(0)) {
@@ -61,29 +61,16 @@ void SamplesSSA::set_time_interval(const sim_time_t t_interval,
 }
 
 void SamplesSSA::set_iter_interval(const sim_iter_t i_interval,
-                                const sim_iter_t i_start)
+                                   const sim_iter_t i_start)
 {
   m_sample_iter_interval = i_interval;
   m_start_iter = m_cur_iter = i_start;
   m_next_sample_iter = m_cur_iter + i_interval;
 }
 
-/**
- * Build the map from a vertex descriptor to an index of the
- * vector for species and reaction information respectively.
- */
-void SamplesSSA::build_index_maps()
+void SamplesSSA::initialize()
 {
-  Trajectory::build_index_maps();
-
-  if (m_r_id_map.empty()) {
-    r_idx_t idx = static_cast<r_idx_t>(0u);
-    m_r_id_map.reserve(m_net_ptr->reaction_list().size());
-
-    for (const auto& rd : m_net_ptr->reaction_list()) {
-      m_r_id_map[rd] = idx++;
-    }
-  }
+  Trajectory::initialize();
   m_reaction_counts.resize(m_net_ptr->reaction_list().size());
 }
 
@@ -250,20 +237,6 @@ std::ostream& SamplesSSA::write_header(std::ostream& os) const
   return os;
 }
 
-void SamplesSSA::count_species(const SamplesSSA::s_sample_t& ss)
-{
-  for (const auto& s: ss) {
-    m_species_counts.at(m_s_id_map.at(std::get<0>(s))) += std::get<1>(s);
-  }
-}
-
-void SamplesSSA::count_reactions(const SamplesSSA::r_sample_t& rs)
-{
-  for (const auto& r: rs) {
-    m_reaction_counts.at(m_r_id_map.at(std::get<0>(r))) += std::get<1>(r);
-  }
-}
-
 std::ostream& SamplesSSA::print_stats(
   const sim_time_t sim_time,
   std::string& tmpstr,
@@ -295,8 +268,12 @@ std::ostream& SamplesSSA::write(std::ostream& os)
     const auto sim_time = std::get<0>(sample); // time of the reaction
     const s_sample_t& s_sample = std::get<1>(sample);
     const r_sample_t& r_sample = std::get<2>(sample);
-    count_species(s_sample);
-    count_reactions(r_sample);
+    for (const auto& s: s_sample) {
+      m_species_counts.at(m_s_id_map->at(std::get<0>(s))) += std::get<1>(s);
+    }
+    for (const auto& r: r_sample) {
+      m_reaction_counts.at(m_r_id_map->at(std::get<0>(r))) += std::get<1>(r);
+    }
 
     print_stats(sim_time, tmpstr, os);
   }

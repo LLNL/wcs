@@ -37,15 +37,17 @@ public:
   using reaction_times_t = Sim_State_Change::reaction_times_t;
 
 
-  SSA_NRM();
+  SSA_NRM(const std::shared_ptr<wcs::Network>& net_ptr);
+  SSA_NRM(SSA_NRM&& other) = default;
+  SSA_NRM& operator=(SSA_NRM&& other) = default;
   ~SSA_NRM() override;
-  void init(std::shared_ptr<wcs::Network>& net_ptr,
-            const sim_iter_t max_iter,
+
+  void init(const sim_iter_t max_iter,
             const sim_time_t max_time,
             const unsigned rng_seed) override;
 
   std::pair<sim_iter_t, sim_time_t> run() override;
-  Sim_Method::result_t forward(Sim_State_Change& digest);
+  SSA_NRM::result_t forward(Sim_State_Change& digest);
 
  #if defined(WCS_HAS_ROSS)
   void backward(Sim_State_Change& digest);
@@ -64,13 +66,13 @@ protected:
   wcs::sim_time_t recompute_reaction_time(const v_desc_t& vd);
   wcs::sim_time_t adjust_reaction_time(const v_desc_t& vd, wcs::sim_time_t rt);
   void update_reactions(const priority_t& fired,
-                        const Sim_Method::affected_reactions_t& affected,
+                        const SSA_NRM::affected_reactions_t& affected,
                         reaction_times_t& affected_rtimes);
   void revert_reaction_updates(const reaction_times_t& affected);
 
   void save_rgen_state(Sim_State_Change& digest) const;
   void load_rgen_state(const Sim_State_Change& digest);
-  Sim_Method::result_t schedule();
+  SSA_NRM::result_t schedule();
 
 protected:
   /** In-heap index table maintains where in the heap each item can be found.

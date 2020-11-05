@@ -30,6 +30,10 @@ namespace wcs {
 /** \addtogroup wcs_utils
  *  @{ */
 
+TraceGeneric::TraceGeneric(const std::shared_ptr<wcs::Network>& net_ptr)
+: Trajectory(net_ptr)
+{}
+
 TraceGeneric::~TraceGeneric()
 {}
 
@@ -42,22 +46,6 @@ void TraceGeneric::record_step(const sim_time_t t, cnt_updates_t&& updates)
     flush();
   }
  #endif // WCS_HAS_CEREAL
-}
-
-/**
- * Build the map from a vertex descriptor to an index of the
- * vector for species respectively.
- */
-void TraceGeneric::build_index_maps()
-{
-  if (m_s_id_map.empty()) {
-    r_idx_t idx = static_cast<r_idx_t>(0u);
-    m_s_id_map.reserve(m_net_ptr->species_list().size());
-
-    for (const auto& sd : m_net_ptr->species_list()) {
-      m_s_id_map[sd] = idx++;
-    }
-  }
 }
 
 void TraceGeneric::finalize()
@@ -168,7 +156,7 @@ std::ostream& TraceGeneric::write(std::ostream& os)
     const auto& updates = it->second; // population updates
 
     for (const auto& u : updates) {
-      species.at(m_s_id_map.at(u.first))
+      species.at(m_s_id_map->at(u.first))
         += static_cast<species_cnt_diff_t>(u.second);
     }
 

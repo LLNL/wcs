@@ -30,12 +30,16 @@ namespace wcs {
 /** \addtogroup wcs_utils
  *  @{ */
 
+TraceSSA::TraceSSA(const std::shared_ptr<wcs::Network>& net_ptr)
+: Trajectory(net_ptr)
+{}
+
 TraceSSA::~TraceSSA()
 {}
 
 void TraceSSA::record_step(const sim_time_t t, const r_desc_t r)
 {
-  m_trace.emplace_back(std::make_pair(t, m_r_id_map.at(r)));
+  m_trace.emplace_back(std::make_pair(t, m_net_ptr->reaction_d2i(r)));
 
  #if defined(WCS_HAS_CEREAL)
   if (++m_cur_record_in_frag >= m_frag_size) {
@@ -44,25 +48,10 @@ void TraceSSA::record_step(const sim_time_t t, const r_desc_t r)
  #endif // WCS_HAS_CEREAL
 }
 
-/**
- * Build the map from a vertex descriptor to an index of the
- * vector for species and reaction information respectively.
- */
-void TraceSSA::build_index_maps()
+void TraceSSA::initialize()
 {
-  Trajectory::build_index_maps();
-
-  if (m_r_id_map.empty()) {
-    r_idx_t idx = static_cast<r_idx_t>(0u);
-    m_r_id_map.reserve(m_net_ptr->reaction_list().size());
-    m_r_desc_map.reserve(m_net_ptr->reaction_list().size());
-
-    for (const auto& rd : m_net_ptr->reaction_list()) {
-      m_r_desc_map.emplace_back(rd);
-      m_r_id_map[rd] = idx++;
-    }
-  }
-  m_reaction_counts.resize(m_net_ptr->reaction_list().size());
+  Trajectory::initialize();
+  m_reaction_counts.resize(m_net_ptr->get_num_reactions());
 }
 
 void TraceSSA::finalize()
@@ -145,11 +134,6 @@ std::ostream& TraceSSA::write_header(std::ostream& os) const
   return os;
 }
 
-void TraceSSA::count_reaction(r_desc_t r)
-{
-  m_reaction_counts.at(m_r_id_map.at(r)) ++;
-}
-
 std::ostream& TraceSSA::print_stats(const sim_time_t sim_time,
                                     const std::string rlabel,
                                     std::string& tmpstr,
@@ -185,11 +169,13 @@ std::ostream& TraceSSA::write(std::ostream& os)
   trace_t::const_iterator it = m_trace.begin();
   trace_t::const_iterator it_end = m_trace.cend();
 
+  const auto& r_desc_map = m_net_ptr->reaction_list();
+
   for (; it != it_end; it++) {
     const auto sim_time = it->first; // time of the reaction
     // BGL vertex descriptor of the reaction
-    r_desc_t vd_reaction = m_r_desc_map.at(it->second);
-    count_reaction(vd_reaction);
+    r_desc_t vd_reaction = r_desc_map.at(it->second);
+    m_reaction_counts.at(m_r_id_map->at(vd_reaction)) ++;
 
     // product species
     for (const auto ei_out : boost::make_iterator_range(boost::out_edges(vd_reaction, g))) {
@@ -199,7 +185,7 @@ std::ostream& TraceSSA::write(std::ostream& os)
         if (g[vd_product].get_type() != wcs::Vertex::_species_) continue;
       }
       const auto stoichio = g[ei_out].get_stoichiometry_ratio();
-      species.at(m_s_id_map.at(vd_product)) += stoichio;
+      species.at(m_s_id_map->at(vd_product)) += stoichio;
     }
 
     // reactant species
@@ -210,7 +196,7 @@ std::ostream& TraceSSA::write(std::ostream& os)
         if (g[vd_reactant].get_type() != wcs::Vertex::_species_) continue;
       }
       const auto stoichio = g[ei_in].get_stoichiometry_ratio();
-      species.at(m_s_id_map.at(vd_reactant)) -= stoichio;
+      species.at(m_s_id_map->at(vd_reactant)) -= stoichio;
     }
     print_stats(sim_time, g[vd_reaction].get_label(), tmpstr, os);
   }

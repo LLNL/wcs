@@ -22,8 +22,8 @@ namespace wcs {
 /** \addtogroup wcs_reaction_network
  *  @{ */
 
-SSA_Direct::SSA_Direct()
-: Sim_Method() {}
+SSA_Direct::SSA_Direct(const std::shared_ptr<wcs::Network>& net_ptr)
+: Sim_Method(net_ptr) {}
 
 SSA_Direct::~SSA_Direct() {}
 
@@ -162,16 +162,14 @@ void SSA_Direct::update_reactions(priority_t& fired,
 }
 
 
-void SSA_Direct::init(std::shared_ptr<wcs::Network>& net_ptr,
-                      const sim_iter_t max_iter,
+void SSA_Direct::init(const sim_iter_t max_iter,
                       const double max_time,
                       const unsigned rng_seed)
 {
-  if (!net_ptr) {
+  if (!m_net_ptr) {
     WCS_THROW("Invalid pointer to the reaction network.");
   }
 
-  m_net_ptr = net_ptr;
   m_max_time = max_time;
   m_max_iter = max_iter;
   m_sim_time = static_cast<sim_time_t>(0);

@@ -43,10 +43,12 @@ public:
 
   enum result_t {Success, Empty, Inactive};
 
-  Sim_Method();
+  Sim_Method(const std::shared_ptr<wcs::Network>& net_ptr);
+  Sim_Method(Sim_Method&& other) = default;
+  Sim_Method& operator=(Sim_Method&& other) = default;
+
   virtual ~Sim_Method();
-  virtual void init(std::shared_ptr<wcs::Network>& net_ptr,
-                    const sim_iter_t max_iter,
+  virtual void init(const sim_iter_t max_iter,
                     const double max_time,
                     const unsigned rng_seed) = 0;
 
@@ -136,7 +138,7 @@ void Sim_Method::set_tracing(const std::string outfile,
                              const unsigned frag_size)
 {
   if (!m_trajectory) {
-    m_trajectory = std::make_unique<T>();
+    m_trajectory = std::make_unique<T>(m_net_ptr);
     if (!m_trajectory) {
       WCS_THROW("Cannot start tracing.");
     }
@@ -151,7 +153,7 @@ void Sim_Method::set_sampling(const sim_time_t time_interval,
                               const unsigned frag_size)
 {
   if (!m_trajectory) {
-    m_trajectory = std::make_unique<S>();
+    m_trajectory = std::make_unique<S>(m_net_ptr);
     if (!m_trajectory) {
       WCS_THROW("Cannot start sampling.");
     }
@@ -167,7 +169,7 @@ void Sim_Method::set_sampling(const sim_iter_t iter_interval,
                               const unsigned frag_size)
 {
   if (!m_trajectory) {
-    m_trajectory = std::make_unique<S>();
+    m_trajectory = std::make_unique<S>(m_net_ptr);
     if (!m_trajectory) {
       WCS_THROW("Cannot start sampling.");
     }

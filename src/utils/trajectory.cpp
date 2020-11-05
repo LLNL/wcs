@@ -23,12 +23,22 @@ namespace wcs {
 /** \addtogroup wcs_utils
  *  @{ */
 
-Trajectory::Trajectory()
-: m_frag_size(static_cast<frag_size_t>(0u)),
+Trajectory::Trajectory(const std::shared_ptr<wcs::Network>& net_ptr)
+: m_net_ptr(net_ptr),
+  m_frag_size(static_cast<frag_size_t>(0u)),
   m_cur_frag_id(static_cast<frag_id_t>(0u)),
   m_cur_record_in_frag(static_cast<frag_size_t>(0u)),
   m_num_steps(0u)
-{}
+{
+  if (!m_net_ptr) {
+    WCS_THROW("Invaid pointer for reaction network.");
+    return;
+  }
+  // The pointer net_ptr is a managed pointer and m_r_id_map is managed by the
+  // object of the managed pointer. Thus, it keep it as raw.
+  m_r_id_map = &(net_ptr->get_reaction_map());
+  m_s_id_map = &(net_ptr->get_species_map());
+}
 
 Trajectory::~Trajectory()
 {}
@@ -53,30 +63,30 @@ void Trajectory::set_outfile(const std::string outfile, const frag_size_t frag_s
   if (frag_size > static_cast<frag_size_t>(0u)) {
     WCS_THROW("Need to build with the option WCS_WITH_CEREAL=ON " \
               "to use this feature.");
+    return;
   }
  #endif // defined(WCS_HAS_CEREAL)
 
   if (m_frag_size == std::numeric_limits<frag_size_t>::max()) {
     WCS_THROW("Fragment size should be less than " +
               std::to_string(std::numeric_limits<frag_size_t>::max()));
+    return;
   } else if (m_frag_size == static_cast<frag_size_t>(0u)) {
     m_frag_size = std::numeric_limits<frag_size_t>::max();
   }
 }
 
-void Trajectory::initialize(const std::shared_ptr<wcs::Network>& net_ptr)
+void Trajectory::initialize()
 {
-  record_initial_condition(net_ptr);
-  build_index_maps();
-}
-
-void Trajectory::record_initial_condition(const std::shared_ptr<wcs::Network>& net_ptr)
-{
-  m_net_ptr = net_ptr;
-
   if (!m_net_ptr) {
     WCS_THROW("Invaid pointer for reaction network.");
+    return;
   }
+  record_initial_condition();
+}
+
+void Trajectory::record_initial_condition()
+{
   const wcs::Network::graph_t& g = m_net_ptr->graph();
 
   size_t i = 0ul;
@@ -87,24 +97,7 @@ void Trajectory::record_initial_condition(const std::shared_ptr<wcs::Network>& n
     const auto& sv = g[vd]; // vertex (property) of the species
     // detailed vertex property data of the species
     const auto& sp = sv.property<s_prop_t>();
-    //m_s_id_map[vd] = i; // done in build_index()
     m_species_counts[i++] = sp.get_count();
-  }
-}
-
-/**
- * Build the map from a vertex descriptor to an index of the
- * vector for species respectively.
- */
-void Trajectory::build_index_maps()
-{
-  if (m_s_id_map.empty()) {
-    size_t idx = 0ul;
-    m_s_id_map.reserve(m_net_ptr->species_list().size());
-
-    for (const auto& sd : m_net_ptr->species_list()) {
-      m_s_id_map[sd] = idx++;
-    }
   }
 }
 
@@ -112,18 +105,21 @@ void Trajectory::record_step(const sim_time_t t, const r_desc_t r)
 {
   WCS_THROW("Base class does not implement this " \
             "'record_step(t, reaction)' method");
+    return;
 }
 
 void Trajectory::record_step(const sim_time_t t, cnt_updates_t&& updates)
 {
   WCS_THROW("Base class does not implement this " \
             "'record_step(t, cnt_updates)' method");
+    return;
 }
 
 void Trajectory::record_step(const sim_time_t t, conc_updates_t&& updates)
 {
   WCS_THROW("Base class does not implement this " \
             "'record_step(t, conc_updates)' method");
+    return;
 }
 
 void Trajectory::flush()

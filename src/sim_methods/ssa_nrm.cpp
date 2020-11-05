@@ -58,8 +58,8 @@ namespace wcs {
 /** \addtogroup wcs_reaction_network
  *  @{ */
 
-SSA_NRM::SSA_NRM()
-: Sim_Method() {}
+SSA_NRM::SSA_NRM(const std::shared_ptr<wcs::Network>& net_ptr)
+: Sim_Method(net_ptr) {}
 
 SSA_NRM::~SSA_NRM() {}
 
@@ -232,16 +232,14 @@ void SSA_NRM::revert_reaction_updates(
   }
 }
 
-void SSA_NRM::init(std::shared_ptr<wcs::Network>& net_ptr,
-                   const sim_iter_t max_iter,
+void SSA_NRM::init(const sim_iter_t max_iter,
                    const sim_time_t max_time,
                    const unsigned rng_seed)
 {
-  if (!net_ptr) {
+  if (!m_net_ptr) {
     WCS_THROW("Invalid pointer to the reaction network.");
   }
 
-  m_net_ptr = net_ptr;
   m_max_time = max_time;
   m_max_iter = max_iter;
   m_sim_time = static_cast<sim_time_t>(0);

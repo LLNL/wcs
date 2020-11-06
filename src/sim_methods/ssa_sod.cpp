@@ -202,6 +202,10 @@ void SSA_SOD::init(const sim_iter_t max_iter,
   Sim_Method::initialize_recording(m_net_ptr);
 
   build_propensity_list(); // prepare internal priority queue
+ #if defined(WCS_HAS_ROSS)
+  m_digests.emplace_back();
+  m_digests.back().m_sim_time = m_sim_time;
+ #endif // defined(WCS_HAS_ROSS)
 }
 
 
@@ -266,17 +270,20 @@ bool SSA_SOD::forward(const sim_time_t t)
   ++ m_sim_iter;
   m_sim_time = t;
 
+ #if defined(WCS_HAS_ROSS)
+  m_digests.emplace_back();
+  auto& digest = m_digests.back();
+  // Backup RNG state before calling choose_reaction()
+  save_rgen_state(digest);
+ #else
+  Sim_State_Change digest;
+ #endif // defined(WCS_HAS_ROSS)
+
   // Determine the reaction to occur at this time
   auto firing = choose_reaction();
 
- #if defined(WCS_HAS_ROSS)
-  m_digests.emplace_back(revent_t(t, firing.m_rvd));
-  auto& digest = m_digests.back();
-
-  save_rgen_state(digest);
- #else
-  Sim_State_Change digest(revent_t(t, firing.m_rvd));
- #endif // defined(WCS_HAS_ROSS)
+  digest.m_sim_time = t;
+  digest.m_reaction_fired = firing.m_rvd;
 
   // Execute the reaction, updating species counts
   Sim_Method::fire_reaction(digest);
@@ -286,7 +293,7 @@ bool SSA_SOD::forward(const sim_time_t t)
 
  #if !defined(WCS_HAS_ROSS)
   // With ROSS, tracing and sampling are moved to process at commit time
-  record(firing.second);
+  record(firing.m_rvd);
  #endif // defined(WCS_HAS_ROSS)
 
   return true;
@@ -294,34 +301,49 @@ bool SSA_SOD::forward(const sim_time_t t)
 
 
 #if defined(WCS_HAS_ROSS)
-void SSA_SOD::backward(Sim_State_Change& digest)
+void SSA_SOD::backward(sim_time_t& t)
 {
+  // State of the last event to undo
+  Sim_State_Change& digest = m_digests.back();
   // The BGL vertex descriptor of the the reaction to undo
   const auto& rd_fired = digest.m_reaction_fired;
+
   // Undo the species update done by the reaction fired
   undo_reaction(rd_fired);
   // Undo the propensity updates done for the reactions affected
   update_reactions(rd_fired, digest.m_reactions_affected, false);
+
   // Restore the time
-  m_sim_time = digest.m_sim_time;
+  t = digest.m_sim_time;
   // Restore the RNG state
   load_rgen_state(digest);
+  // Free the state of the last event
+  m_digests.pop_back();
+
+  // Restore the current simulation time and iteration
+  if (BOOST_UNLIKELY(m_digests.empty() ||
+      (m_sim_iter == static_cast<sim_iter_t>(0)))) {
+    WCS_THROW("Not able to schedule any reaction event!");
+  } else {
+    m_sim_time = m_digests.back().m_sim_time;
+    m_sim_iter --;
+  }
 }
 
 
 void SSA_SOD::record_first_n(const sim_iter_t num)
 {
-  if (m_digests.empty()) return;
+  if (m_digests.size() < 1ul) return;
   sim_iter_t i = static_cast<sim_iter_t>(0u);
 
   digest_list_t::iterator it = m_digests.begin();
 
-  for (; it != m_digests.end(); ++it) {
+  for (++it; it != m_digests.end(); ++it) {
     if (i >= num) break;
     record(it->m_sim_time, it->m_reaction_fired);
     i++;
   }
-  m_digests.erase(m_digests.begin(), it);
+  m_digests.erase(m_digests.begin(), --it);
 }
 #endif // defined(WCS_HAS_ROSS)
 
@@ -334,28 +356,22 @@ std::pair<sim_iter_t, sim_time_t> SSA_SOD::run()
     WCS_THROW("Not able to schedule any reaction event!");
   }
 
- #if defined(WCS_HAS_ROSS)
   while (BOOST_LIKELY(forward(t))) {
     if (BOOST_UNLIKELY(schedule(t) != Success)) {
       break;
     }
-
-    /*
+   /*
+   #if defined(WCS_HAS_ROSS)
     { // rollback test
-      backward(m_digests.back());
-      m_digests.pop_back();
+      backward(t);
       schedule(t);
-      forward(t));
+      forward(t);
     }
-    */
+   #endif // defined(WCS_HAS_ROSS)
+   */
   }
+ #if defined(WCS_HAS_ROSS)
   record_first_n(m_sim_iter);
- #else
-  while (BOOST_LIKELY(forward(t))) {
-    if (BOOST_UNLIKELY(schedule(t) != Success)) {
-      break;
-    }
-  }
  #endif // defined(WCS_HAS_ROSS)
 
   return std::make_pair(m_sim_iter, m_sim_time);

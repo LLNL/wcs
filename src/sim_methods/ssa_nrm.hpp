@@ -63,7 +63,7 @@ public:
   std::pair<sim_iter_t, sim_time_t> run() override;
 
  #if defined(WCS_HAS_ROSS)
-  void backward(Sim_State_Change& digest);
+  void backward(revent_t& evt);
 
   /** Record as many states as the given number of iterations from the
    *  beginning of the digest list */

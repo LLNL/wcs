@@ -95,11 +95,24 @@ public:
             const double max_time,
             const unsigned rng_seed) override;
 
+  /**
+   * Determines when the next reaction to occur.
+   * When successful, this function returns Sim_Method::Success. Otherwise,
+   * it returns a failure code.
+   */
+  Sim_Method::result_t schedule(sim_time_t& t);
+  /**
+   * Determine which reaction to fire and execute it at the given time.
+   * Check the simulation termination condition at the beginning. If it is not
+   * to be terminated yet, proceed and return true. Otherwise, stop immediately
+   * and return false.
+   */
+  bool forward(const sim_time_t t);
   /// Main loop of SSA
   std::pair<unsigned, sim_time_t> run() override;
-  Sim_Method::result_t forward(Sim_State_Change& digest);
+
  #if defined(WCS_HAS_ROSS)
-  void backward(Sim_State_Change& digest);
+  void backward(sim_time_t& t);
 
   /** Record as many states as the given number of iterations from the
    *  beginning of the digest list */
@@ -119,7 +132,6 @@ protected:
 
   void save_rgen_state(Sim_State_Change& digest) const;
   void load_rgen_state(const Sim_State_Change& digest);
-  Sim_Method::result_t schedule();
 
 protected:
   /// Cumulative propensity of reactions events

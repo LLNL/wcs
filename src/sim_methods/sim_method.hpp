@@ -36,6 +36,7 @@ public:
   using v_desc_t = wcs::Network::v_desc_t;
   using sim_time_t = wcs::sim_time_t;
   using reaction_rate_t = wcs::reaction_rate_t;
+  using revent_t = Sim_State_Change::revent_t;
 
   /** Type for the list of reactions that share any of the species with the
    *  firing reaction */

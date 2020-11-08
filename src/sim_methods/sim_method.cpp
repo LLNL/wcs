@@ -103,7 +103,7 @@ void Sim_Method::record(const sim_time_t t,
 
 void Sim_Method::finalize_recording() {
   if (m_recording) {
-    m_trajectory->finalize();
+    m_trajectory->finalize(m_sim_time);
   }
 }
 

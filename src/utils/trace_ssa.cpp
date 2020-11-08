@@ -54,8 +54,12 @@ void TraceSSA::initialize()
   m_reaction_counts.resize(m_net_ptr->get_num_reactions());
 }
 
-void TraceSSA::finalize()
+void TraceSSA::finalize(const sim_time_t t)
 {
+  while (!m_trace.empty() && (m_trace.back().first > t)) {
+    m_trace.pop_back();
+  }
+
   if (m_outfile_stem.empty()) {
     m_num_steps = m_trace.size();
     write_header(std::cout);

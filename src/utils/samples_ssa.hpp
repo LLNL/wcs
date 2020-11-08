@@ -59,7 +59,7 @@ public:
 
   void initialize() override;
   void record_step(const sim_time_t t, const r_desc_t r) override;
-  void finalize() override;
+  void finalize(const sim_time_t t) override;
 
 protected:
   using s_map_t = typename std::unordered_map<s_desc_t, s_diff_t>;

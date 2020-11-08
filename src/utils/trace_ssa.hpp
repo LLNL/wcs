@@ -32,7 +32,7 @@ public:
   ~TraceSSA() override;
   void initialize() override;
   void record_step(const sim_time_t t, const r_desc_t r) override;
-  void finalize() override;
+  void finalize(const sim_time_t t) override;
 
 protected:
   std::ostream& write_header(std::ostream& os) const override;

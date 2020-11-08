@@ -32,7 +32,7 @@ public:
 
   ~TraceGeneric() override;
   void record_step(const sim_time_t t, cnt_updates_t&& updates) override;
-  void finalize() override;
+  void finalize(const sim_time_t t) override;
 
 protected:
   size_t estimate_tmpstr_size() const;

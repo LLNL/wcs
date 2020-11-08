@@ -153,7 +153,7 @@ void SamplesSSA::take_sample()
  #endif // WCS_HAS_CEREAL
 }
 
-void SamplesSSA::finalize()
+void SamplesSSA::finalize(const sim_time_t t)
 {
   if (m_outfile_stem.empty()) {
     m_num_steps = m_samples.size();

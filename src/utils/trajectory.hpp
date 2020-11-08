@@ -54,7 +54,7 @@ public:
   virtual void record_step(const sim_time_t t, const r_desc_t r);
   virtual void record_step(const sim_time_t t, cnt_updates_t&& updates);
   virtual void record_step(const sim_time_t t, conc_updates_t&& updates);
-  virtual void finalize() = 0;
+  virtual void finalize(const sim_time_t t) = 0;
 
 protected:
   void record_initial_condition();

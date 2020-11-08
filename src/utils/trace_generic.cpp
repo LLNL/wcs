@@ -48,7 +48,7 @@ void TraceGeneric::record_step(const sim_time_t t, cnt_updates_t&& updates)
  #endif // WCS_HAS_CEREAL
 }
 
-void TraceGeneric::finalize()
+void TraceGeneric::finalize(const sim_time_t t)
 {
   if (m_outfile_stem.empty()) {
     m_num_steps = m_trace.size();

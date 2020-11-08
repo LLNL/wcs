@@ -325,9 +325,15 @@ Sim_Method::result_t SSA_NRM::schedule(revent_t& evt)
 
 void SSA_NRM::commit_des()
 {
-   auto digest = m_digests.front();
-   record(digest.m_sim_time, digest.m_reaction_fired);
-   m_digests.pop_front();
+  if (m_recording) {
+    if (m_digests.size() < 2ul) {
+      WCS_THROW("No digest to commit!");
+      return;
+    }
+    m_digests.pop_front();
+    const auto& digest = m_digests.front();
+    record(digest.m_sim_time, digest.m_reaction_fired);
+  }
 }
 
 
@@ -336,6 +342,11 @@ bool SSA_NRM::forward(const revent_t firing)
   const auto& t = firing.first;
 
   if (BOOST_UNLIKELY((m_sim_iter >= m_max_iter) || (t > m_max_time))) {
+   #if defined(WCS_HAS_ROSS)
+    // Whether successful or not, need to add a new digest entry such that
+    // backward can remove exactly one regardless of how forward was done
+    m_digests.emplace_back(firing);
+   #endif // defined(WCS_HAS_ROSS)
     return false; // do not continue simulation
   }
   ++ m_sim_iter;
@@ -418,7 +429,7 @@ void SSA_NRM::record_first_n(const sim_iter_t num)
 
 std::pair<sim_iter_t, sim_time_t> SSA_NRM::run()
 {
-  priority_t next_reaction;
+  revent_t next_reaction;
 
   if (schedule(next_reaction) != Success) {
     WCS_THROW("Not able to schedule any reaction event!");

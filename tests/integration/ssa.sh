@@ -4,13 +4,15 @@
 #                            SSA integration tests
 ###############################################################################
 
-# At the first round, this scrpipt runs ssa simulations and generates reference
+# At the first round, this scrpipt runs ssa|des simulations and generates reference
 # results. Subsequent runs compare the new results to the reference to see if
 # they differ. If there is difference, that means the current version of the
 # code differs from the previous version with which the reference results were
 # generated.
 
-# Set WCS_INSTALL_DIR to the path where the 'bin/ssa' executable can be found.
+# Set WCS_INSTALL_DIR to the path where the 'bin/ssa|des' executable can be found.
+# Set TEST_DES variable to a non-zero value to test 'des'. Otherwise, 'ssa' is
+# testd by default.
 #
 # These tests requires "WCS_WITH_EXPRKT=ON"
 #
@@ -30,6 +32,7 @@
 #   - Test performance by measuring the wall clock time multiple times and
 #     compare the average against the past performance.
 
+#TEST_DES=1
 
 ###############################################################################
 #                          Define utility functions
@@ -341,6 +344,8 @@ function compare_performance_log ()
 
 if [ -z "${WCS_INSTALL_DIR}" ] ; then
     WCS_INSTALL_DIR="$(absolute_path '../../install')"
+else
+    WCS_INSTALL_DIR="$(absolute_path ${WCS_INSTALL_DIR})"
 fi
 if [ -z "${WCS_SRC_DIR}" ] ; then
     WCS_SRC_DIR="$(absolute_path '../..')"
@@ -361,8 +366,19 @@ echo "========================================================================"
 #                       Setup common test parameters
 ###############################################################################
 
+if [ ! -z "${TEST_DES}" ] && [ "${TEST_DES}" != "0" ] ; then
+    cmd='des --extramem=8192 --nlp=1 --end=200 --gvt-interval=32 -- '
+    methods="1"
+else
+    cmd='ssa'
+fi
+
 seeds="47 147 1147"
-methods="0 1 2"
+
+if [ -z "${methods}" ] ; then
+    methods="0 1 2"
+fi
+
 frag_sz=0
 file_format="graphml"
 
@@ -418,7 +434,7 @@ function sanity_checks () {
 
 function ssa_correctness () {
     local sc_tname=${FUNCNAME[0]}
-    local sc_exec="${WCS_INSTALL_DIR}/bin/ssa"
+    local sc_exec="${WCS_INSTALL_DIR}/bin/${cmd}"
     local sc_n_step=20  # number of simulation steps
 
     mkdir -p ${sc_tname}
@@ -439,7 +455,7 @@ function ssa_correctness () {
             do
                 local sc_of=${sc_tname}/${sc_prob}.m${sc_m}.s${sc_s}.i${sc_n_step}.txt
                 local sc_arg="-d -i ${sc_n_step} -m ${sc_m} -s ${sc_s} -o ${sc_of} -f ${frag_sz}"
-                echo "ssa ${sc_arg} ${sc_prob}.${file_ext}"
+                echo "${cmd} ${sc_arg} ${sc_prob}.${file_ext}"
                 eval "${sc_exec} ${sc_arg} ${sc_p}"
                 echo ""
             done
@@ -467,7 +483,7 @@ function ssa_correctness () {
 
 function ssa_sampling () {
     local ss_tname=${FUNCNAME[0]}
-    local ss_exec="${WCS_INSTALL_DIR}/bin/ssa"
+    local ss_exec="${WCS_INSTALL_DIR}/bin/${cmd}"
     mkdir -p ${ss_tname}
     local ss_n_step=20  # number of simulation steps
     local ss_ismpl='i3' # cmd line option for sampling by iteration
@@ -491,12 +507,12 @@ function ssa_sampling () {
                 local ss_arg
                 ss_of=${ss_tname}/${ss_prob}.m${ss_m}.s${ss_s}.i${ss_n_step}.r${ss_ismpl}.txt
                 ss_arg="-i ${ss_n_step} -m ${ss_m} -s ${ss_s} -o ${ss_of} -f ${frag_sz} -r ${ss_ismpl}"
-                echo "ssa ${ss_arg} ${ss_prob}.${file_ext}"
+                echo "${cmd} ${ss_arg} ${ss_prob}.${file_ext}"
                 eval "${ss_exec} ${ss_arg} ${ss_p}" 2>&1
                 echo ""
                 ss_of=${ss_tname}/${ss_prob}.m${ss_m}.s${ss_s}.i${ss_n_step}.r${ss_tsmpl}.txt
                 ss_arg="-i ${ss_n_step} -m ${ss_m} -s ${ss_s} -o ${ss_of} -f ${frag_sz} -r ${ss_tsmpl}"
-                echo "ssa ${ss_arg} ${ss_prob}.${file_ext}"
+                echo "${cmd} ${ss_arg} ${ss_prob}.${file_ext}"
                 eval "${ss_exec} ${ss_arg} ${ss_p}" 2>&1
                 echo ""
             done
@@ -628,7 +644,7 @@ function ssa_performance () {
     fi
 
     local sp_tname=${FUNCNAME[0]}
-    local sp_exec="${WCS_INSTALL_DIR}/bin/ssa"
+    local sp_exec="${WCS_INSTALL_DIR}/bin/${cmd}"
     mkdir -p ${sp_tname}
 
     local sp_n_step=5000    # number of simulation steps
@@ -659,12 +675,12 @@ function ssa_performance () {
             for sp_s in ${seeds}
             do
                 local sp_arg="-i ${sp_n_step} -m ${sp_m} -s ${sp_s}"
-                echo "ssa ${sp_arg} ${sp_prob}.${file_ext}"
+                echo "${cmd} ${sp_arg} ${sp_prob}.${file_ext}"
                 eval "${sp_exec} ${sp_arg} ${sp_p}"
                 echo ""
                 local sp_of=${sp_tname}/${sp_prob}.m${sp_m}.s${sp_s}.i${sp_n_step}.c${sp_c}.tr.txt
                 local sp_arg_tr="${sp_arg} -f ${frag_sz} -d -o ${sp_of}"
-                echo "ssa ${sp_arg_tr} ${sp_prob}.${file_ext}"
+                echo "${cmd} ${sp_arg_tr} ${sp_prob}.${file_ext}"
                 eval "${sp_exec} ${sp_arg_tr} ${sp_p}"
                 echo ""
             done
@@ -701,7 +717,9 @@ sanity_checks
 ssa_correctness
 ssa_sampling
 #ssa_sampling_0
-ssa_performance 0.05 4
+if [ -z "${TEST_DES}" ] || [ "${TEST_DES}" == "0" ] ; then
+  ssa_performance 0.05 4
+fi
 
 if [ "${GENERATE_REF}" == "1" ] ; then
     mkdir -p expected_output

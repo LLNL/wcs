@@ -17,6 +17,7 @@
 #if defined(WCS_HAS_ROSS)
 
 #include <string>
+#include <cstring> // memset
 #include <iostream>
 #include "ssa-cfg.hpp"
 #include "utils/write_graphviz.hpp"
@@ -24,6 +25,7 @@
 #include "utils/to_string.hpp"
 #include "reaction_network/network.hpp"
 #include "des.hpp"
+#include "wcs-ross-bf.hpp"
 
 using revent_t = wcs::Sim_State_Change::revent_t;
 WCS_Global_State gState;
@@ -142,6 +144,7 @@ void wcs_prerun(WCS_State *s, tw_lp *lp)
 
 void wcs_event(WCS_State *s, tw_bf *bf, WCS_Message *msg, tw_lp *lp)
 {
+  memset(static_cast<void*>(bf), 0, sizeof(tw_bf));
   const WCS_LP_State& lp_state = gState.m_LP_states.at(s->m_lp_idx);
 
   wcs::Sim_Method::revent_t firing
@@ -149,9 +152,11 @@ void wcs_event(WCS_State *s, tw_bf *bf, WCS_Message *msg, tw_lp *lp)
 
   if (lp_state.m_ssa_ptr->forward(firing))
   {
+    WCS_BF_(bf, WCS_BF_FWD) = 1u;
     wcs::SSA_NRM::priority_t new_firing;
     if (lp_state.m_ssa_ptr->schedule(new_firing) == wcs::Sim_Method::Success)
     {
+      WCS_BF_(bf, WCS_BF_SCHED) = 1u;
       new_firing.first -= tw_now(lp);
       tw_event* next_evt = tw_event_new(lp->gid, new_firing.first, lp);
       auto* next_msg = reinterpret_cast<WCS_Message*>(tw_event_data(next_evt));
@@ -164,6 +169,9 @@ void wcs_event(WCS_State *s, tw_bf *bf, WCS_Message *msg, tw_lp *lp)
 
 void wcs_event_reverse(WCS_State *s, tw_bf *bf, WCS_Message *msg, tw_lp *lp)
 {
+  if (!WCS_BF_(bf, WCS_BF_FWD)) {
+    return;
+  }
   const WCS_LP_State& lp_state = gState.m_LP_states.at(s->m_lp_idx);
 
   wcs::Sim_Method::revent_t firing
@@ -175,6 +183,10 @@ void wcs_event_reverse(WCS_State *s, tw_bf *bf, WCS_Message *msg, tw_lp *lp)
 
 void wcs_event_commit(WCS_State *s, tw_bf *bf, WCS_Message *msg, tw_lp *lp)
 {
+  if (!WCS_BF_(bf, WCS_BF_FWD)) {
+    return;
+  }
+
   const WCS_LP_State& lp_state = gState.m_LP_states.at(s->m_lp_idx);
 
   lp_state.m_ssa_ptr->commit_des();

@@ -129,9 +129,9 @@ function compare_output () {
 
     for p in ${co_probs_to_compare}
     do
-        if [ ${file_format} == "graphml" ] ; then
+        if [ "${file_format}" == "graphml" ] ; then
           local co_prob=`basename ${p} | sed 's/\.graphml//'`
-        elif [ ${file_format} == "sbml" ] ; then
+        elif [ "${file_format}" == "sbml" ] ; then
           local co_prob=`basename ${p} | sed 's/\.xml//'`
         fi
         local co_prob_list="${co_prob_list}${co_prob} "
@@ -382,10 +382,10 @@ fi
 frag_sz=0
 file_format="graphml"
 
-if [ ${file_format} == "graphml" ] ; then
+if [ "${file_format}" == "graphml" ] ; then
   file_ext="graphml"
   prob_simple="${WCS_TEST_DIR}/problem/Gillespie/eq29-exprtk.${file_ext}"
-elif [ ${file_format} == "sbml" ] ; then
+elif [ "${file_format}" == "sbml" ] ; then
   file_ext="xml"
   prob_simple="${WCS_TEST_DIR}/problem/Gillespie/eqn29-sbml.${file_ext}"
 fi
@@ -443,9 +443,9 @@ function ssa_correctness () {
 
     for sc_p in ${problems}
     do
-        if [ ${file_format} == "graphml" ] ; then
+        if [ "${file_format}" == "graphml" ] ; then
           local sc_prob=`basename ${sc_p} | sed 's/\.graphml//'`
-        elif [ ${file_format} == "sbml" ] ; then
+        elif [ "${file_format}" == "sbml" ] ; then
           local sc_prob=`basename ${sc_p} | sed 's/\.xml//'`
         fi
 
@@ -493,9 +493,9 @@ function ssa_sampling () {
 
     for ss_p in ${prob_simple}
     do
-        if [ ${file_format} == "graphml" ] ; then
+        if [ "${file_format}" == "graphml" ] ; then
           local ss_prob=`basename ${ss_p} | sed 's/\.graphml//'`
-        elif [ ${file_format} == "sbml" ] ; then
+        elif [ "${file_format}" == "sbml" ] ; then
           local ss_prob=`basename ${ss_p} | sed 's/\.xml//'`
         fi
 
@@ -552,18 +552,18 @@ function check_sample_file () {
     local cs_i=${4}     # sampling interval option used
     local cs_tdir="ssa_correctness" # tracing result dir
     local cs_sdir="ssa_sampling"   # sampling result dir
-    if [ ${file_format} == "graphml" ] ; then
+    if [ "${file_format}" == "graphml" ] ; then
       local cs_p=$(basename "${prob_simple}" | sed 's/\.graphml//')
-    elif [ ${file_format} == "sbml" ] ; then
+    elif [ "${file_format}" == "sbml" ] ; then
       local cs_p=$(basename "${prob_simple}" | sed 's/\.xml//')
     fi
 
     if [ $# -eq 7 ] ; then
         cs_tdir=${5}
         cs_sdir=${6}
-        if [ ${file_format} == "graphml" ] ; then
+        if [ "${file_format}" == "graphml" ] ; then
           cs_p=$(basename "${7}" | sed 's/\.graphml//')
-        elif [ ${file_format} == "sbml" ] ; then
+        elif [ "${file_format}" == "sbml" ] ; then
           cs_p=$(basename "${7}" | sed 's/\.xml//')
         fi
     fi
@@ -663,9 +663,9 @@ function ssa_performance () {
         local sp_logf=${sp_tname}/log.m${sp_m}.i${sp_n_step}.txt
 
         local sp_p=${prob_complex}
-        if [ ${file_format} == "graphml" ] ; then
+        if [ "${file_format}" == "graphml" ] ; then
           local sp_prob=`basename ${sp_p} | sed 's/\.graphml//'`
-        elif [ ${file_format} == "sbml" ] ; then
+        elif [ "${file_format}" == "sbml" ] ; then
           local sp_prob=`basename ${sp_p} | sed 's/\.xml//'`
         fi
         local sp_n_measure=$(echo ${seeds} | awk -v nr=${sp_n_repeat} '{ print NF*nr; }')

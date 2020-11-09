@@ -14,6 +14,8 @@
 #include <string>
 #include <unordered_map>
 #include <type_traits>
+#include <dlfcn.h> //dlopen
+#include "utils/file.hpp"
 
 #if !defined(__clang__) && defined(__GNUC__)
 #pragma GCC diagnostic push
@@ -53,6 +55,8 @@ namespace wcs {
 /** \addtogroup wcs_utils
  *  @{ */
 
+typedef reaction_rate_t ( * rate_function_pointer)(const std::vector<reaction_rate_t>&);
+
 class GraphFactory {
  public:
   using v_prop_t = wcs::VertexFlat;
@@ -78,7 +82,8 @@ class GraphFactory {
 
   #if defined(WCS_HAS_SBML)
   template<typename G>
-  void convert_to(const LIBSBML_CPP_NAMESPACE::Model& model, G& g) const;
+  void convert_to(const LIBSBML_CPP_NAMESPACE::Model& model, G& g,
+    const std::string library_file) const;
   #endif // defined(WCS_HAS_SBML)
 
   template<typename G>
@@ -176,7 +181,9 @@ template<typename G> void GraphFactory::copy_to(G& g) const
 #if defined(WCS_HAS_SBML)
 /// Create a Boost graph out of an SBML model
 template<typename G> void
-GraphFactory::convert_to(const LIBSBML_CPP_NAMESPACE::Model& model, G& g) const
+GraphFactory::convert_to(
+  const LIBSBML_CPP_NAMESPACE::Model& model, G& g,
+  const std::string library_file) const
 {
   using v_new_desc_t = typename boost::graph_traits<G>::vertex_descriptor;
   using e_new_desc_t = typename boost::graph_traits<G>::edge_descriptor;
@@ -223,6 +230,20 @@ GraphFactory::convert_to(const LIBSBML_CPP_NAMESPACE::Model& model, G& g) const
     aspset.insert(species_list->get(si)->getIdAttribute());
   }
 
+  #if !defined(WCS_HAS_EXPRTK)
+  // Implement the interface to the dynamic linking loader
+
+  void* handle = dlopen(("./" + library_file).c_str(), RTLD_LAZY);
+
+  if (!handle) {
+    WCS_THROW("Cannot open library: " + std::string(dlerror()) + "\n");
+    return;
+  }
+
+  // reset errors
+  dlerror();
+  #endif // !defined(WCS_HAS_EXPRTK)
+
   // Add reactions
   for (unsigned int ri = 0u; ri < num_reactions; ri++) {
     if (reaction_list->get(ri) == nullptr) {
@@ -231,7 +252,23 @@ GraphFactory::convert_to(const LIBSBML_CPP_NAMESPACE::Model& model, G& g) const
     }
     const auto &reaction = *(reaction_list->get(ri));
 
-    wcs::Vertex v(model, reaction, g);
+    #if !defined(WCS_HAS_EXPRTK)
+    std::string rate_function = std::string("wcs__rate_" + reaction.getIdAttribute());
+
+    void * const reaction_function_rate = dlsym(handle, rate_function.c_str());
+    const char *dlsym_error = dlerror();
+    if (dlsym_error) {
+      WCS_THROW("Cannot load symbol " + reaction.getIdAttribute() + ": " + dlsym_error + "\n");
+      dlclose(handle);
+      return;
+    }
+
+    std::function<reaction_rate_t(const std::vector<reaction_rate_t>&)> f_rate =
+      reinterpret_cast<rate_function_pointer>(reaction_function_rate);
+    wcs::Vertex v(model, reaction, g, f_rate);
+    #else
+    wcs::Vertex v(model, reaction, g, NULL);
+    #endif // !defined(WCS_HAS_EXPRTK)
 
     v_new_desc_t vd = boost::add_vertex(v, g);
     unsigned int num_reactants = reaction.getNumReactants();
@@ -392,6 +429,16 @@ GraphFactory::convert_to(const LIBSBML_CPP_NAMESPACE::Model& model, G& g) const
       }
     }
   }
+  #if !defined(WCS_HAS_EXPRTK)
+  // delete .o and .so files
+  std::string dir;
+  std::string stem;
+  std::string ext;
+  extract_file_component(library_file, dir, stem, ext);
+  std::string lib_filename1 = stem + ".o";
+  std::string system1 = " rm " + library_file + " " + lib_filename1;
+  system(system1.c_str());
+  #endif // !defined(WCS_HAS_EXPRTK)
 }
 #endif // defined(WCS_HAS_SBML)
 

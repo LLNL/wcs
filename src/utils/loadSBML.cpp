@@ -29,7 +29,7 @@ int main(int argc, char** argv)
 {
   if (argc != 2) {
     std::cout << "Usage: " << argv[0] << " filename" << std::endl;
-    return 0;
+    return EXIT_SUCCESS;
   }
 
   const char* filename = argv[1];
@@ -37,15 +37,15 @@ int main(int argc, char** argv)
 
   SBMLDocument* document = reader.readSBML(filename);
   if (document == nullptr) {
-    std::cout << "Faile to get SBML document from " << filename << std::endl;
-    return -1;
+    std::cout << "Failed to get SBML document from " << filename << std::endl;
+    return EXIT_FAILURE;
   }
 
   Model* model = document->getModel();
   if (model == nullptr) {
-    std::cout << "Faile to get SBML model from " << filename << std::endl;
+    std::cout << "Failed to get SBML model from " << filename << std::endl;
     delete document;
-    return -1;
+    return EXIT_FAILURE;
   }
 
   ListOfCompartments* compartment_list = model->getListOfCompartments();
@@ -128,6 +128,10 @@ int main(int argc, char** argv)
       if (ire!=0) {
         std::cout << " + ";
       }
+      if (reaction.getReactant(ire)->getStoichiometry() != 1 )
+      {
+        std::cout << " " << reaction.getReactant(ire)->getStoichiometry() << " ";
+      }
       if (species_list->get(reaction.getReactant(ire)->getSpecies())->
           getHasOnlySubstanceUnits())
       {
@@ -140,61 +144,76 @@ int main(int argc, char** argv)
       if (ire!=0) {
         std::cout << " + ";
       }
+      if (reaction.getProduct(ire)->getStoichiometry() != 1 )
+      {
+        std::cout << " " << reaction.getProduct(ire)->getStoichiometry() << " ";
+      }
       if (species_list->get(reaction.getProduct(ire)->getSpecies())->
           getHasOnlySubstanceUnits())
       {
         std::cout << "$";
       }
-      std::cout << reaction.getProduct(ire)->getSpecies() << "; ";
-    }
-    std::cout << reaction.getKineticLaw()->getFormula() << "; ";
-    //std::cout << "\n "<< SBML_formulaToString(reaction->getKineticLaw()->getMath())<<"; ";
-
-    std::string formula
-      = SBML_formulaToString(reaction.getKineticLaw()->getMath()); //char *
-    const std::string toReplace("pow(");
-    const std::string toReplace2(", ");
-    const std::string toReplace3(")");
-    std::string wholeformula("");
-    size_t pos = formula.find(toReplace);
-
-    while (pos < formula.length()) {
-      if (pos != std::string::npos) {
-        formula.replace(pos,toReplace.length(),"");
+      std::cout << reaction.getProduct(ire)->getSpecies() ; 
+      if (ire == num_products-1) {
+        std::cout << "; ";
       }
-      size_t pos2 = formula.find(toReplace2,pos);
-      formula.replace(pos2,toReplace2.length(),"^");
-      size_t pos3 = formula.find(toReplace3,pos);
-      formula.replace(pos3,toReplace3.length(),"");
-      pos = formula.find(toReplace);
     }
-    std::cout << "\n  ";
 
-    for (unsigned int ic = 0u; ic < num_parameters; ic++) {
-      const LIBSBML_CPP_NAMESPACE::Parameter& parameter = *(parameter_list->get(ic));
-      std::string toFindPar(parameter.getIdAttribute());
-      size_t posPar = formula.find(toFindPar);
-      std::string parametervalue = std::to_string(parameter.getValue()).substr(0,
+    if (reaction.isSetKineticLaw()) {
+      std::cout << reaction.getKineticLaw()->getFormula() << "; ";
+      //std::cout << "\n "<< SBML_formulaToString(reaction->getKineticLaw()->getMath())<<"; ";
+
+      std::string formula
+        = SBML_formulaToString(reaction.getKineticLaw()->getMath()); //char *
+
+      const std::string toReplace("pow(");
+      const std::string toReplace2(", ");
+      const std::string toReplace3(")");
+      std::string wholeformula("");
+      size_t pos = formula.find(toReplace);
+
+      while (pos < formula.length()) {
+        if (pos != std::string::npos) {
+          formula.replace(pos,toReplace.length(),"");
+        }
+        size_t pos2 = formula.find(toReplace2,pos);
+        formula.replace(pos2,toReplace2.length(),"^");
+        size_t pos3 = formula.find(toReplace3,pos);
+        formula.replace(pos3,toReplace3.length(),"");
+        pos = formula.find(toReplace);
+      }
+      std::cout << "\n  ";
+
+      for (unsigned int ic = 0u; ic < num_parameters; ic++) {
+        const LIBSBML_CPP_NAMESPACE::Parameter& parameter = *(parameter_list->get(ic));
+        std::string toFindPar(parameter.getIdAttribute());
+        size_t posPar = formula.find(toFindPar);
+        std::string parametervalue = std::to_string(parameter.getValue()).substr(0,
         std::to_string(parameter.getValue()).find(".") + 3);
 
-      if (posPar != std::string::npos) {
-        wholeformula = wholeformula + "var " + parameter.getIdAttribute()
-                     + " := " + parametervalue +  "; ";
-        std::cout << "var " << parameter.getIdAttribute()
-                  << " := " << parameter.getValue() << "; ";
+        if (posPar != std::string::npos) {
+          wholeformula = wholeformula + "var " + parameter.getIdAttribute()
+                       + " := " + parametervalue +  "; ";
+          std::cout << "var " << parameter.getIdAttribute()
+                    << " := " << parameter.getValue() << "; ";
+        }
       }
+      std::cout << "m_rate := " << formula << ";\n";
+      wholeformula = wholeformula + "m_rate := " + formula + ";\n";
+      //std::cout << wholeformula;
+
+      //const ASTNode*  math = reaction_list->get(ic)->getKineticLaw()->getMath();
+      //wcs::sbml_utils sbml_o;
+      using reaction_parameters = std::unordered_set<std::string>;
+      reaction_parameters pset;
+
+      //pset= sbml_o.get_symbol_table_of_formula(*math);
+      //pset = wcs::sbml_utils::get_symbol_table_of_formula(*math);
+    } else {
+      std::cout << "The formula of the reaction " + reaction.getIdAttribute() + 
+      " should be set." << std::endl;
+      return EXIT_FAILURE;
     }
-    std::cout << "m_rate := " << formula << ";\n";
-    wholeformula = wholeformula + "m_rate := " + formula + ";\n";
-    //std::cout << wholeformula;
-
-    //const ASTNode*  math = reaction_list->get(ic)->getKineticLaw()->getMath();
-    //wcs::sbml_utils sbml_o;
-    using reaction_parameters = std::unordered_set<std::string>;
-    reaction_parameters pset;
-
-    //pset= sbml_o.get_symbol_table_of_formula(*math);
-    //pset = wcs::sbml_utils::get_symbol_table_of_formula(*math);
   }
 
   // Print out Species initializations
@@ -309,7 +328,7 @@ int main(int argc, char** argv)
   std::cout << "\nend\n";
 
   delete document;
-  return 0;
+  return EXIT_SUCCESS;
 }
 
 #endif // defined(WCS_HAS_SBML)

@@ -3,6 +3,7 @@ set_full_path(THIS_DIR_HEADERS
   detect_methods.hpp
   exception.hpp
   file.hpp
+  generate_cxx_code.hpp
   graph_factory.hpp
   input_filetype.hpp
   print_vertices.hpp
@@ -30,6 +31,7 @@ set_full_path(THIS_DIR_HEADERS
 set_full_path(THIS_DIR_SOURCES
   exception.cpp
   file.cpp
+  generate_cxx_code.cpp
   graph_factory.cpp
   input_filetype.cpp
   print_vertices.cpp

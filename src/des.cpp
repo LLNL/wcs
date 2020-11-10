@@ -14,88 +14,207 @@
 #error "no config"
 #endif
 
-
 #if defined(WCS_HAS_ROSS)
-#include "ross.h"
-#include <cstdio>
-#include <cstring>
 
+#include <string>
+#include <cstring> // memset
+#include <iostream>
+#include "ssa-cfg.hpp"
+#include "utils/write_graphviz.hpp"
+#include "utils/timer.hpp"
+#include "utils/to_string.hpp"
+#include "reaction_network/network.hpp"
+#include "des.hpp"
+#include "wcs-ross-bf.hpp"
 
-struct wcs_state
+using revent_t = wcs::Sim_State_Change::revent_t;
+WCS_Global_State gState;
+
+int main(int argc, char **argv)
 {
-  void* m_reaction_net;
-};
-
-typedef enum {
-  WCS_INIT,
-  TENTATIVE_REACTION,
-} wcs_event_type;
-
-typedef struct {
-  wcs_event_type m_etype;
-  tw_lpid m_id;
-  unsigned int m_reaction_id;
-  int m_step;
-  int m_accepted;
-} wcs_message;
-
-void wcs_init(wcs_state *s, tw_lp *lp);
-void wcs_event(wcs_state *s, tw_bf *bf, wcs_message *msg, tw_lp *lp);
-void wcs_event_reverse(wcs_state *s, tw_bf *bf, wcs_message *msg, tw_lp *lp);
-void wcs_final(wcs_state *s, tw_lp *lp);
-
-tw_lptype wcs_LPs[] = {
-  {
-    (init_f) wcs_init,
-    (pre_run_f) NULL,
-    (event_f) wcs_event,
-    (revent_f) wcs_event_reverse,
-    (commit_f) NULL,
-    (final_f) wcs_final,
-    (map_f) NULL,
-    sizeof(wcs_state)
-  },
-  { NULL, NULL, NULL, NULL, NULL, NULL, NULL, 0ul },
-};
-
-const tw_optdef wcs_opts[] = {
-  TWOPT_GROUP("ROSS Model"),
-  TWOPT_END(),
-};
-
-int main (int argc, char* argv[])
-{
-  tw_opt_add(wcs_opts);
+  tw_opt_add(app_opt);
   tw_init(&argc, &argv);
 
-  int num_LPs_per_pe = 1;
+  Config& cfg = gState.m_cfg;
+  cfg.getopt(argc, argv);
+  tw_define_lps(nlp_per_pe, sizeof(WCS_Message));
 
-  printf("tw_nnodes %d\n", tw_nnodes());
-  printf("num_LPs_per_pe %d\n", num_LPs_per_pe);
-  printf("message size %lu\n", sizeof(wcs_message));
+  for(unsigned int i = 0; i < g_tw_nlp; i++) {
+    tw_lp_settype(i, &wcs_LPs[0]);
+  }
 
-  tw_define_lps(num_LPs_per_pe, sizeof(wcs_message));
+  if( g_tw_mynode == 0 )
+  {
+    std::cout << "=========================================" << std::endl;
+    std::cout << "WCS ROSS Configuration.............." << std::endl;
+    std::cout << "   run_id:\t" + std::string(run_id) << std::endl;
+    std::cout << "   nlp_per_pe:\t" << g_tw_nlp << std::endl;
+    std::cout << "   g_tw_ts_end:\t" << g_tw_ts_end << std::endl;;
+    std::cout << "   gvt-interval:\t" << g_tw_gvt_interval << std::endl;;
+    std::cout << "   extramem:\t" << g_tw_events_per_pe_extra << std::endl;
+    std::cout << "   ......................................" << std::endl;
+    std::cout << "   Num nodes:\t" << tw_nnodes() << std::endl;
+    std::cout << "   Message size:\t" << sizeof(WCS_Message) << std::endl;
+    std::cout << "========================================="
+              << std::endl << std::endl;
+  }
 
-  g_tw_lp_types = wcs_LPs;
-  tw_lp_setup_types();
+  tw_run();
   tw_end();
 
-  return 0;
+  return EXIT_SUCCESS;
 }
 
-void wcs_init(wcs_state *s, tw_lp *lp)
+
+void wcs_init(WCS_State *s, tw_lp *lp)
 {
+  Config& cfg = gState.m_cfg;
+
+  std::shared_ptr<wcs::Network> rnet_ptr = std::make_shared<wcs::Network>();
+  wcs::Network& rnet = *rnet_ptr;
+  rnet.load(cfg.infile);
+  rnet.init();
+  const wcs::Network::graph_t& g = rnet.graph();
+
+  if (!cfg.gvizfile.empty() &&
+      !wcs::write_graphviz(cfg.gvizfile, g))
+  {
+    WCS_THROW("Failed to write " + cfg.gvizfile);
+    return;
+  }
+
+  std::unique_ptr<wcs::SSA_NRM> ssa;
+
+  try {
+    if (cfg.method == 1) {
+      std::cerr << "Next Reaction SSA method." << std::endl;
+      ssa = std::make_unique<wcs::SSA_NRM>(rnet_ptr);
+    } else {
+      WCS_THROW("Unsupported SSA method (" + std::to_string(cfg.method) + ')');
+      return;
+    }
+  } catch (const std::exception& e) {
+    WCS_THROW("Fail to setup SSA method.");
+    return;
+  }
+
+  if (cfg.tracing) {
+    ssa->set_tracing<wcs::TraceSSA>(cfg.outfile, cfg.frag_size);
+    std::cerr << "Enable tracing" << std::endl;
+  } else if (cfg.sampling) {
+    if (cfg.iter_interval > 0u) {
+      ssa->set_sampling<wcs::SamplesSSA>(cfg.iter_interval,
+                                         cfg.outfile,
+                                         cfg.frag_size);
+      std::cerr << "Enable sampling at " << cfg.iter_interval
+                << " steps interval" << std::endl;
+    } else {
+      ssa->set_sampling<wcs::SamplesSSA>(cfg.time_interval,
+                                         cfg.outfile,
+                                         cfg.frag_size);
+      std::cerr << "Enable sampling at " << cfg.time_interval
+                << " secs interval" << std::endl;
+    }
+  }
+  ssa->init(cfg.max_iter, cfg.max_time, cfg.seed);
+
+  const size_t lp_idx = gState.m_LP_states.size();
+  ssa->m_lp_idx = lp_idx;
+  s->m_lp_idx = lp_idx;
+  gState.m_LP_states.emplace_back(std::move(ssa), rnet_ptr);
+  gState.m_LP_states[lp_idx].m_t_start = wcs::get_time();
 }
 
-void wcs_event(wcs_state *s, tw_bf *bf, wcs_message *msg, tw_lp *lp)
+
+void wcs_prerun(WCS_State *s, tw_lp *lp)
 {
+  const WCS_LP_State& lp_state = gState.m_LP_states.at(s->m_lp_idx);
+
+  wcs::Sim_Method::revent_t reaction_1st;
+
+  if (lp_state.m_ssa_ptr->schedule(reaction_1st) == wcs::Sim_Method::Success)
+  {
+    tw_event* next_evt = tw_event_new(lp->gid, reaction_1st.first, lp);
+    auto* next_msg = reinterpret_cast<WCS_Message*>(tw_event_data(next_evt));
+    next_msg->reaction = lp_state.m_net_ptr->reaction_d2i(reaction_1st.second);
+    tw_event_send(next_evt);
+  }
 }
 
-void wcs_event_reverse(wcs_state *s, tw_bf *bf, wcs_message *msg, tw_lp *lp)
+
+void wcs_event(WCS_State *s, tw_bf *bf, WCS_Message *msg, tw_lp *lp)
 {
+  memset(static_cast<void*>(bf), 0, sizeof(tw_bf));
+  const WCS_LP_State& lp_state = gState.m_LP_states.at(s->m_lp_idx);
+
+  wcs::Sim_Method::revent_t firing
+    = std::make_pair(tw_now(lp), lp_state.m_net_ptr->reaction_i2d(msg->reaction));
+
+  if (lp_state.m_ssa_ptr->forward(firing))
+  {
+    WCS_BF_(bf, WCS_BF_FWD) = 1u;
+    wcs::SSA_NRM::priority_t new_firing;
+    if (lp_state.m_ssa_ptr->schedule(new_firing) == wcs::Sim_Method::Success)
+    {
+      WCS_BF_(bf, WCS_BF_SCHED) = 1u;
+      new_firing.first -= tw_now(lp);
+      tw_event* next_evt = tw_event_new(lp->gid, new_firing.first, lp);
+      auto* next_msg = reinterpret_cast<WCS_Message*>(tw_event_data(next_evt));
+      next_msg->reaction = lp_state.m_net_ptr->reaction_d2i(new_firing.second);
+      tw_event_send(next_evt);
+    }
+  }
 }
 
-void wcs_final(wcs_state *s, tw_lp *lp)
+
+void wcs_event_reverse(WCS_State *s, tw_bf *bf, WCS_Message *msg, tw_lp *lp)
 {
+  if (!WCS_BF_(bf, WCS_BF_FWD)) {
+    return;
+  }
+  const WCS_LP_State& lp_state = gState.m_LP_states.at(s->m_lp_idx);
+
+  wcs::Sim_Method::revent_t firing
+    = std::make_pair(tw_now(lp), lp_state.m_net_ptr->reaction_i2d(msg->reaction));
+
+  lp_state.m_ssa_ptr->backward(firing);
 }
+
+
+void wcs_event_commit(WCS_State *s, tw_bf *bf, WCS_Message *msg, tw_lp *lp)
+{
+  if (!WCS_BF_(bf, WCS_BF_FWD)) {
+    return;
+  }
+
+  const WCS_LP_State& lp_state = gState.m_LP_states.at(s->m_lp_idx);
+
+  lp_state.m_ssa_ptr->commit_des();
+}
+
+
+void wcs_final(WCS_State *s, tw_lp *lp)
+{
+  Config& cfg = gState.m_cfg;
+  const WCS_LP_State& lp_state = gState.m_LP_states.at(s->m_lp_idx);
+
+  std::cout << "Wall clock time to run simulation: "
+            << wcs::get_time() - lp_state.m_t_start << " (sec)" << std::endl;
+
+  if (cfg.tracing || cfg.sampling) {
+    lp_state.m_ssa_ptr->finalize_recording();
+  } else {
+    std::cout << "Species   : "
+              << lp_state.m_net_ptr->show_species_labels("") << std::endl;
+    std::cout << "FinalState: "
+              << lp_state.m_net_ptr->show_species_counts() << std::endl;
+  }
+}
+
+
+tw_peid wcs_map(tw_lpid gid)
+{
+  return (tw_peid) gid / g_tw_nlp;
+}
+
 #endif // defined(WCS_HAS_ROSS)

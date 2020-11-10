@@ -102,6 +102,7 @@ public:
    * Record as many states as the given number of iterations from the beginning
    * of the digest list */
   virtual void record_first_n(const sim_iter_t num) = 0;
+  size_t m_lp_idx;
  #endif // defined(WCS_HAS_ROSS)
 
   /// Finalize the internal trajectory recorder

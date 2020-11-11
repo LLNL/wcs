@@ -128,6 +128,11 @@ option(WCS_WARNINGS_AS_ERRORS
   "Build with warnings promoted to errors." OFF)
 mark_as_advanced(WCS_WARNINGS_AS_ERRORS)
 
+if (NOT WCS_WITH_SBML AND NOT WCS_WITH_EXPRTK)
+  message(FATAL_ERROR
+          "Requires either or both of SBML and ExprTk.\n")
+endif ()
+
 #
 # The BGL adjacency list container selector. By default, vecS is used
 # for both out-edge lists and vertex lists.

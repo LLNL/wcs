@@ -2,6 +2,9 @@
 set_full_path(THIS_DIR_HEADERS
   bgl.hpp
   wcs_types.hpp
+  des.hpp
+  ssa-cfg.hpp
+  wcs-ross-bf.hpp
   )
 
 set_full_path(THIS_DIR_SOURCES

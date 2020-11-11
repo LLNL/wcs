@@ -323,22 +323,6 @@ Sim_Method::result_t SSA_NRM::schedule(revent_t& evt)
 }
 
 
-void SSA_NRM::commit_des()
-{
-  if (m_recording) {
-   #ifndef NDEBUG
-    if (m_digests.size() < 2ul) {
-      WCS_THROW("No digest to commit!");
-      return;
-    }
-   #endif
-    m_digests.pop_front();
-    const auto& digest = m_digests.front();
-    record(digest.m_sim_time, digest.m_reaction_fired);
-  }
-}
-
-
 bool SSA_NRM::forward(const revent_t firing)
 {
   const auto& t = firing.first;
@@ -406,6 +390,22 @@ void SSA_NRM::backward(revent_t& firing)
   {
     m_sim_time = m_digests.back().m_sim_time;
     m_sim_iter --;
+  }
+}
+
+
+void SSA_NRM::commit_des()
+{
+  if (m_recording) {
+   #ifndef NDEBUG
+    if (m_digests.size() < 2ul) {
+      WCS_THROW("No digest to commit!");
+      return;
+    }
+   #endif
+    m_digests.pop_front();
+    const auto& digest = m_digests.front();
+    record(digest.m_sim_time, digest.m_reaction_fired);
   }
 }
 

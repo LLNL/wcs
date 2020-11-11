@@ -64,9 +64,6 @@ public:
 
  #if defined(WCS_HAS_ROSS)
   void backward(revent_t& evt);
-
-  void forward_des(priority_t firing);
-  void backward_des(priority_t firing);
   void commit_des();
    
   /** Record as many states as the given number of iterations from the

@@ -61,11 +61,21 @@
    header-only library. No pre-installation is required as it is
    automatically downloaded and made available.
 
+ + [**iheap**](https://github.com/yangle/iheap.git)
+   We rely on iheap, the indexed-heap library, to implement the next reaction
+   method. This is a header-only library consists of a single file.
+   No pre-installation is required as it is automatically downloaded and made
+   available.
+
 ## Getting started:
  ```
  git clone https://github.com/llnl/wcs.git
  mkdir build; cd build
- cmake -DBOOST_ROOT:PATH=<PathToYourBoostDev> -DCMAKE_INSTALL_PREFIX:PATH=<YourInstallPath> ../wcs
+ cmake -DBOOST_ROOT:PATH=<PathToYourBoostDev> \
+       -DCMAKE_INSTALL_PREFIX:PATH=<YourInstallPath> \
+       -DWCS_WITH_SBML:BOOL=ON \
+       -DSBML_ROOT:PATH=<path-to-libsbml> \
+       ../wcs
  make
  make install
  ```
@@ -81,22 +91,42 @@
  + [**libSBML C++ API**](http://sbml.org/Software/libSBML)
  + [**ExprTK**](https://github.com/ArashPartow/exprtk)
 
- We currently rely on ExprTk to ingest problem inputs, and moving toward
- utilizing libSBML. Until the latter replaces the former, the former is
- used to parse the formula of the reaction rate annotated to each reaction
- vertex in the GraphML-formatted description of the reaction network.
- Without either, reaction rate simply computes as the multiplication of
- the counts of all the input species and the reaction coefficient.
- As the integraton of libSBML completes, it will no longer be optional.
- To enable one of the optional components, either set the environment
- variable `WCS_WITH_SBML` or `WCS_WITH_EXPRTK`, or invoke cmake with
- the option `-DWCS_WITH_SBML:BOOL=ON` or `-DWCS_WITH_EXPRTK:BOOL=ON`
- respectively for libSBML or ExprTk.
- To use a pre-installed libSBML, either set the environment variable
+	While these are optional, either of the two frameworks or both must be used.
+
+	WCS can rely on SBML for input model ingestion. An input model contains MathML-
+ based description of reaction formula. WCS relies on libSBML to parse the
+ formula, then generates a c++ code that includes callable functions for the
+ formula, which is then compiled and linked on-line.
+
+	Alternatively, WCS can use ExprTk to parse the formula of the reaction rate
+ annotated to each reaction in a GraphML-formatted input. ExprTk dynamically
+ generates a callable function for each reaction formula described in the input
+ model. For GraphML-based inputs, users must express reaction rate formula in
+ a syntax compatible with ExprTk.
+
+	When both SBML and ExprTk are enabled, WCS relies on libSBML to parse the
+ SBML-based input models. Then, WCS internally generates formula strings that
+ are compatible with ExprTk to take advantage of it for function generation.
+ With SBML enabled but without ExprTk, on-line code-generation scheme is used.
+ With ExprTk but without SBML, GraphML-based input ingestion scheme is used.
+
+	To enable SBML-based ingestion, set the environment variable `WCS_WITH_SBML`
+ or invoke cmake command with the option `-DWCS_WITH_SBML:BOOL=ON`.
+ To enable ExprTk-base function generation for reaction formula, use the
+ environment variable `WCS_WITH_EXPRTK`, or use the cmake option
+ `-DWCS_WITH_EXPRTK:BOOL=ON`
+
+	To use a pre-installed libSBML, either set the environment variable
  `SBML_ROOT` or invoke cmake with the option `-DSBML_ROOT=<path-to-libsbml>`.
  For ExprTk, no pre-installation is required as it will automatically download
  it during the build if the presence is not detected. To use a pre-installed
  copy, use the variable `EXPRTK_ROOT`.
+
+ + [**Metis**](http://glaros.dtc.umn.edu/gkhome/metis/metis/overview)
+ WCS rely on Metis graph partitioning library to perform initial partitioning
+ of reaction network for parallel execution. The partitioning outcome will
+ further be refined by custom algorithm. To link with Metis, use the cmake
+ options `-DWCS_WITH_METIS=ON` and `-DMETIS_ROOT=<path-to-metis-install>`.
 
 ## Unit testing:
  + [**Catch2**](https://github.com/catchorg/Catch2)

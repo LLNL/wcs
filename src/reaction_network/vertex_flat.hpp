@@ -43,7 +43,7 @@ namespace wcs {
 
 class VertexFlat {
  public:
-  enum vertex_type { _undefined_, _species_, _reaction_ };
+  enum vertex_type { _undefined_=0, _species_, _reaction_, _num_vertex_types_ };
   static std::map<vertex_type, std::string> vt_str;
   static std::map<std::string, vertex_type> str_vt;
   /// An alternative to the species_cnt_t that is compatible with graphml
@@ -60,6 +60,8 @@ class VertexFlat {
   std::string get_type_str() const;
   void set_label(const std::string& lb);
   std::string get_label() const;
+  void set_partition(const partition_id_t pid);
+  partition_id_t get_partition() const;
 
   bool inc_count();
   bool dec_count();
@@ -77,6 +79,7 @@ class VertexFlat {
   vertex_type m_type;
   int m_typeid;
   std::string m_label; ///< label
+  partition_id_t m_pid; ///< The id of the partition to which this edge belongs
 
   int m_count; ///< copy number of the species
   r_rate_t m_rate; ///< reaction rate

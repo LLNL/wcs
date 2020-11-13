@@ -19,6 +19,7 @@
 #include <boost/filesystem.hpp>
 #include "utils/write_graphviz.hpp"
 #include "partition/partition.hpp"
+#include "sim_methods/ssa_nrm.hpp"
 #include "utils/file.hpp"
 #include <fstream>
 
@@ -309,7 +310,35 @@ bool initial_partition(const Config& cfg,
     partitioner.print_adjacency(std::cout);
   }
 
-  return partitioner.run(parts, objval);
+  bool ret = partitioner.run(parts, objval);
+  if (!ret) return false;
+
+  const auto& map_idx2desc = partitioner.get_map_from_idx_to_desc();
+
+  for (wcs::partition_id_t i = 0; i < mp.m_nparts; ++i) {
+    rnet_ptr->set_partition(map_idx2desc, parts, i);
+
+    if (!(rnet_ptr->my_reaction_list()).empty()) {
+      const auto gpart_name
+        = wcs::append_to_stem(cfg.outfile, "-" + std::to_string(i));
+
+      wcs::SSA_NRM nrm(rnet_ptr);
+      nrm.init(1, 0.0, cfg.seed);
+      const auto r = nrm.choose_reaction();
+      const auto rname = ((rnet_ptr->graph())[r.second]).get_label();
+      std::cout << "First reaction from partition " << i << " is "
+                << rname << " at time "  << r.first << std::endl;
+
+      if (!wcs::write_graphviz(gpart_name, rnet_ptr->graph(), i)) {
+        std::cerr << "Failed to write " << gpart_name << std::endl;
+        continue;
+      }
+      std::cout << "(" + std::to_string((rnet_ptr->my_reaction_list()).size())
+        + " reactions, " + std::to_string((rnet_ptr->my_species_list()).size())
+        + " species)" << std::endl;
+    }
+  }
+  return true;
 }
 //-----------------------------------------------------------------------------
 #endif // defined(WCS_HAS_METIS)
@@ -348,7 +377,7 @@ int main(int argc, char** argv)
 
   bool ok = true;
 
-  if (cfg.run_embedded) {
+  if (cfg.run_embedded) { // A simple test case
     wcs::Metis_Params mp;
     mp.m_nparts = cfg.n_parts;
     set_metis_options(cfg, mp);

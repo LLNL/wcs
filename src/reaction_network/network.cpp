@@ -180,6 +180,8 @@ void Network::init()
 
   sort_species();
   build_index_maps();
+
+  m_pid = unassigned_partition;
 }
 
 /// Overwrite the reaction rate to a given value
@@ -437,6 +439,19 @@ std::string Network::show_reaction_rates() const
  */
 void Network::build_index_maps()
 {
+  if constexpr (!is_vertex_list_ordered::value) {
+    std::string errmsg = std::string("Currently, the mapping from a vertex ")
+                       + "index to a vertex descriptor is based on the "
+                       + "assumption that the vertex index is a integral "
+                       + "sequence number starting from 0 to the number of "
+                       + "vertices in the graph container minus one. Aslo, "
+                       + "it is assumed that the container is ordered such "
+                       + "that iterating over the container results in the "
+                       + "same order of vertices.";
+    WCS_THROW(errmsg);
+    return;
+  }
+
   { // build a map from the vertex descriptor and the index for species
     m_s_idx_map.clear();
     m_s_idx_map.reserve(m_species.size());
@@ -485,6 +500,57 @@ v_idx_t Network::species_d2i(v_desc_t d) const
 Network::v_desc_t Network::species_i2d(v_idx_t i) const
 {
   return m_species.at(i);
+}
+
+void Network::set_partition(const map_idx2desc_t& idx2vd,
+                            const std::vector<partition_id_t>& parts,
+                            const partition_id_t my_pid)
+{
+  if (idx2vd.size() != parts.size()) {
+    std::string errmsg =
+      "Inconsistent sizes between the vertex map and the number of partitions!";
+    WCS_THROW(errmsg);
+    return;
+  }
+  m_pid = my_pid;
+
+  m_my_reactions.clear();
+  m_my_reactions.reserve(m_reactions.size());
+  m_my_species.clear();
+  m_my_species.reserve(m_species.size());
+
+  size_t i = 0u;
+
+  for (const auto vd : idx2vd) {
+    auto& v = m_graph[vd]; // vertex (property) of the reaction
+    const partition_id_t pid = parts[i++];
+    v.set_partition(pid);
+
+    if (pid == my_pid) {
+      const auto vt = static_cast<v_prop_t::vertex_type>(v.get_typeid());
+
+      if (vt == v_prop_t::_species_) {
+        m_my_species.emplace_back(vd);
+      } else if (vt == v_prop_t::_reaction_) {
+        m_my_reactions.emplace_back(vd);
+      }
+    }
+  }
+}
+
+const Network::reaction_list_t& Network::my_reaction_list() const
+{
+  return m_my_reactions;
+}
+
+const Network::reaction_list_t& Network::my_species_list() const
+{
+  return m_my_species;
+}
+
+partition_id_t Network::get_partition_id() const
+{
+  return m_pid;
 }
 
 /**@}*/

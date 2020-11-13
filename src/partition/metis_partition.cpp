@@ -70,8 +70,8 @@ void Metis_Partition::build_map_from_desc_to_idx()
 
   for (boost::tie(vi, vi_end) = boost::vertices(graph); vi != vi_end; ++vi) {
     const v_desc_t& vertex = *vi;
-    m_idx2vd.emplace(idx, vertex);
-    m_vd2idx.emplace(vertex, idx++);
+    m_idx2vd.emplace_back(vertex);
+    m_vd2idx.emplace(vertex, static_cast<wcs::v_idx_t>(idx++));
     //if constexpr (is_bidirectional) {
     //  m_num_edges += boost::in_degree(vertex, graph);
     //}
@@ -108,13 +108,15 @@ void Metis_Partition::populate_adjacny_list()
       for(const auto ei_in :
           boost::make_iterator_range(boost::in_edges(vertex, graph)))
       {
-        neighbors.push_back(m_vd2idx.at(boost::source(ei_in, graph)));
+        const auto ne = m_vd2idx.at(boost::source(ei_in, graph));
+        neighbors.push_back(static_cast<idx_t>(ne));
       }
 
       for(const auto ei_out :
           boost::make_iterator_range(boost::out_edges(vertex, graph)))
       {
-        neighbors.push_back(m_vd2idx.at(boost::target(ei_out, graph)));
+        const auto ne = m_vd2idx.at(boost::target(ei_out, graph));
+        neighbors.push_back(static_cast<idx_t>(ne));
       }
       std::sort(neighbors.begin(), neighbors.end());
       m_xadj.push_back(m_xadj.back() + neighbors.size());
@@ -134,8 +136,8 @@ void Metis_Partition::populate_adjacny_list()
         const auto n = m_vd2idx.at(boost::target(ei_out, graph));
         std::set<idx_t>& v_neighbors = neighbors_list.at(v);
         std::set<idx_t>& n_neighbors = neighbors_list.at(n);
-        v_neighbors.insert(n);
-        n_neighbors.insert(v);
+        v_neighbors.insert(static_cast<idx_t>(n));
+        n_neighbors.insert(static_cast<idx_t>(v));
       }
     }
 
@@ -360,12 +362,10 @@ void Metis_Partition::print_metis_inputs(
   os << std::endl;
 }
 
-
 void Metis_Partition::print_metis_graph(std::ostream& os) const {
   print_metis_inputs(m_xadj, m_adjncy,
                      m_vwgt, m_vsize, os);
 }
-
 
 void Metis_Partition::print_adjacency(std::ostream& os) const
 {
@@ -386,13 +386,13 @@ void Metis_Partition::print_adjacency(std::ostream& os) const
   os << std::endl;
 }
 
-const std::unordered_map<Network::v_desc_t, idx_t>&
+const Metis_Partition::map_desc2idx_t&
 Metis_Partition::get_map_from_desc_to_idx() const
 {
   return m_vd2idx;
 }
 
-const std::map<idx_t, Network::v_desc_t>&
+const Metis_Partition::map_idx2desc_t&
 Metis_Partition::get_map_from_idx_to_desc() const
 {
   return m_idx2vd;

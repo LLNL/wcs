@@ -77,11 +77,12 @@ class Network {
   using rand_access
     = typename boost::detail::is_random_access<typename graph_t::vertex_list_selector>::type;
 
-  using reaction_list_t = std::vector<v_desc_t>;
-
   /** The type of the list of species. This is chosen for the memory efficiency
-      than for the lookup performance. */
-  using species_list_t  = std::vector<v_desc_t>;
+    * and the lookup performance assuming an ordered container used to store
+    * the graph */
+  using map_idx2desc_t = std::vector<v_desc_t>;
+  using reaction_list_t = map_idx2desc_t;
+  using species_list_t  = map_idx2desc_t;
 
   /// Map a BGL vertex descriptor to the reaction index
   using map_desc2idx_t = std::unordered_map<v_desc_t, v_idx_t>;
@@ -129,6 +130,24 @@ class Network {
   v_idx_t species_d2i(v_desc_t d) const;
   v_desc_t species_i2d(v_idx_t i) const;
 
+  /**
+   * Set the partition id to each vertex (of both reaction and species types),
+   * using the the list of partition ids ordered as the vertex descriptors
+   * in the map from index to descriptor.
+   * Then, make the list of local reactions, that belong to current partition,
+   * specified as my_pid.
+   */
+  void set_partition(const map_idx2desc_t& idx2vd,
+                     const std::vector<partition_id_t>& parts,
+                     const partition_id_t my_pid);
+  /**
+   * Allow read-only access to the list of reactions that belong to this
+   * partition.
+   */
+  const reaction_list_t& my_reaction_list() const;
+  const reaction_list_t& my_species_list() const;
+  /// Return the id of this partition
+  partition_id_t get_partition_id() const;
 
  protected:
   /// Sort the species list by the label (in lexicogrphical order)
@@ -159,6 +178,13 @@ class Network {
    * the largest value of the sim_time_t type.
    */
   static sim_time_t m_etime_ulimit;
+
+  /// Id of this partition. This is only relevant to parallel execution.
+  partition_id_t m_pid;
+  /// List of reactions that belong to this partition
+  reaction_list_t m_my_reactions;
+  /// List of species that belong to this partition
+  species_list_t m_my_species;
 };
 
 /**@}*/

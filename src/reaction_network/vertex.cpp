@@ -31,6 +31,7 @@ std::map<std::string, Vertex::vertex_type> Vertex::str_vt {
 
 Vertex::Vertex()
 : m_type(_undefined_), m_label(""),
+  m_pid(unassigned_partition),
   m_p(nullptr)
 {
   m_typeid = static_cast<int>(m_type);
@@ -40,13 +41,15 @@ Vertex::Vertex(const Vertex& rhs)
 : m_type(rhs.m_type),
   m_typeid(rhs.m_typeid),
   m_label(rhs.m_label),
+  m_pid(rhs.m_pid),
   m_p((!rhs.m_p)? nullptr : rhs.m_p.get()->clone())
 {
 }
 
 Vertex::Vertex(Vertex&& rhs) noexcept
 : m_type(rhs.m_type),
-  m_typeid(rhs.m_typeid)
+  m_typeid(rhs.m_typeid),
+  m_pid(rhs.m_pid)
 {
   if (this != &rhs) {
     m_label = std::move(rhs.m_label);
@@ -62,6 +65,7 @@ Vertex& Vertex::operator=(const Vertex& rhs)
     m_type = rhs.m_type;
     m_typeid = rhs.m_typeid;
     m_label = rhs.m_label;
+    m_pid = rhs.m_pid;
     m_p = (!rhs.m_p)? nullptr : rhs.m_p.get()->clone();
   }
   return *this;
@@ -73,6 +77,7 @@ Vertex& Vertex::operator=(Vertex&& rhs) noexcept
     m_type = rhs.m_type;
     m_typeid = rhs.m_typeid;
     m_label = std::move(rhs.m_label);
+    m_pid = rhs.m_pid;
     m_p = std::move(rhs.m_p);
 
     reset(rhs);
@@ -96,6 +101,7 @@ Vertex* Vertex::clone_impl() const
 void Vertex::reset(Vertex& obj)
 {
    obj.m_label.clear();
+   obj.m_pid = static_cast<partition_id_t>(0);
    obj.m_p = nullptr;
 }
 
@@ -135,6 +141,15 @@ std::string Vertex::get_label() const
   return m_label;
 }
 
+void Vertex::set_partition(const partition_id_t pid)
+{
+  m_pid = pid;
+}
+
+partition_id_t Vertex::get_partition() const
+{
+  return m_pid;
+}
 
 /**@}*/
 } // end of namespace wcs

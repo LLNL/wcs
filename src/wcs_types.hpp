@@ -15,6 +15,16 @@
 #include <memory>  // std::unique_ptr
 #include <limits>  // std::numeric_limits
 
+#if defined(WCS_HAS_CONFIG)
+#include "wcs_config.hpp"
+#else
+#error "no config"
+#endif
+
+#if defined(WCS_HAS_METIS)
+#include <metis.h>
+#endif // defined(WCS_HAS_METIS)
+
 namespace wcs {
 /** \addtogroup wcs_global
  *  @{ */
@@ -25,9 +35,16 @@ using reaction_rate_t = double;
 using sim_time_t = double;
 using sim_iter_t = unsigned;
 using stoic_t = int;
-using partition_id_t = unsigned;
 using concentration_t = double;
 using v_idx_t = unsigned; ///< vertex index type
+
+#if defined(WCS_HAS_METIS)
+// idx_t is Metis integer type, which can be 32-bit or 64-bit long.
+using partition_id_t = idx_t;
+#else
+using partition_id_t = v_idx_t;
+using idx_t = v_idx_t;
+#endif // defined(WCS_HAS_METIS)
 
 constexpr partition_id_t unassigned_partition
   = std::numeric_limits<partition_id_t>::max();

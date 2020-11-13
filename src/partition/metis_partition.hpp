@@ -38,6 +38,10 @@ class Metis_Partition {
   using directed_category = typename boost::graph_traits<graph_t>::directed_category;
   using v_desc_t = wcs::Network::v_desc_t;
 
+  using map_idx2desc_t = wcs::Network::map_idx2desc_t;
+  using map_desc2idx_t = wcs::Network::map_desc2idx_t;
+
+
   Metis_Partition(const Metis_Params& mp);
 
   /** Return the number of undirected edges that can go into the header of
@@ -70,8 +74,8 @@ class Metis_Partition {
   void print_adjacency(std::ostream& os = std::cout) const;
 
 
-  const std::unordered_map<v_desc_t, idx_t>& get_map_from_desc_to_idx() const;
-  const std::map<idx_t, v_desc_t>& get_map_from_idx_to_desc() const;
+  const map_desc2idx_t& get_map_from_desc_to_idx() const;
+  const map_idx2desc_t& get_map_from_idx_to_desc() const;
 
  protected:
   using v_iter_t = wcs::Network::v_iter_t;
@@ -99,9 +103,9 @@ class Metis_Partition {
   // idx_t is the type defined in metis
 
   /// Map from the BGL vertex descriptor to the vertex index used in Metis
-  std::unordered_map<v_desc_t, idx_t> m_vd2idx;
+  map_desc2idx_t m_vd2idx;
   /// Map from the vertex index used in Metis to the BGL vertex descriptor
-  std::map<idx_t, v_desc_t> m_idx2vd;
+  map_idx2desc_t m_idx2vd;
 
   /// Indices to the adjacency per vertex in the CSR format
   std::vector<idx_t> m_xadj;

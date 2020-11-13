@@ -30,6 +30,7 @@ std::map<std::string, VertexFlat::vertex_type> VertexFlat::str_vt {
 VertexFlat::VertexFlat()
 : m_type(_undefined_),
   m_label(""),
+  m_pid(unassigned_partition),
   m_count(static_cast<s_cnt_t>(0)),
   m_rate(static_cast<r_rate_t>(0)),
   m_rate_formula("")
@@ -40,6 +41,7 @@ VertexFlat::VertexFlat()
 /*
 VertexFlat::VertexFlat(const vertex_type vt, const std::string& lb)
 : m_type(vt), m_label(lb),
+  m_pid(unassigned_partition),
   m_count(static_cast<s_cnt_t>(0)),
   m_rate(static_cast<r_rate_t>(0)),
   m_rate_formula("")
@@ -86,6 +88,16 @@ void VertexFlat::set_label(const std::string& lb)
 std::string VertexFlat::get_label() const
 {
   return m_label;
+}
+
+void VertexFlat::set_partition(const partition_id_t pid)
+{
+  m_pid = pid;
+}
+
+partition_id_t VertexFlat::get_partition() const
+{
+  return m_pid;
 }
 
 bool VertexFlat::inc_count()

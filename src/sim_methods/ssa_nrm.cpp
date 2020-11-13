@@ -9,6 +9,7 @@
  ******************************************************************************/
 
 #include <algorithm>
+#include <string>
 #include "sim_methods/ssa_nrm.hpp"
 #include "utils/exception.hpp"
 #include "iheap.h"
@@ -88,7 +89,13 @@ void SSA_NRM::build_heap()
   constexpr sim_time_t unsigned_max
     = static_cast<sim_time_t>(std::numeric_limits<unsigned>::max());
 
-  const auto reaction_list = m_net_ptr->reaction_list();
+  const bool is_partitioned
+    = (m_net_ptr->get_partition_id() != unassigned_partition);
+
+  const Network::reaction_list_t& reaction_list
+    = (is_partitioned? m_net_ptr->my_reaction_list()
+                     : m_net_ptr->reaction_list());
+
   for (size_t i = 0u; i < reaction_list.size(); ++i) {
     const auto& vd = reaction_list[i];
 
@@ -103,10 +110,33 @@ void SSA_NRM::build_heap()
     m_idx_table[vd] = static_cast<heap_idx_t>(i); // position in the heap
   }
   iheap::make(m_heap.begin(), m_heap.end(), indexer, less_priority);
+
+  if (m_heap.empty()) {
+    std::string errmsg;
+    if (is_partitioned) {
+      errmsg = "Partition " + std::to_string(m_net_ptr->get_partition_id())
+             + " has no reaction!";
+    } else {
+      errmsg = "There is no reaction!";
+    }
+  #if 1
+    WCS_THROW(errmsg);
+  #else
+    using std::operator<<;
+    std::cerr << errmsg << std::endl;
+    // Need to check if m_heap is empty in choose_reaction()
+  #endif
+  }
 }
 
 SSA_NRM::priority_t SSA_NRM::choose_reaction()
 {
+ #if 0
+  // Enable this block if this condition is not checked in build_heap()
+  if (m_heap.empty()) {
+    return std::make_pair(wcs::Network::get_etime_ulimit(), v_desc_t{});
+  }
+ #endif
   // lambdas_for_indexed_heap
   // iheap::pop(m_heap.begin(), m_heap.end(), indexer, less_priority);
   // auto p = m_heap.back();

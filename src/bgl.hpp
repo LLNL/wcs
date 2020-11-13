@@ -17,6 +17,7 @@
 #endif
 
 #include <boost/config.hpp> // for BOOST_LIKELY
+#include <type_traits>
 
 // To suppress the gcc compiler warning 'maybe-uninitialized'
 // from the boost graph source code.
@@ -37,32 +38,40 @@ namespace wcs {
 template<typename S = void>
 struct adjlist_selector_t {
   using type = ::boost::vecS;
+  using ordered = std::true_type;
 };
 
 template<> struct adjlist_selector_t<::boost::vecS> {
   using type = ::boost::vecS;
+  using ordered = std::true_type;
 };
 
 template<> struct adjlist_selector_t<::boost::listS> {
   using type = ::boost::listS;
+  using ordered = std::true_type;
 };
 
 template<> struct adjlist_selector_t<::boost::setS> {
   using type = ::boost::setS;
+  using ordered = std::true_type;
 };
 
 template<> struct adjlist_selector_t<::boost::multisetS> {
   using type = ::boost::multisetS;
+  using ordered = std::true_type;
 };
 
 template<> struct adjlist_selector_t<::boost::hash_setS> {
   using type = ::boost::hash_setS;
+  using ordered = std::false_type;
 };
 
 #ifndef WCS_VERTEX_LIST_TYPE
 using wcs_vertex_list_t = adjlist_selector_t<>::type;
+using is_vertex_list_ordered = adjlist_selector_t<>::ordered;
 #else
 using wcs_vertex_list_t = adjlist_selector_t<WCS_VERTEX_LIST_TYPE>::type;
+using is_vertex_list_ordered = adjlist_selector_t<WCS_VERTEX_LIST_TYPE>>::ordered;
 #endif
 
 #ifndef WCS_OUT_EDGE_LIST_TYPE

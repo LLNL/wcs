@@ -87,6 +87,8 @@ class Vertex {
   std::string get_type_str() const;
   void set_label(const std::string& lb);
   std::string get_label() const;
+  void set_partition(const partition_id_t pid);
+  partition_id_t get_partition() const;
 
   template <typename P> P& property() const;
   template <typename P> P& checked_property() const;
@@ -103,6 +105,7 @@ class Vertex {
   vertex_type m_type; ///< The vertex type
   int m_typeid; ///< The vertex type in integer form used for GraphML parsing
   std::string m_label; ///< The vertex label
+  partition_id_t m_pid; ///< The id of the partition to which this edge belongs
 
   /**
    * The pointer to the detailed property object, which is polymorphic.
@@ -125,6 +128,7 @@ Vertex::Vertex(const VertexFlat& flat, const G& g)
 : m_type(static_cast<vertex_type>(flat.get_typeid())),
   m_typeid(flat.get_typeid()),
   m_label(flat.get_label()),
+  m_pid(unassigned_partition),
   m_p(nullptr)
 {
   switch(m_type) {
@@ -153,6 +157,7 @@ Vertex::Vertex(const LIBSBML_CPP_NAMESPACE::Species& species, const G& g)
 : m_type(_species_),
   m_typeid(static_cast<int>(_species_)),
   m_label(species.getIdAttribute()),
+  m_pid(unassigned_partition),
   m_p(nullptr)
 {
   m_p = std::unique_ptr<Species>(new Species);
@@ -180,6 +185,7 @@ Vertex::Vertex(
 : m_type(_reaction_),
   m_typeid(static_cast<int>(_reaction_)),
   m_label(reaction.getIdAttribute()),
+  m_pid(unassigned_partition),
   m_p(nullptr)
 {
   using v_desc_t = typename boost::graph_traits<G>::vertex_descriptor;

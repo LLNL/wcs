@@ -333,6 +333,13 @@ bool Network::check_reaction(const wcs::Network::v_desc_t r) const
     const auto& sp_reactant = sv_reactant.property<Species>();
     const auto stoichio = m_graph[ei_in].get_stoichiometry_ratio();
     if (!sp_reactant.dec_check(stoichio)) {
+     #if 0
+      using std::operator>>;
+      std::cerr << "reaction " << m_graph[r].get_label()
+                << " has insufficient amount of reactants "
+                << sv_reactant.get_label() << " (" << stoichio << " < "
+                << sp_reactant.get_count() << ")" << std::endl;
+     #endif
       // check if reaction is possible, i.e., decrement is possible
       set_reaction_rate(r, 0.0);
       return false;

@@ -99,6 +99,19 @@ void traverse(const wcs::Network& rnet)
   }
 }
 
+void count_active_reactions(const wcs::Network& rnet)
+{
+  size_t num_active = 0ul;
+  size_t num_total = rnet.reaction_list().size();
+
+  for (const auto r : rnet.reaction_list()) {
+    num_active += static_cast<size_t>(rnet.check_reaction(r));
+  }
+
+  std::cout << "Num active reactions: "
+            << num_active << "/" << num_total << std::endl;
+}
+
 int main(int argc, char** argv)
 {
   int c;
@@ -128,8 +141,10 @@ int main(int argc, char** argv)
   wcs::Network rnet;
 
   rnet.load(fn);
-
   rnet.init();
+
+  count_active_reactions(rnet);
+
   const wcs::Network::graph_t& g = rnet.graph();
 
   if (outfile.empty()) {

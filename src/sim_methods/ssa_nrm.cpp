@@ -109,6 +109,7 @@ void SSA_NRM::build_heap()
     }
     m_idx_table[vd] = static_cast<heap_idx_t>(i); // position in the heap
   }
+
   iheap::make(m_heap.begin(), m_heap.end(), indexer, less_priority);
 
   if (m_heap.empty()) {
@@ -119,7 +120,7 @@ void SSA_NRM::build_heap()
     } else {
       errmsg = "There is no reaction!";
     }
-  #if 1
+  #if 0
     WCS_THROW(errmsg);
   #else
     using std::operator<<;
@@ -133,6 +134,7 @@ SSA_NRM::priority_t SSA_NRM::choose_reaction()
 {
  #if 0
   // Enable this block if this condition is not checked in build_heap()
+  // or schedule()
   if (m_heap.empty()) {
     return std::make_pair(wcs::Network::get_etime_ulimit(), v_desc_t{});
   }

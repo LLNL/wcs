@@ -203,6 +203,7 @@ endif ()
 include(GNUInstallDirs)
 include(ExternalProject)
 include(SetupCXX)
+include(SetupProtobuf)
 
 ################################################################
 # Initialize dependencies
@@ -311,7 +312,6 @@ if (WCS_WITH_METIS)
   endif (METIS_FOUND)
 endif (WCS_WITH_METIS)
 
-
 if (WCS_WITH_UNIT_TESTING)
   include(SetupCatch2)
   include(CTest)
@@ -388,6 +388,11 @@ if (WCS_HAS_METIS)
   target_link_libraries(wcs PUBLIC METIS::METIS)
   target_include_directories(wcs SYSTEM PUBLIC ${METIS_INCLUDE_DIR})
 endif (WCS_HAS_METIS)
+
+if (WCS_HAS_PROTOBUF)
+  target_link_libraries(wcs PUBLIC ${PROTOBUF_LIBRARIES})
+  target_include_directories(wcs SYSTEM PUBLIC ${PROTOBUF_INCLUDE_DIRS})
+endif (WCS_HAS_PROTOBUF)
 
 if (WCS_WITH_UNIT_TESTING)
   add_dependencies(wcs CATCH2)
@@ -518,7 +523,7 @@ install(
 
 install(
   TARGETS  ${WCS_UNIT_TEST_TARGETS}
-  EXPORT   WCSTargets
+#  EXPORT   WCSTargets
   RUNTIME  DESTINATION ${CMAKE_INSTALL_PREFIX}/tests/unit
   ARCHIVE  DESTINATION ${CMAKE_INSTALL_LIBDIR}
   LIBRARY  DESTINATION ${CMAKE_INSTALL_LIBDIR}
@@ -731,7 +736,8 @@ append_str_tf(_str
   WCS_HAS_VTUNE
   WCS_HAS_DOXYGEN
   WCS_HAS_ROSS
-  WCS_HAS_METIS)
+  WCS_HAS_METIS
+  WCS_HAS_PROTOBUF)
 string(APPEND _str
   "\n== End WCS Configuration Summary ==\n")
 

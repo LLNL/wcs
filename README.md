@@ -12,6 +12,7 @@
  dynamically between the methods when beneficial.
 
 ## Current Requirements:
+ + **Platforms targeted**: Linux-based systems
  + **c++ compiler that supports c++17**
    e.g., clang++ 5.0 or later, g++ 7.1 or later, and icpc 19.0.1 or later
 
@@ -66,6 +67,18 @@
    method. This is a header-only library consists of a single file.
    No pre-installation is required as it is automatically downloaded and made
    available.
+
+ + [**Protocol Buffers**](https://developers.google.com/protocol-buffers)
+   We use the google protocol buffers library for parsing the configuration file
+   of simulation, which is written by users in the [**protocol buffers language**](https://developers.google.com/protocol-buffers/docs/proto3).
+   By default, the source will be downloaded, and the library as well as the
+   protoc compiler will be built and installed along with the rest of WCS project
+   files. Therefore, no pre-installation is necessary. However, it is possible to
+   link with a pre-installed copy by setting the cmake option `-DPROTOBUF_ROOT=<path>`.
+   In case of cross-compiling, the path to the protoc compiler and the path to
+   the library built for the target platform can be explicitly specified via
+   `-DProtobuf_PROTOC_EXECUTABLE=<installation-for-host/bin/protoc>`
+   and `-DPROTOBUF_DIR=<installation-for-target>`
 
 ## Getting started:
  ```

@@ -71,6 +71,9 @@ class GraphFactory {
   using v_desc_t = boost::graph_traits<graph_t>::vertex_descriptor;
   using e_desc_t = boost::graph_traits<graph_t>::edge_descriptor;
 
+  using params_map_t = std::unordered_map <std::string, std::vector<std::string>>;
+  using rate_rules_dep_t = std::unordered_map <std::string, std::set<std::string>>;
+
  public:
   GraphFactory();
   GraphFactory(const GraphFactory &o);
@@ -83,7 +86,10 @@ class GraphFactory {
   #if defined(WCS_HAS_SBML)
   template<typename G>
   void convert_to(const LIBSBML_CPP_NAMESPACE::Model& model, G& g,
-    const std::string library_file) const;
+    const std::string library_file,
+    const params_map_t& dep_params_f,
+    const params_map_t& dep_params_nf,
+    const rate_rules_dep_t& rate_rules_dep_map) const;
   #endif // defined(WCS_HAS_SBML)
 
   template<typename G>
@@ -183,7 +189,10 @@ template<typename G> void GraphFactory::copy_to(G& g) const
 template<typename G> void
 GraphFactory::convert_to(
   const LIBSBML_CPP_NAMESPACE::Model& model, G& g,
-  const std::string library_file) const
+  const std::string library_file,
+  const params_map_t& dep_params_f,
+  const params_map_t& dep_params_nf,
+  const rate_rules_dep_t& rate_rules_dep_map) const
 {
   using v_new_desc_t = typename boost::graph_traits<G>::vertex_descriptor;
   using e_new_desc_t = typename boost::graph_traits<G>::edge_descriptor;
@@ -208,21 +217,21 @@ GraphFactory::convert_to(
   const LIBSBML_CPP_NAMESPACE::ListOfSpecies* species_list
     = model.getListOfSpecies();
 
-  using species_added = std::unordered_map<std::string, v_new_desc_t>;
-  typename species_added::const_iterator it;
-  species_added smap;
+  using species_added_t = std::unordered_map<std::string, v_new_desc_t>;
+  typename species_added_t::const_iterator it;
+  species_added_t smap;
 
-  using edges_added = std::unordered_map<std::string, e_new_desc_t>;
-  typename edges_added::const_iterator eit;
-  edges_added emap;
+  using edges_added_t = std::unordered_map<std::string, e_new_desc_t>;
+  typename edges_added_t::const_iterator eit;
+  edges_added_t emap;
 
-  using undeclared_reactants = std::unordered_set<std::string>;
-  typename undeclared_reactants::const_iterator urit;
-  undeclared_reactants urset;
+  using undeclared_reactants_t = std::unordered_set<std::string>;
+  typename undeclared_reactants_t::const_iterator urit;
+  undeclared_reactants_t urset;
 
-  using  all_species = std::unordered_set<std::string>;
-  typename all_species::const_iterator aspit;
-  all_species aspset;
+  using  all_species_t = std::unordered_set<std::string>;
+  typename all_species_t::const_iterator aspit;
+  all_species_t aspset;
 
   // Create an unordered_set for all model species
   unsigned int num_species = species_list->size();
@@ -246,6 +255,8 @@ GraphFactory::convert_to(
 
   // Add reactions
   for (unsigned int ri = 0u; ri < num_reactions; ri++) {
+    std::unordered_set<std::string> reaction_in_species;
+    std::unordered_set<std::string>::const_iterator risit;
     if (reaction_list->get(ri) == nullptr) {
       WCS_THROW("Invalid reaction pointer");
       return;
@@ -273,7 +284,7 @@ GraphFactory::convert_to(
     v_new_desc_t vd = boost::add_vertex(v, g);
     unsigned int num_reactants = reaction.getNumReactants();
     unsigned int num_products = reaction.getNumProducts();
-    unsigned int modifiersSize = reaction.getNumModifiers();
+    unsigned int num_modifiers = reaction.getNumModifiers();
 
     if constexpr (has_reserve_for_vertex_out_edges<G>::value) {
         g.m_vertices[vd].m_out_edges.reserve(num_products);
@@ -292,8 +303,9 @@ GraphFactory::convert_to(
         = species_list->get(reactant.getSpecies())->getIdAttribute();
       it = smap.find(s_label) ;
       v_new_desc_t vds;
+      reaction_in_species.insert(s_label);
 
-      if (it == smap.end()) {
+      if (it == smap.cend()) {
         wcs::Vertex vs(*species_list->get(reactant.getSpecies()), g);
         vds = boost::add_vertex(vs, g);
         smap.insert(std::make_pair(s_label,vds));
@@ -304,7 +316,7 @@ GraphFactory::convert_to(
       std::string e_label = g[vds].get_label() + '|' + g[vd].get_label();
       eit = emap.find(e_label);
 
-      if (eit == emap.end()) {
+      if (eit == emap.cend()) {
         const auto ret = boost::add_edge(vds, vd, g);
 
         if (!ret.second) {
@@ -324,15 +336,16 @@ GraphFactory::convert_to(
 
 
     // Add modifiers species
-    for (unsigned int si = 0u; si < modifiersSize; si++) {
+    for (unsigned int si = 0u; si < num_modifiers; si++) {
       const auto &modifier = *(reaction.getModifier(si));
 
       std::string s_label
         = species_list->get(modifier.getSpecies())->getIdAttribute();
       it = smap.find(s_label) ;
       v_new_desc_t vds;
+      reaction_in_species.insert(s_label);
 
-      if (it == smap.end()) {
+      if (it == smap.cend()) {
         wcs::Vertex vs(*species_list->get(modifier.getSpecies()), g);
         vds = boost::add_vertex(vs, g);
         smap.insert(std::make_pair(s_label,vds));
@@ -359,7 +372,7 @@ GraphFactory::convert_to(
     for  (const std::string& x: urset) {
       std::string s_label = x;
       aspit = aspset.find(s_label);
-      if (aspit == aspset.end()) {
+      if (aspit == aspset.cend()) {
         WCS_THROW("Unknown element " + s_label + " in the reaction " +
                   reaction.getIdAttribute() + " of your SBML file");
         return;
@@ -371,8 +384,9 @@ GraphFactory::convert_to(
       std::string s_label = x;
       it = smap.find(s_label) ;
       v_new_desc_t vds;
+      reaction_in_species.insert(s_label);
 
-      if (it == smap.end()) {
+      if (it == smap.cend()) {
         wcs::Vertex vs(*species_list->get(x), g);
         vds = boost::add_vertex(vs, g);
         smap.insert(std::make_pair(s_label,vds));
@@ -392,6 +406,87 @@ GraphFactory::convert_to(
       emap.insert(std::make_pair(e_label, ret.first));
     }
 
+    // Add transient parameters
+    typename params_map_t::const_iterator pit_f, pit_nf;
+    typename rate_rules_dep_t::const_iterator rrdit;
+    //transient parameters in formula
+    pit_f = dep_params_f.find(reaction.getIdAttribute());
+    if (pit_f != dep_params_f.cend()) {
+      const std::vector<std::string>& params_f = pit_f->second;
+      std::vector<std::string>::const_iterator itf;
+      for (itf = params_f.cbegin(); itf != params_f.cend(); itf++){
+        rrdit = rate_rules_dep_map.find(*itf);
+        if (rrdit != rate_rules_dep_map.cend()) {
+          const std::set<std::string>& params_rr = rrdit->second;
+          for (const auto& x: params_rr) {
+            it = smap.find(x);
+            v_new_desc_t vds;
+            risit = reaction_in_species.find(x);
+            if (risit == reaction_in_species.cend()) {
+              reaction_in_species.insert(x);
+              if (it == smap.cend()) {
+                wcs::Vertex vs(*species_list->get(x), g);
+                vds = boost::add_vertex(vs, g);
+                smap.insert(std::make_pair(x,vds));
+              } else {
+                vds = it->second;
+              }
+
+              std::string e_label = g[vds].get_label() + '|' + g[vd].get_label();
+              const auto ret = boost::add_edge(vds, vd, g);
+
+              if (!ret.second) {
+                WCS_THROW("Please check the reactions in your SBML file");
+                return;
+              }
+              g[ret.first].set_stoichiometry_ratio(0);
+              g[ret.first].set_label(e_label);
+              emap.insert(std::make_pair(e_label, ret.first));
+            }
+          }
+        }
+      }
+    }
+
+    //transient parameters not in formula
+    pit_nf = dep_params_nf.find(reaction.getIdAttribute());
+    if (pit_nf != dep_params_nf.cend()) {
+      const std::vector<std::string>& params_nf = pit_nf->second;
+      std::vector<std::string>::const_iterator itf;
+      for (itf = params_nf.cbegin(); itf != params_nf.cend(); itf++){
+        rrdit = rate_rules_dep_map.find(*itf);
+        if (rrdit != rate_rules_dep_map.cend()) {
+          const std::set<std::string>& params_rr = rrdit->second;
+          for (const auto& x: params_rr) {
+            it = smap.find(x);
+            v_new_desc_t vds;
+            risit = reaction_in_species.find(x);
+            if (risit == reaction_in_species.cend()) {
+              if (it == smap.cend()) {
+                wcs::Vertex vs(*species_list->get(x), g);
+                vds = boost::add_vertex(vs, g);
+                smap.insert(std::make_pair(x,vds));
+              } else {
+                vds = it->second;
+              }
+
+              reaction_in_species.insert(x);
+              std::string e_label = g[vds].get_label() + '|' + g[vd].get_label();
+              const auto ret = boost::add_edge(vds, vd, g);
+
+              if (!ret.second) {
+                WCS_THROW("Please check the reactions in your SBML file");
+                return;
+              }
+              g[ret.first].set_stoichiometry_ratio(0);
+              g[ret.first].set_label(e_label);
+              emap.insert(std::make_pair(e_label, ret.first));
+            }
+          }
+        }
+      }
+    }
+
     // Add products species
     for (unsigned int si = 0u; si < num_products; si++) {
       const auto &product = *(reaction.getProduct(si));
@@ -401,7 +496,7 @@ GraphFactory::convert_to(
       it = smap.find(s_label);
       v_new_desc_t vds;
 
-      if (it == smap.end()) {
+      if (it == smap.cend()) {
         wcs::Vertex vs(*species_list->get(product.getSpecies()), g);
         vds = boost::add_vertex(vs, g);
         smap.insert(std::make_pair(s_label,vds));
@@ -411,7 +506,7 @@ GraphFactory::convert_to(
 
       std::string e_label = g[vd].get_label() + '|' + g[vds].get_label();
       eit = emap.find(e_label);
-      if (eit == emap.end()) {
+      if (eit == emap.cend()) {
         const auto ret = boost::add_edge(vd, vds, g);
 
         if (!ret.second) {

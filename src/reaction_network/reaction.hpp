@@ -38,14 +38,18 @@ class Reaction : public ReactionBase {
   ~Reaction() override;
   std::unique_ptr<Reaction> clone() const;
 
-  void set_rate_inputs(const std::map<std::string, rdriver_t>& species_involved);
   const involved_species_t& get_rate_inputs() const;
   void set_products(const std::map<std::string, rdriver_t>& products);
   reaction_rate_t calc_rate(std::vector<reaction_rate_t>&& params) override;
 
 #if defined(WCS_HAS_EXPRTK)
+  void set_rate_inputs(const std::map<std::string, rdriver_t>& species_involved);
   void show_compile_error() const;
   bool detect_composite() const;
+#else
+  void set_rate_inputs(const std::map<std::string, rdriver_t>& species_involved,
+    std::vector<std::string>& dep_params_f,
+    std::vector<std::string>& dep_params_nf);
 #endif // defined(WCS_HAS_EXPRTK)
 
  protected:

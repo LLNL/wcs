@@ -41,13 +41,13 @@ sbml_utils::find_undeclared_species_in_reaction_formula(
   const LIBSBML_CPP_NAMESPACE::Model& model,
   const LIBSBML_CPP_NAMESPACE::Reaction& reaction)
 {
-  using model_parameters = std::unordered_set<std::string>;
-  model_parameters pset;
+  using model_parameters_t = std::unordered_set<std::string>;
+  model_parameters_t pset,lpset;
 
-  using reaction_reactants = std::unordered_set<std::string>;
-  reaction_reactants rset;
+  using reaction_reactants_t = std::unordered_set<std::string>;
+  reaction_reactants_t rset;
 
-  reaction_reactants undeclared_reactants;
+  reaction_reactants_t undeclared_reactants;
 
   using reaction_modifiers = std::unordered_set<std::string>;
   reaction_modifiers mset;
@@ -79,6 +79,16 @@ sbml_utils::find_undeclared_species_in_reaction_formula(
   for (unsigned int pi = 0u; pi < num_parameters; pi++) {
     pset.insert(parameter_list->get(pi)->getIdAttribute());
   }
+
+  // create an unordered_set for reaction local parameters
+  const LIBSBML_CPP_NAMESPACE::ListOfLocalParameters* local_parameter_list
+    = reaction.getKineticLaw()->getListOfLocalParameters();
+  unsigned int num_local_parameters = local_parameter_list->size();
+
+  for (unsigned int pi = 0u; pi < num_local_parameters; pi++) {
+    lpset.insert(local_parameter_list->get(pi)->getIdAttribute());
+  }
+
 
   // create an unordered set for reaction_reactants
   unsigned int num_reactants = reaction.getNumReactants();
@@ -118,6 +128,7 @@ sbml_utils::find_undeclared_species_in_reaction_formula(
   symbol_set = get_symbol_table_of_formula(*formula);
   for  (const std::string& x: symbol_set) {
     if (pset.find(x) == pset.cend() &&
+        lpset.find(x) == pset.cend() &&
         rset.find(x) == rset.cend() &&
         cset.find(x) == cset.cend() &&
         mset.find(x) == mset.cend())
@@ -141,9 +152,9 @@ sbml_utils::get_reaction_parameters(
   using reaction_parameters = std::unordered_set<std::string>;
   reaction_parameters pset;
 
-  using reaction_reactants = std::unordered_set<std::string>;
-  typename reaction_reactants::const_iterator rit;
-  reaction_reactants rset;
+  using reaction_reactants_t = std::unordered_set<std::string>;
+  typename reaction_reactants_t::const_iterator rit;
+  reaction_reactants_t rset;
 
 
   using model_compartments = std::unordered_set<std::string>;

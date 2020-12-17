@@ -3,12 +3,14 @@ set_full_path(THIS_DIR_HEADERS
   metis_params.hpp
   metis_partition.hpp
   partition.hpp
+  partition_info.hpp
   )
 
 set_full_path(THIS_DIR_SOURCES
   metis_params.cpp
   metis_partition.cpp
   partition.cpp
+  partition_info.cpp
   )
 
 # Add the subdirectories

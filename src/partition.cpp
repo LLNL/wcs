@@ -19,6 +19,7 @@
 #include <boost/filesystem.hpp>
 #include "utils/write_graphviz.hpp"
 #include "partition/partition.hpp"
+#include "partition/partition_info.hpp"
 #include "sim_methods/ssa_nrm.hpp"
 #include "utils/file.hpp"
 #include <fstream>
@@ -391,19 +392,15 @@ int main(int argc, char** argv)
     return EXIT_FAILURE;
   }
 
-  std::vector<size_t> count_part(cfg.n_parts);
+  wcs::Partition_Info pinfo(rnet_ptr);
+  pinfo.scan(cfg.verbose);
+  pinfo.report();
 
-  if (cfg.verbose) {
-    std::cout << "objval = " << objval << std::endl;
-    std::cout << std::endl << "Partitions:" << std::endl;
-    for (size_t i = 0ul; i < parts.size(); ++ i) {
-      std::cout << "v" << i << " p" << parts[i] << std::endl;
-      count_part.at(parts[i]) ++;
-    }
-  } else {
-    for (size_t i = 0ul; i < parts.size(); ++ i) {
-      count_part.at(parts[i]) ++;
-    }
+  std::cout << "objval = " << objval << std::endl;
+
+  std::vector<size_t> count_part(cfg.n_parts);
+  for (size_t i = 0ul; i < parts.size(); ++ i) {
+    count_part.at(parts[i]) ++;
   }
 
   for (size_t i = 0ul; i < count_part.size(); ++i) {

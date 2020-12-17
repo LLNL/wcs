@@ -160,11 +160,11 @@ void Metis_Partition::populate_adjacny_list()
  * communication is proportional to the number of messages or the rate of the
  * reaction.
  *
- * This method only considers single-valueid vertex weight (load balancing
+ * This method only considers single-valued vertex weight (load balancing
  * constraint). In case of a species vertex, we assign the minimum value
- * possible possible for its weight, which is 1 as it needs to be a non-zero
- * positive integral value. In case of a reaction vertex, we linearly convert
- * the floating-point rate into an integer value.
+ * possible for its weight, which is 1 as it needs to be a non-zero positive
+ * integral value. In case of a reaction vertex, we linearly convert the
+ * floating-point rate into an integer value.
  */
 void Metis_Partition::populate_vertex_info()
 {

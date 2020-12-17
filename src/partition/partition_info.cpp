@@ -100,8 +100,11 @@ void Partition_Info::scan(bool verbose)
       if (verbose) {
         using std::operator<<;
         std::cout << " V " << v_idx++ << "\t"
-                  << Vertex::vt_str.at(static_cast<Vertex::vertex_type>(vt))
-                  << "\tP " << pid << std::endl;
+                  << vp.get_label() << "\t"
+                  << "\tP" << pid
+                  << '\t' << num_in_edges
+                  << ' ' << num_out_edges
+                  << std::endl;
       }
       m_num_local.at(type).at(pid) ++;
       m_sum_indegree.at(type).at(pid) += num_in_edges;
@@ -111,16 +114,22 @@ void Partition_Info::scan(bool verbose)
       auto& max_out_deg = m_max_outdegree.at(type).at(pid);
       auto& max_deg = m_max_degree.at(type).at(pid);
 
-      if (max_in_deg.second < num_in_edges) {
-        max_in_deg = std::make_pair(v, num_in_edges);
+      if (max_in_deg.first == num_in_edges) {
+        max_in_deg.second.insert(v);
+      } else if (max_in_deg.first < num_in_edges) {
+        max_in_deg = std::make_pair(num_in_edges, std::set{v});
       }
 
-      if (max_out_deg.second < num_out_edges) {
-        max_out_deg = std::make_pair(v, num_out_edges);
+      if (max_out_deg.first == num_out_edges) {
+        max_out_deg.second.insert(v);
+      } else if (max_out_deg.first < num_out_edges) {
+        max_out_deg = std::make_pair(num_out_edges, std::set{v});
       }
 
-      if (max_deg.second < degree) {
-        max_deg = std::make_pair(v, degree);
+      if (max_deg.first == degree) {
+        max_deg.second.insert(v);
+      } else if (max_deg.first < degree) {
+        max_deg = std::make_pair(degree, std::set{v});
       }
 
       if (vt == v_prop_t::_reaction_) {
@@ -175,9 +184,10 @@ void Partition_Info::scan(bool verbose)
         const auto deg = boost::in_degree(dst, g);
         rate = rp_dst.get_rate() / deg;
       }
-      const auto type = static_cast<size_t>(vt_dst-1);
-      m_comm_out.at(type).at(pid_src)[pid_dst] += rate;
-      m_comm_in.at(type).at(pid_dst)[pid_src] += rate;
+      const auto type_src = static_cast<size_t>(vt_src-1);
+      const auto type_dst = static_cast<size_t>(vt_dst-1);
+      m_comm_out.at(type_src).at(pid_src)[pid_dst] += rate;
+      m_comm_in.at(type_dst).at(pid_dst)[pid_src] += rate;
     };
 
     e_iter_t ei, ei_end;
@@ -225,15 +235,17 @@ static void show_max_per_part(
 
   cout << title << endl;
   for (size_t p = 0ul; p < nparts; ++p) {
-    string str = 'P' + to_string(p);
+    string str = 'P' + to_string(p) + '\t';
     for (size_t t = 0ul; t < NumVTypes; ++t) {
       const auto mx = mpp.at(t).at(p);
-      if (mx.second <= 0ul) {
+      if (mx.first <= 0ul) {
         continue;
       }
-      const auto v_label = g[mx.first].get_label();
-      str += "\t" + Vertex::vt_str.at(static_cast<Vertex::vertex_type>(t+1))
-                  + " <" + v_label + ", " + to_string(mx.second) + ">";
+      const auto vt_str = Vertex::vt_str.at(static_cast<Vertex::vertex_type>(t+1));
+      for (const auto& vd: mx.second) {
+        const auto v_label = g[vd].get_label();
+        str += ' ' + vt_str + " <" + v_label + ", " + to_string(mx.first) + ">";
+      }
     }
     cout << str << endl;
   }
@@ -278,30 +290,33 @@ void Partition_Info::report() const
 
   cout << std::endl << "Num parts: " << m_num_parts << endl;
 
+  std::cout << "======================================";
   show_sum_per_part<n_types>(m_num_local,
                              "\nNum of local vertices:",
                              m_num_parts);
 
   show_sum_per_part<n_types>(m_sum_indegree,
-                             "\nSum of outdgrees of local vertices:",
+                             "\nSum of indegrees of local vertices:",
                              m_num_parts);
 
   show_sum_per_part<n_types>(m_sum_outdegree,
-                             "\nSum of outdgrees of local vertices:",
+                             "\nSum of outdegrees of local vertices:",
                              m_num_parts);
 
+  std::cout << "--------------------------------------";
   show_max_per_part<n_types>(m_max_indegree,
-                             "\nMaximum of indgrees of local vertices:",
+                             "\nMaximum of indegrees of local vertices:",
                              m_num_parts, g);
 
   show_max_per_part<n_types>(m_max_outdegree,
-                             "\nMaximum of outdgrees of local vertices:",
+                             "\nMaximum of outdegrees of local vertices:",
                              m_num_parts, g);
 
   show_max_per_part<n_types>(m_max_degree,
-                             "\nMaximum of dgrees of local vertices:",
+                             "\nMaximum of degrees of local vertices:",
                              m_num_parts, g);
 
+  std::cout << "--------------------------------------";
   show_sum_per_part<n_types>(m_load,
                              "\nCompute load:",
                              m_num_parts);
@@ -315,6 +330,7 @@ void Partition_Info::report() const
                              "\nCommunication volume (incoming):",
                              false,
                              m_num_parts);
+  std::cout << "======================================" << std::endl << std::endl;
 }
 
 /**@}*/

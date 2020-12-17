@@ -38,7 +38,7 @@ class Partition_Info
   static constexpr auto n_types = static_cast<size_t>(v_prop_t::_num_vertex_types_ - 1);
 
   /// Vertex, degree
-  using degree_t = std::pair<v_desc_t, size_t>; // TODO: need to be a set
+  using degree_t = std::pair< size_t, std::set<v_desc_t> >; // TODO: need to be a set
   /// Type for the container of the maximum degree per partition
   using p_max_t = std::vector<degree_t>;
   /// Type for the container of the total degree per partition

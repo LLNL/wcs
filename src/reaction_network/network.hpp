@@ -84,6 +84,9 @@ class Network {
   using reaction_list_t = map_idx2desc_t;
   using species_list_t  = map_idx2desc_t;
 
+  using params_map_t = std::unordered_map <std::string, std::vector<std::string>>;
+  using rate_rules_dep_t = std::unordered_map <std::string, std::set<std::string>>;
+
   /// Map a BGL vertex descriptor to the reaction index
   using map_desc2idx_t = std::unordered_map<v_desc_t, v_idx_t>;
 
@@ -155,6 +158,10 @@ class Network {
   void build_index_maps();
   void loadGraphML(const std::string graphml_filename);
   void loadSBML(const std::string sbml_filename);
+  void print_parameters_of_reactions(
+  const params_map_t& dep_params_f,
+  const params_map_t& dep_params_nf,
+  const rate_rules_dep_t& rate_rules_dep_map);
 
  protected:
   /// The BGL graph to represent a reaction network

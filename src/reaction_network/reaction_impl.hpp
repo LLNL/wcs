@@ -86,7 +86,7 @@ inline void Reaction<VD>::set_rate_inputs(const std::map<std::string, rdriver_t>
   const auto num_inputs = species_involved.size();
   m_rate_inputs = std::vector<rdriver_t>( num_inputs );
   m_params.resize(num_inputs);
-  size_t i = 0;
+  size_t i = 0ul;
   for(auto &e : species_involved ) {
       std::string var_str = e.first;
       m_rate_inputs[i] = e.second;
@@ -188,12 +188,14 @@ inline bool Reaction<VD>::detect_composite() const
 }
 #elif defined(WCS_HAS_SBML)
 template <typename VD>
-inline void Reaction<VD>::set_rate_inputs(const std::map<std::string, rdriver_t>& species_involved)
+inline void Reaction<VD>::set_rate_inputs(const std::map<std::string, rdriver_t>& species_involved,
+std::vector<std::string>& dep_params_rf,
+std::vector<std::string>& dep_params_nrf)
 {
   const auto num_inputs = species_involved.size();
   m_rate_inputs = std::vector<rdriver_t>( num_inputs );
   m_params.resize(num_inputs);
-  size_t i = 0;
+  size_t i = 0ul;
   /*for(auto &e : species_involved ) {
       std::string var_str = e.first;
       m_rate_inputs[i] = e.second;
@@ -212,7 +214,7 @@ inline void Reaction<VD>::set_rate_inputs(const std::map<std::string, rdriver_t>
   formula.replace(formula.end()-1, formula.end(),""); //remove ; from the end of the formula
 
   using std::operator<<;
-  for (auto& x: species_involved) {
+  for (const auto& x: species_involved) {
     //std::cout << " " << x.first << " ,";
     var_names.insert(x.first);
   }
@@ -238,35 +240,44 @@ inline void Reaction<VD>::set_rate_inputs(const std::map<std::string, rdriver_t>
   }
 
   std::vector<std::string> var_names_ord (input_map.size());
-  for (auto& x: input_map) {
+  for (const auto& x: input_map) {
     var_names_ord[x.second] = x.first;
   }
 
+  //std::cout << std::endl << "\nReceived:";
   //put first parameters in formula taking input
-  std::vector<std::string>::iterator it;
-  size_t j = 0;
-  for (it = var_names_ord.begin(); it < var_names_ord.end(); it++){
+  std::vector<std::string>::const_iterator it;
+  size_t j = 0ul;
+  for (it = var_names_ord.cbegin(); it < var_names_ord.cend(); it++) {
     it_species = species_involved.find(*it);
     if (it_species != species_involved.end()){
-      std::string var_str = it_species->first;
-      m_rate_inputs[j] = it_species->second;
-      j++;
-      var_names.erase(*it);
+      // include only species from species_involved expected as input
+      if ( std::find(dep_params_rf.cbegin(), dep_params_rf.cend(), *it)
+      != dep_params_rf.cend()) {
+        std::string var_str = it_species->first;
+        m_rate_inputs[j] = it_species->second;
+        j++;
+        var_names.erase(*it);
+      }
     }
   }
+
   //put rest parameters (not in formula) taking input
-  for (auto& x: var_names) {
+  for (const auto& x: var_names) {
     it_species = species_involved.find(x);
-    if (it_species != species_involved.end()){
-      std::string var_str = it_species->first;
-      m_rate_inputs[j] = it_species->second;
-      j++;
+    if (it_species != species_involved.cend()) {
+      // include only species from species_involved expected as input
+      if ( std::find(dep_params_nrf.cbegin(), dep_params_nrf.cend(), x)
+      != dep_params_nrf.cend()) {
+        std::string var_str = it_species->first;
+        m_rate_inputs[j] = it_species->second;
+        j++;
+      }
     }
   }
-/*    for (auto& x: species_involved) {
-     std::cout << " " << x.first << " ,";
-    }
-    std::cout << '\n';  */
+  //resize both
+  m_rate_inputs.resize(j);
+  m_params.resize(j);
 
 }
 
@@ -286,12 +297,8 @@ reaction_rate_t Reaction<VD>::calc_rate(std::vector<reaction_rate_t>&& params)
   // get_rate_inputs()
   m_params.assign(params.begin(), params.end());
 
-  if (!m_is_composite) {
-    m_rate = m_calc_rate(m_params);
-  } else {
-    m_rate = static_cast<reaction_rate_t>(0.0);
-    m_calc_rate(m_params);
-  }
+  m_rate = m_calc_rate(m_params);
+
   // Depending on the species population, reaction rate formula can evaluate
   // to a negative value. Rather than having a formula include a conditional
   // logic, we deal with it here.

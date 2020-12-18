@@ -529,6 +529,8 @@ install(
 install(FILES tests/simple.graphml
   DESTINATION ${CMAKE_INSTALL_DATADIR})
 
+# It is used in the utils/generate_cxx_code.cpp file
+set (WCS_SRC_DIR ${CMAKE_SOURCE_DIR})
 
 # Write the configure file
 configure_file(

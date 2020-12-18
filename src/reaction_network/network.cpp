@@ -33,6 +33,13 @@ namespace wcs {
 
 sim_time_t Network::m_etime_ulimit = std::numeric_limits<sim_time_t>::infinity();
 
+#if !defined(WCS_HAS_EXPRTK)
+using params_map_t = std::unordered_map <std::string, std::vector<std::string>>;
+params_map_t dep_params_f, dep_params_nf;
+using rate_rules_dep_t = std::unordered_map <std::string, std::set<std::string>>;
+rate_rules_dep_t rate_rules_dep_map;
+#endif // !defined(WCS_HAS_EXPRTK
+
 void Network::load(const std::string filename)
 {
   input_filetype fn(filename);
@@ -65,6 +72,53 @@ void Network::loadGraphML(const std::string graphml_filename)
     return;
   }
   gfactory.copy_to(m_graph);
+}
+
+void Network::print_parameters_of_reactions(
+  const params_map_t& dep_params_f,
+  const params_map_t& dep_params_nf,
+  const rate_rules_dep_t& rate_rules_dep_map)
+{
+  #if !defined(WCS_HAS_EXPRTK)
+  typename params_map_t::const_iterator pit;
+  typename rate_rules_dep_t::const_iterator rrdit;
+  using std::operator<<;
+  for(auto &e : dep_params_f ) {
+    std::string reaction_name = e.first;
+    std::vector<std::string> params_f = e.second;
+    std::cout << "Reaction: " << reaction_name << " Params: ";
+    for (auto& x: params_f) {
+      std::cout << x << ", ";
+      rrdit = rate_rules_dep_map.find(x);
+      if (rrdit != rate_rules_dep_map.cend()) {
+        std::cout << " (";
+        std::set<std::string> params_rr = rrdit->second;
+        for (auto& w: params_rr) {
+          std::cout << w << ", ";
+        }
+        std::cout << ") ";
+      }
+    }
+    std::cout << "/ ";
+    pit = dep_params_nf.find(reaction_name);
+    if (pit != dep_params_nf.cend()) {
+      std::vector<std::string> params_nf = pit->second;
+      for (auto& x: params_nf) {
+        std::cout << x << ", ";
+        rrdit = rate_rules_dep_map.find(x);
+        if (rrdit != rate_rules_dep_map.cend()) {
+          std::cout << " (";
+          std::set<std::string> params_rr = rrdit->second;
+          for (auto& w: params_rr) {
+            std::cout << w << ", ";
+          }
+          std::cout << ") ";
+        }
+      }
+    }
+    std::cout << std::endl;
+  }
+  #endif // !defined(WCS_HAS_EXPRTK
 }
 
 void Network::loadSBML(const std::string sbml_filename)
@@ -101,11 +155,23 @@ void Network::loadSBML(const std::string sbml_filename)
   }
 
   #if !defined(WCS_HAS_EXPRTK)
-  const std::string genfile = wcs::generate_cxx_code::generate_code(*model);
-  const std::string library_file = wcs::generate_cxx_code::compile_code(genfile);
-  gfactory.convert_to(*model, m_graph, library_file);
+
+  typename params_map_t::const_iterator pit;
+  //dep_params_f = all params in formula expected as input per reaction
+  //dep_params_nf = all params not in formula expected as input per reaction
+  //rate_rules_dep_map = all rate_rules (params in dep_params_f and dep_params_nf) with their dependent params (transient parameters)
+  const std::string generated_source = wcs::generate_cxx_code::generate_code(*model,
+  dep_params_f, dep_params_nf, rate_rules_dep_map);
+  const std::string library_file = wcs::generate_cxx_code::compile_code(generated_source);
+
+  //using std::operator<<;
+  //std::cout << "Generated file: " << generated_source << std::endl;
+  // print_parameters_of_reactions(dep_params_f, dep_params_nf, rate_rules_dep_map);
+
+  gfactory.convert_to(*model, m_graph, library_file, dep_params_f, dep_params_nf, rate_rules_dep_map);
+
   #else
-  gfactory.convert_to(*model, m_graph, "");
+  gfactory.convert_to(*model, m_graph, "",{},{},{});
   #endif // !defined(WCS_HAS_EXPRTK)
 
   delete document;
@@ -149,10 +215,29 @@ void Network::init()
 
       s_involved_t products;
 
+      #if !defined(WCS_HAS_EXPRTK)
+      typename params_map_t::const_iterator pit, pit_nf;
+      std::vector<std::string> params_reactants;
+      std::string reaction_name = m_graph[*vi].get_label();
+      pit = dep_params_f.find(reaction_name);
+      if (pit != dep_params_f.end()) {
+        params_reactants=pit->second;
+      }
+      #endif // !defined(WCS_HAS_EXPRTK)
+
       if constexpr (is_bidirectional) {
         for(const auto ei_in :
             boost::make_iterator_range(boost::in_edges(reaction, m_graph))) {
           v_desc_t reactant = boost::source(ei_in, m_graph);
+
+          #if !defined(WCS_HAS_EXPRTK)
+          //check for the reactants which are not actually reactants and put their stoichiometry 0
+          if ( std::find(params_reactants.begin(), params_reactants.end(),
+          m_graph[reactant].get_label()) == params_reactants.end()) {
+            //std::cout << "Not reactant " << m_graph[reactant].get_label() << std::endl;
+            m_graph[ei_in].set_stoichiometry_ratio(0);
+          }
+          #endif // !defined(WCS_HAS_EXPRTK)
           const auto st = m_graph[ei_in].get_stoichiometry_ratio();
           involved_species.insert(std::make_pair(m_graph[reactant].get_label(),
                                                  std::make_pair(reactant, st)));
@@ -170,7 +255,47 @@ void Network::init()
 
       auto& r = m_graph[*vi].checked_property< Reaction<v_desc_t> >();
 
+      #if !defined(WCS_HAS_EXPRTK)
+      pit = dep_params_f.find(reaction_name);
+      pit_nf = dep_params_nf.find(reaction_name);
+      typename rate_rules_dep_t::const_iterator rrdit;
+      if (pit != dep_params_f.cend()) {
+        if (pit_nf != dep_params_nf.cend()) {
+          const std::vector<std::string>& params_fv = pit->second;
+          const std::vector<std::string>& params_nfv = pit_nf->second;
+          std::vector<std::string> fparams, nfparams;
+          for (const auto& x: params_fv) {
+            rrdit = rate_rules_dep_map.find(x);
+            if (rrdit != rate_rules_dep_map.cend()) {
+              const std::set<std::string>& params_rr = rrdit->second;
+              for (const auto& w: params_rr) {
+                fparams.push_back(w);
+              }
+            } else {
+              fparams.push_back(x);
+            }
+          }
+
+          for (const auto& x: params_nfv) {
+            rrdit = rate_rules_dep_map.find(x);
+            if (rrdit != rate_rules_dep_map.cend()) {
+              const std::set<std::string>& params_rr = rrdit->second;
+              for (const auto& w: params_rr) {
+                nfparams.push_back(w);
+              }
+            } else{
+              nfparams.push_back(x);
+            }
+          }
+
+          r.set_rate_inputs(involved_species, fparams, nfparams);
+        }
+      } else {
+        WCS_THROW("No function with the name " + reaction_name);
+      }
+      #else
       r.set_rate_inputs(involved_species);
+      #endif // !defined(WCS_HAS_EXPRTK)
 
       r.set_products(products);
 
@@ -333,7 +458,7 @@ bool Network::check_reaction(const wcs::Network::v_desc_t r) const
     const auto& sp_reactant = sv_reactant.property<Species>();
     const auto stoichio = m_graph[ei_in].get_stoichiometry_ratio();
     if (!sp_reactant.dec_check(stoichio)) {
-     #if 0
+     #if 0  // change to 1 to take all messages (0 default)
       using std::operator>>;
       std::cerr << "reaction " << m_graph[r].get_label()
                 << " has insufficient amount of reactants "

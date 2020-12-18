@@ -58,7 +58,12 @@ int main(int argc, char** argv)
     delete document;
     return -1;
   }
-  const std::string genfile = wcs::generate_cxx_code::generate_code(*model);
+  using params_map = std::unordered_map <std::string, std::vector<std::string>>;
+  using rate_rules_dep = std::unordered_map <std::string, std::set<std::string>>;
+  params_map dep_params_f, dep_params_nf;
+  rate_rules_dep rate_rules_dep_map;
+  const std::string genfile = wcs::generate_cxx_code::generate_code(*model,
+  dep_params_f, dep_params_nf, rate_rules_dep_map);
   std::cout << "Generated filename: " << genfile << "\n";
 
   delete document;

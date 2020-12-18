@@ -20,7 +20,7 @@
 #include <iostream>
 #include <fstream>
 #include <sstream>
-#include <stdlib.h> //system
+#include <cstdlib> //system
 #include "wcs_types.hpp"
 #include <set>
 #include <regex>
@@ -28,7 +28,7 @@
 
 #include <string>
 
-//#include <stdio.h>
+//#include <cstdio>
 
 #if defined(WCS_HAS_SBML)
 
@@ -38,6 +38,14 @@ namespace wcs {
 
 using map_symbol_to_ast_node_t
   = std::unordered_map <std::string, const LIBSBML_CPP_NAMESPACE::ASTNode *>;
+using params_map_t = std::unordered_map <std::string, std::vector<std::string>>;
+using rate_rules_dep_t = std::unordered_map <std::string, std::set<std::string>>;
+using event_assignments_t = std::unordered_set<std::string>;
+using initial_assignments_t = wcs::map_symbol_to_ast_node_t;
+using assignment_rules_t = wcs::map_symbol_to_ast_node_t;
+using model_reactions_t = wcs::map_symbol_to_ast_node_t;
+using rate_rules_t = wcs::map_symbol_to_ast_node_t;
+using constant_init_ass_t = map_symbol_to_ast_node_t;
 
 template<>
 const char* generate_cxx_code::basetype_to_string<double>::value = "double";
@@ -49,10 +57,11 @@ void
 generate_cxx_code::get_dependencies(
   const LIBSBML_CPP_NAMESPACE::ASTNode& math,
   std::vector<std::string> & math_elements,
-  std::unordered_set<std::string> & good,
-  map_symbol_to_ast_node_t & constant_init_assig,
-  map_symbol_to_ast_node_t & variables_assig_rul,
-  map_symbol_to_ast_node_t & model_reactions_s)
+  const std::unordered_set<std::string> & good,
+  const map_symbol_to_ast_node_t & constant_init_assig,
+  const map_symbol_to_ast_node_t & variables_assig_rul,
+  const map_symbol_to_ast_node_t & model_reactions_s,
+  const std::unordered_set<std::string> & local_params)
 {
   if (math.getNumChildren() >= 1u) {
     for (unsigned int n = 0u; n < math.getNumChildren(); ++n) {
@@ -62,7 +71,8 @@ generate_cxx_code::get_dependencies(
                        good,
                        constant_init_assig,
                        variables_assig_rul,
-                       model_reactions_s);
+                       model_reactions_s,
+                       local_params);
     }
   } else {
     if (!math.isNumber()) {
@@ -72,42 +82,44 @@ generate_cxx_code::get_dependencies(
       asruit = variables_assig_rul.find(formula);
       mreactit = model_reactions_s.find(formula);
       std::unordered_set<std::string>::const_iterator git = good.find(formula);
-      std::unordered_set<std::string> no_duplicates_vector;
-      //if (constant_init_assig.empty() && variables_assig_rul.empty()){
-
-      //} else {
+      std::unordered_set<std::string>::const_iterator lpit = local_params.find(formula);
+      //std::unordered_set<std::string> no_duplicates_vector;
       if (git == good.cend()) {
         if (inasit != constant_init_assig.cend()) {
-          math_elements.insert(math_elements.begin(), formula);
+          math_elements.insert(math_elements.cbegin(), formula);
           get_dependencies(*inasit->second,
                            math_elements,
                            good,
                            constant_init_assig,
                            variables_assig_rul,
-                           model_reactions_s);
+                           model_reactions_s,
+                           local_params);
 
         } else if (asruit != variables_assig_rul.cend()) {
-          math_elements.insert(math_elements.begin(), formula);
+          math_elements.insert(math_elements.cbegin(), formula);
           get_dependencies(*asruit->second,
                            math_elements,
                            good,
                            constant_init_assig,
                            variables_assig_rul,
-                           model_reactions_s);
+                           model_reactions_s,
+                           local_params);
 
-        } else if (mreactit != model_reactions_s.cend()){
-          math_elements.insert(math_elements.begin(), formula);
+        } else if (mreactit != model_reactions_s.cend()) {
+          math_elements.insert(math_elements.cbegin(), formula);
           get_dependencies(*mreactit->second,
                            math_elements,
                            good,
                            constant_init_assig,
                            variables_assig_rul,
-                           model_reactions_s);
+                           model_reactions_s,
+                           local_params);
+
+        } else if (lpit != local_params.cend()) {
 
         } else {
-          math_elements.insert(math_elements.begin(), formula);
+          math_elements.insert(math_elements.cbegin(), formula);
         }
-      //}
       }
     }
   }
@@ -117,10 +129,11 @@ generate_cxx_code::get_dependencies(
 std::vector<std::string>
 generate_cxx_code::get_all_dependencies(
   const LIBSBML_CPP_NAMESPACE::ASTNode& formula,
-  std::unordered_set<std::string> & good,
-  map_symbol_to_ast_node_t & constant_init_assig,
-  map_symbol_to_ast_node_t & variables_assig_rul,
-  map_symbol_to_ast_node_t & model_reactions_s)
+  const std::unordered_set<std::string> & good,
+  const map_symbol_to_ast_node_t & constant_init_assig,
+  const map_symbol_to_ast_node_t & variables_assig_rul,
+  const map_symbol_to_ast_node_t & model_reactions_s,
+  const std::unordered_set<std::string> & local_params)
 {
 
   std::vector<std::string> dependencies, dependencies_no_dupl;
@@ -132,7 +145,8 @@ generate_cxx_code::get_all_dependencies(
                    good,
                    constant_init_assig,
                    variables_assig_rul,
-                   model_reactions_s);
+                   model_reactions_s,
+                   local_params);
 
   std::vector<std::string>::const_iterator it;
   //remove duplicates
@@ -140,18 +154,59 @@ generate_cxx_code::get_all_dependencies(
     ndit = dependencies_set.find (*it);
     if (ndit == dependencies_set.cend()) {
       dependencies_set.insert(*it);
-      dependencies_no_dupl.insert(dependencies_no_dupl.begin(), *it);
+      dependencies_no_dupl.insert(dependencies_no_dupl.cbegin(), *it);
     }
   }
   //print out the dependencies
   /*std::cout << "Formula: " << SBML_formulaToString(&formula) << std::endl ;
-  for  (it=dependencies_no_dupl.begin(); it<dependencies_no_dupl.end(); it++) {
+  for  (it=dependencies_no_dupl.cbegin(); it<dependencies_no_dupl.cend(); it++) {
     std::cout << " " << *it ;
   }
   std::cout  <<  std::endl; */
 
   return dependencies_no_dupl;
 }
+
+void
+generate_cxx_code::return_denominators(
+  const LIBSBML_CPP_NAMESPACE::ASTNode& formula,
+  std::vector<std::string> & denominators,
+  const std::string& reaction_name)
+{
+
+  if (formula.getNumChildren() >= 1u) {
+    if (formula.getType() == AST_DIVIDE) {
+      //std::cout << " " << SBML_formulaToString(formula.getChild(1)) << std::endl;
+      const LIBSBML_CPP_NAMESPACE::ASTNode*  denominator = formula.getChild(1);
+      if (denominator->isNumber()) {
+        if (denominator->getValue() == 0) {
+          throw std::overflow_error("Divide by zero exception in reaction " + reaction_name);
+        }
+      } else {
+        if ( std::find(denominators.cbegin(), denominators.cend(),
+        SBML_formulaToString(denominator)) == denominators.cend()) {
+          denominators.push_back(SBML_formulaToString(denominator));
+        }
+      }
+    }
+    for (unsigned int n = 0u; n < formula.getNumChildren(); ++n) {
+      const LIBSBML_CPP_NAMESPACE::ASTNode*  math_c = formula.getChild(n);
+      return_denominators(*math_c, denominators, reaction_name);
+    }
+  }
+}
+
+std::vector<std::string>
+generate_cxx_code::return_all_denominators(
+  const LIBSBML_CPP_NAMESPACE::ASTNode& formula,
+  const std::string& reaction_name)
+{
+  std::vector<std::string> denominators;
+  return_denominators(formula, denominators, reaction_name);
+  return denominators;
+}
+
+
 
 } // end of namespace wcs
 
@@ -178,194 +233,171 @@ std::unordered_map<std::string, size_t> build_input_map(
   }
   return input_map;
 }
+struct strcomp {
+  bool operator() (const std::string& lhs, const std::string& rhs) const
+  {return lhs.size()>rhs.size();}
+};
 
-const std::string  wcs::generate_cxx_code::generate_code(const LIBSBML_CPP_NAMESPACE::Model& model)
+void read_ast_node(
+  const LIBSBML_CPP_NAMESPACE::ASTNode& math,
+  std::set<std::string, strcomp>& math_elements)
 {
-  const ListOfCompartments* compartment_list = model.getListOfCompartments();
-  const unsigned int compartmentsSize = compartment_list->size();
-  const ListOfSpecies* species_list = model.getListOfSpecies();
-  const unsigned int speciesSize = species_list->size();
+  if (math.getNumChildren() >= 1u) {
+    for (unsigned int n = 0u; n < math.getNumChildren(); ++n) {
+      const LIBSBML_CPP_NAMESPACE::ASTNode* math_c = math.getChild(n);
+      read_ast_node(*math_c, math_elements);
+    }
+  } else {
+    if (!math.isNumber()) {
+      char* formula = SBML_formulaToString(&math);
+      std::set<std::string,strcomp>::const_iterator mit
+        = math_elements.find (formula);
+      if (mit == math_elements.cend()) {
+        math_elements.insert(formula);
+      }
+    }
+  }
+}
+
+// Update with the correct scope a math formula
+void update_scope_ast_node(
+  LIBSBML_CPP_NAMESPACE::ASTNode& math,
+  const std::unordered_set<std::string>& wcs_var,
+  const std::unordered_set<std::string>& wcs_const,
+  const std::unordered_set<std::string>& local_params)
+{
+  if (math.getNumChildren() >= 1u) {
+    for (unsigned int n = 0u; n < math.getNumChildren(); ++n) {
+      LIBSBML_CPP_NAMESPACE::ASTNode* math_c = math.getChild(n);
+      update_scope_ast_node(*math_c, wcs_var, wcs_const, local_params);
+    }
+  } else {
+    if (!math.isNumber()) {
+      char* formula = SBML_formulaToString(&math);
+      std::unordered_set<std::string>::const_iterator wcs_var_it, wcs_const_it, local_params_it;
+      wcs_var_it = wcs_var.find(formula);
+      wcs_const_it = wcs_const.find(formula);
+      local_params_it = local_params.find(formula);
+      const char* nodename = math.getName();
+      if (local_params_it == local_params.cend()) {
+        if (wcs_const_it != wcs_const.cend()) {
+          std::string new_nodename = "WCS_GLOBAL_CONST::";
+          new_nodename += nodename;
+          math.setName(new_nodename.c_str());
+        }
+        if (wcs_var_it != wcs_var.cend()) {
+
+          std::string new_nodename = "wcs_global_var.";
+          new_nodename += nodename;
+          math.setName(new_nodename.c_str());
+        }
+      }
+    }
+
+  }
+}
+
+// Update with the correct scope a element string
+void update_scope_str(
+  std::string& math,
+  const std::unordered_set<std::string>& wcs_var,
+  const std::unordered_set<std::string>& wcs_const,
+  const std::unordered_set<std::string>& local_params)
+{
+  std::unordered_set<std::string>::const_iterator wcs_var_it, wcs_const_it, local_params_it;
+  wcs_var_it = wcs_var.find(math);
+  wcs_const_it = wcs_const.find(math);
+  local_params_it = local_params.find(math);
+  if (local_params_it == local_params.cend()) {
+    if (wcs_const_it != wcs_const.cend()) {
+      math = "WCS_GLOBAL_CONST::" + math;
+    }
+    if (wcs_var_it != wcs_var.cend()) {
+      math = "wcs_global_var." + math;
+    }
+  }
+}
+
+// Include init for initializations with rate rules
+void include_init_for_rate_rules(
+  LIBSBML_CPP_NAMESPACE::ASTNode& math,
+  const std::unordered_map <std::string, const ASTNode *>& raterules)
+{
+  if (math.getNumChildren() >= 1u) {
+    for (unsigned int n = 0u; n < math.getNumChildren(); ++n) {
+      LIBSBML_CPP_NAMESPACE::ASTNode* math_c = math.getChild(n);
+      include_init_for_rate_rules(*math_c, raterules);
+    }
+  } else {
+    if (!math.isNumber()) {
+      char* formula = SBML_formulaToString(&math);
+      std::unordered_map <std::string, const ASTNode *>::const_iterator rrit;
+      rrit = raterules.find(formula);
+      const char* nodename = math.getName();
+      if (rrit != raterules.cend()) {
+        std::string new_nodename = "_init_";
+        new_nodename += nodename;
+        math.setName(new_nodename.c_str());
+      }
+    }
+  }
+}
+
+void wcs::generate_cxx_code::find_used_params(
+  const LIBSBML_CPP_NAMESPACE::Model& model,
+  std::unordered_set <std::string>& used_params,
+  const initial_assignments_t& sinitial_assignments,
+  const assignment_rules_t& assignment_rules_map,
+  const model_reactions_t& model_reactions_map,
+  const rate_rules_t& rate_rules_map,
+  const std::unordered_set <std::string>& model_species,
+  const event_assignments_t& m_ev_assig)
+{
   const ListOfReactions* reaction_list = model.getListOfReactions();
-  const unsigned int reactionsSize = reaction_list->size();
-  const ListOfParameters* parameter_list = model.getListOfParameters();
-  const unsigned int parametersSize = parameter_list->size();
-  const ListOfFunctionDefinitions* function_definition_list
-    = model.getListOfFunctionDefinitions();
-  const unsigned int functionsSize = function_definition_list->size();
+  const unsigned int num_reactions = reaction_list->size();
   const ListOfRules* rules_list = model.getListOfRules();
-  const unsigned int rulesSize = rules_list->size();
-  const ListOfEvents* events_list = model.getListOfEvents();
-  const unsigned int eventsSize = events_list->size();
-  const ListOfInitialAssignments* assignments_list
-    = model.getListOfInitialAssignments();
-  const unsigned int assignmentsSize = assignments_list->size();
-
-  const char * Real = generate_cxx_code::basetype_to_string<reaction_rate_t>::value;
-
-  char * pointerFilename;
-  pointerFilename = tmpnam (NULL);
-  //std::cout << "name file:" << pointerFilename << ".cc" << "\n";
-  std::stringstream ss;
-  ss << pointerFilename;
-  std::ofstream genfile;
-  std::string filename = ss.str() + ".cc";
-  genfile.open(filename);
-
-  genfile << "/** Autogenerated source code, do not edit! \n */"
-            << "\n\n//C++ includes\n"
-            << "#include <vector>\n"
-            << "#include <cmath>\n\n"
-            << "#include <cstdio>\n\n"
-            << "//Include the text of the SBML in here.\n"
-            << "//Use \"xxd -i\" to get the text as a C symbol.\n"
-            << "extern \"C\" \n{\n"
-            << "  unsigned char __original_sbml[] = \"\";\n}\n\n"
-            << "//Constants and other functions defined by the SBML standard.\n\n"
-            << "//Get the correct floating point type from the code at runtime.\n"
-            << "typedef " << Real << " reaction_rate_t;\n"
-            //<< "typedef reaction_rate_t " << Real << ";\n\n"
-            << "//Prototype all the functions\n";
-
-  for (unsigned int ic = 0u; ic<functionsSize; ic++) {
-    const LIBSBML_CPP_NAMESPACE::FunctionDefinition& function
-      = *(function_definition_list->get(ic));
-    genfile << "static inline " << Real << " " << function.getIdAttribute() <<"(";
-    unsigned int num_arg = function.getNumArguments();
-
-    for (unsigned int ia =0u; ia<num_arg; ia++) {
-      genfile << Real << " " << function.getArgument(ia)->getName();
-      if (ia!=num_arg-1) {
-        genfile << ", ";
-      }
-    }
-    genfile << ");\n";
-  }
-
-  using  model_constants = std::unordered_set<std::string>;
-  typename model_constants::const_iterator constit;
-  // A set for model constants
-  model_constants sconstants;
-
-  using  initial_assignments = std::unordered_map<std::string, const ASTNode *>;
-  typename initial_assignments::const_iterator initassigit;
-  // A map for initial_assignments
-  initial_assignments sinitial_assignments;
-
-  using  constant_init_ass = std::unordered_map<std::string, const ASTNode *>;
-  typename constant_init_ass::const_iterator cinitasit;
-  //  A map for constants in initial assignments
-  constant_init_ass sconstant_init_assig;
-
-  using  rate_rules = std::unordered_map <std::string, const ASTNode *>;
-  typename rate_rules::const_iterator rrit;
-  // A map for model rate rules
-  rate_rules rate_rules_set;
-
-  using  assignment_rules = wcs::map_symbol_to_ast_node_t;
-  typename assignment_rules::const_iterator arit;
-  // A map for model assignment rules
-  assignment_rules assignment_rules_set;
-
-  using  model_reactions = wcs::map_symbol_to_ast_node_t;
-  typename model_reactions::const_iterator mrit;
-  // A map for model reactions
-  model_reactions model_reactions_set;
-
-  std::unordered_set <std::string> good_params, used_params, model_species;
+  const unsigned int num_rules = rules_list->size();
+  typename assignment_rules_t::const_iterator arit;
+  typename model_reactions_t::const_iterator mrit;
   std::unordered_set <std::string>::const_iterator upit, msit;
-
-
-  // Put reactions in a map
-  for (unsigned int ic = 0; ic < reactionsSize; ic++) {
-    const LIBSBML_CPP_NAMESPACE::Reaction& reaction = *(reaction_list->get(ic));
-    if (!reaction.isSetKineticLaw()) {
-      WCS_THROW("The formula of the reaction " + reaction.getIdAttribute() + " should be set.");
-    }
-    model_reactions_set.insert(std::make_pair(reaction.getIdAttribute(),
-                                              reaction.getKineticLaw()->getMath()));
-  }
-
-  // Put initial assignments in map
-  for (unsigned int ic = 0u; ic < assignmentsSize; ic++) {
-    const LIBSBML_CPP_NAMESPACE::InitialAssignment& initialassignment
-      = *(assignments_list->get(ic));
-    sinitial_assignments.insert(std::make_pair(initialassignment.getSymbol(),
-                                               initialassignment.getMath()));
-  }
-
-  // Put species in a set
-  for (unsigned int ic = 0u; ic < speciesSize; ic++) {
-    if (assignment_rules_set.find(species_list->get(ic)->getIdAttribute())
-        == assignment_rules_set.cend())
-    {
-      model_species.insert(species_list->get(ic)->getIdAttribute());
-    }
-  }
-
-
-
-  genfile << "\n";
-  using  event_assignments = std::unordered_set<std::string>;
-  typename event_assignments::const_iterator evassigit;
-  // A set for model event assignments
-  event_assignments m_ev_assig;
-
-  //Put event assignments in a set
-  for (unsigned int ic = 0u; ic < eventsSize; ic++) {
-    const LIBSBML_CPP_NAMESPACE::Event& event = *(events_list->get(ic));
-    const ListOfEventAssignments* eventassignments_list
-      = event.getListOfEventAssignments();
-    const unsigned int eventassignmentsSize = eventassignments_list->size();
-
-    for (unsigned int ici = 0u; ici < eventassignmentsSize; ici++) {
-      const LIBSBML_CPP_NAMESPACE::EventAssignment& eventassignment
-        = *(eventassignments_list->get(ici));
-      if (m_ev_assig.find(eventassignment.getVariable()) == m_ev_assig.cend()) {
-        //genfile << eventassignment.getVariable() <<"\n";
-        m_ev_assig.insert(eventassignment.getVariable());
-      }
-    }
-  }
-
-
-  // Put rate rules and assignements rules in maps
-  for (unsigned int ic = 0; ic < rulesSize; ic++) {
-    const LIBSBML_CPP_NAMESPACE::Rule& rule = *(rules_list->get(ic));
-    if (rule.getType() == 0) { //rate_rule
-      rate_rules_set.insert(std::make_pair(rule.getVariable(), rule.getMath()));
-    }
-    if (rule.getType() == 1) { //assignment_rule
-      assignment_rules_set.insert(std::make_pair(rule.getVariable(), rule.getMath()));
-    }
-
-  }
-
+  typename rate_rules_t::const_iterator rrit;
+  typename event_assignments_t::const_iterator evassigit;
   // Find used parameters in the rates
-  for (unsigned int ic = 0u; ic < reactionsSize; ic++) {
+  for (unsigned int ic = 0u; ic < num_reactions; ic++) {
     const LIBSBML_CPP_NAMESPACE::Reaction& reaction = *(reaction_list->get(ic));
+    const LIBSBML_CPP_NAMESPACE::ListOfLocalParameters* local_parameter_list
+      = reaction.getKineticLaw()->getListOfLocalParameters();
+    unsigned int num_localparameters = local_parameter_list->size();
     //genfile << "reaction" << reaction.getIdAttribute() <<": ";
+    using reaction_parameters_t = std::unordered_set<std::string>;
+    reaction_parameters_t lpset;
+    for (unsigned int pi = 0u; pi < num_localparameters; pi++) {
+      const LIBSBML_CPP_NAMESPACE::LocalParameter* localparameter = local_parameter_list->get(pi);
+      lpset.insert(localparameter->getIdAttribute());
+    }
     std::vector<std::string> dependencies_set
       = get_all_dependencies(*reaction.getKineticLaw()->getMath(),
                                   used_params,
                                   sinitial_assignments,
-                                  assignment_rules_set,
-                                  model_reactions_set);
+                                  assignment_rules_map,
+                                  model_reactions_map,
+                                  lpset);
 
     for (auto it = dependencies_set.crbegin();
          it != dependencies_set.crend(); ++it)
     {
-      arit = assignment_rules_set.find(*it);
+      arit = assignment_rules_map.find(*it);
       upit = used_params.find(*it);
-      rrit = rate_rules_set.find(*it);
-      mrit = model_reactions_set.find(*it);
+      rrit = rate_rules_map.find(*it);
+      mrit = model_reactions_map.find(*it);
       msit = model_species.find(*it);
       evassigit = m_ev_assig.find(*it);
-      if (arit == assignment_rules_set.cend() &&
-          rrit == rate_rules_set.cend() &&
-          mrit == model_reactions_set.cend() &&
+      if (arit == assignment_rules_map.cend() &&
+          rrit == rate_rules_map.cend() &&
+          mrit == model_reactions_map.cend() &&
           upit == used_params.cend() &&
           msit == model_species.cend() &&
-          *it != "time" &&
+          //*it != "time" &&   //uncomment for events
           evassigit == m_ev_assig.cend())
       {
         used_params.insert(*it);
@@ -374,7 +406,7 @@ const std::string  wcs::generate_cxx_code::generate_code(const LIBSBML_CPP_NAMES
   }
 
   // Find used parameters in the differential rates
-  for (unsigned int ic = 0; ic < rulesSize; ic++) {
+  for (unsigned int ic = 0; ic < num_rules; ic++) {
     const LIBSBML_CPP_NAMESPACE::Rule& rule = *(rules_list->get(ic));
     if (rule.getType() == 0) { //rate_rule
       //genfile << "rule" << rule.getVariable() << " : " ;
@@ -382,25 +414,26 @@ const std::string  wcs::generate_cxx_code::generate_code(const LIBSBML_CPP_NAMES
         = get_all_dependencies(*rule.getMath(),
                                     used_params,
                                     sinitial_assignments,
-                                    assignment_rules_set,
-                                    model_reactions_set);
+                                    assignment_rules_map,
+                                    model_reactions_map,
+                                    {});
 
       for (auto it = dependencies_set.crbegin();
            it!= dependencies_set.crend(); ++it)
       {
-        arit = assignment_rules_set.find(*it);
+        arit = assignment_rules_map.find(*it);
         upit = used_params.find(*it);
-        rrit = rate_rules_set.find(*it);
-        mrit = model_reactions_set.find(*it);
+        rrit = rate_rules_map.find(*it);
+        mrit = model_reactions_map.find(*it);
         msit = model_species.find(*it);
         evassigit = m_ev_assig.find(*it);
 
-        if (arit == assignment_rules_set.cend() &&
-            rrit == rate_rules_set.cend() &&
-            mrit == model_reactions_set.cend() &&
+        if (arit == assignment_rules_map.cend() &&
+            rrit == rate_rules_map.cend() &&
+            mrit == model_reactions_map.cend() &&
             upit == used_params.cend() &&
             msit == model_species.cend() &&
-            *it != "time" &&
+            //*it != "time" &&  //uncomment for events
             evassigit == m_ev_assig.cend())
         {
           used_params.insert(*it);
@@ -409,15 +442,51 @@ const std::string  wcs::generate_cxx_code::generate_code(const LIBSBML_CPP_NAMES
     }
   }
 
-  //genfile << "Size of used params: " << used_params.size() <<"\n" ;
+}
 
-  /*for (auto& x: used_params) {
-    std::cout << x << "\n";
-  }*/
+void wcs::generate_cxx_code::print_constants_and_initial_states(
+  const LIBSBML_CPP_NAMESPACE::Model& model,
+  const char * Real,
+  std::ofstream & genfile,
+  map_symbol_to_ast_node_t & sconstant_init_assig,
+  const initial_assignments_t& sinitial_assignments,
+  const assignment_rules_t& assignment_rules_map,
+  const std::unordered_set <std::string>& used_params,
+  std::unordered_set <std::string>& good_params,
+  const model_reactions_t & model_reactions_map,
+  const rate_rules_t& rate_rules_map,
+  std::unordered_set<std::string>& wcs_all_const,
+  std::unordered_set<std::string>& wcs_all_var,
+  const event_assignments_t& m_ev_assig)
+{
+  const ListOfParameters* parameter_list = model.getListOfParameters();
+  const unsigned int num_parameters = parameter_list->size();
+  const ListOfCompartments* compartment_list = model.getListOfCompartments();
+  const unsigned int num_compartments = compartment_list->size();
+  const ListOfEvents* events_list = model.getListOfEvents();
+  const unsigned int num_events = events_list->size();
+  typename assignment_rules_t::const_iterator arit;
+  typename event_assignments_t::const_iterator evassigit;
+  typename initial_assignments_t::const_iterator initassigit;
+  typename constant_init_ass_t::const_iterator cinitasit;
+  std::unordered_set <std::string> no_used_params;
+  constant_init_ass_t sconstant_init_assig_notused;
 
 
-  genfile << "//Define all the constants and initial states\n";
-  for (unsigned int ic = 0u; ic < parametersSize; ic++) {
+  //Vector for const and var to keep the right order
+  std::vector<std::string> wcs_const_exp, wcs_var_exp;
+
+  // Maps for model constants with initial value and model variables with initial value
+  using  wcs_struct_map_val_t = std::unordered_map <std::string,double>;
+  typename wcs_struct_map_val_t::const_iterator wcs_const_itv, wcs_var_itv;
+  std::unordered_map <std::string, double> wcs_const, wcs_var;
+
+  // Maps for model constants and model variables with initial value other parameters
+  using  wcs_struct_map_t = std::unordered_map <std::string, const ASTNode *>;
+  typename wcs_struct_map_t::const_iterator wcs_const_it, wcs_var_it;
+  wcs_struct_map_t wcs_const_exp_map, wcs_var_exp_map;
+
+  for (unsigned int ic = 0u; ic < num_parameters; ic++) {
     const LIBSBML_CPP_NAMESPACE::Parameter& parameter
       = *(parameter_list->get(ic));
 
@@ -426,9 +495,16 @@ const std::string  wcs::generate_cxx_code::generate_code(const LIBSBML_CPP_NAMES
         if (used_params.find(parameter.getIdAttribute()) !=
             used_params.cend())
         { //declare if it is used
-          genfile << "static constexpr "<< Real << " " << parameter.getIdAttribute()
-                    << " = " << parameter.getValue() << ";\n";
+          std::ostringstream streamObj2;
+          // Set Fixed -Point Notation
+          streamObj2 << std::fixed;
+          //Add double to stream
+          streamObj2 << parameter.getValue();
+
+          wcs_const.insert(std::make_pair(parameter.getIdAttribute(), parameter.getValue()));
           good_params.insert(parameter.getIdAttribute());
+        } else {
+          no_used_params.insert(parameter.getIdAttribute());
         }
       } else {  //if no value for constants check initial assignments
         if (used_params.find(parameter.getIdAttribute()) !=
@@ -439,198 +515,278 @@ const std::string  wcs::generate_cxx_code::generate_code(const LIBSBML_CPP_NAMES
             sconstant_init_assig.insert(std::make_pair(parameter.getIdAttribute(),
                                                        initassigit->second));
           }
+        } else {
+          initassigit = sinitial_assignments.find(parameter.getIdAttribute());
+          sconstant_init_assig_notused.insert(std::make_pair(parameter.getIdAttribute(),
+                                                       initassigit->second));
+          no_used_params.insert(parameter.getIdAttribute());
         }
       }
     } else {
       if (!isnan(parameter.getValue())) {  // Variables with values
-        genfile << "static constexpr " << Real << " _init_"
-                  << parameter.getIdAttribute() << " = "
-                  << parameter.getValue() << ";\n";
-        good_params.insert(parameter.getIdAttribute());
+        wcs_const.insert(std::make_pair("_init_" + parameter.getIdAttribute(),
+        parameter.getValue()));
       } else {  //if no value for these variables => they are assignment_rules
       }
     }
   }
 
-  // Print out compartments initializations
-  for (unsigned int ic = 0u; ic < compartmentsSize; ic++) {
+  // Compartments initializations
+  for (unsigned int ic = 0u; ic < num_compartments; ic++) {
     const LIBSBML_CPP_NAMESPACE::Compartment& compartment
       = *(compartment_list->get(ic));
 
-    if (rate_rules_set.find(compartment.getIdAttribute()) ==
-        rate_rules_set.cend())
+    if (rate_rules_map.find(compartment.getIdAttribute()) ==
+        rate_rules_map.cend())
     {
-      genfile << "static constexpr " << Real << " " << compartment.getIdAttribute()
-                << " = " << compartment.getSize() << ";\n";
       good_params.insert(compartment.getIdAttribute());
+      wcs_const.insert(std::make_pair(compartment.getIdAttribute(), compartment.getSize()));
     } else { //if it is defined in a rate_rule
-      genfile << "static constexpr " << Real << " _init_"
-                << compartment.getIdAttribute() << " = "
-                << compartment.getSize() << ";\n";
-      good_params.insert(compartment.getIdAttribute());
+      wcs_const.insert(std::make_pair(" _init_" + compartment.getIdAttribute(),
+      compartment.getSize()));
     }
   }
-
-
-  /// Print out Species initializations
-  for (unsigned int ic = 0u; ic < speciesSize; ic++) {
-    const LIBSBML_CPP_NAMESPACE::Species& species = *(species_list->get(ic));
-
-    if (species.getInitialAmount() == 0) {
-      genfile << "static constexpr " << Real  << " _init_"
-                << species.getIdAttribute() << " = 0;\n";
-      //good_params.insert(species.getIdAttribute());
-    } else {
-      if (!isnan(species.getInitialAmount())) {
-        // First way for printing the value
-        std::stringstream ss;
-        ss << species.getInitialAmount();
-        std::string speciesvalue = ss.str();
-
-        // Second way. Print the value with big precision
-        //char svalue [100];
-        //char * spname = new char [species.getIdAttribute().length()+1];
-        //strcpy (spname, species.getIdAttribute().c_str());
-        //char * compname = new char [species.getCompartment().length()+1];
-        //strcpy (compname, species.getCompartment().c_str());
-
-        //sprintf (svalue, "%.16f", species.getInitialAmount());
-        //printf ("static constexpr Real _init_%s = %s/%s; ", spname, svalue, compname);*/
-
-        // Third way
-        //std::ostringstream out;
-        //out.precision(15);
-        //out << std::fixed << species.getInitialAmount();
-
-        genfile << "static constexpr " << Real << " _init_"
-                  << species.getIdAttribute() << " = "
-                  << speciesvalue << "/"
-                  //<< svalue << "/"
-                  //<< out.str() << "/"
-                  << species.getCompartment() << ";\n";
-
-
-
-      } else if (!isnan(species.getInitialConcentration())) {
-        if (species.getInitialConcentration() == 0) {
-          genfile << "static constexpr " << Real << " _init_"
-                    << species.getIdAttribute() << " = 0;\n";
-        } else {
-          // First way for printing the value
-          std::stringstream ss;
-          ss << species.getInitialConcentration();
-          std::string speciesvalue = ss.str();
-
-          genfile << "static constexpr " << Real << " _init_"
-                    << species.getIdAttribute() << " = "
-                    << speciesvalue << "/" << species.getCompartment() << ";\n";
-        }
-      }
-    }
-  }
-
-  /** for (auto x: sconstant_init_assig) {
-      genfile << x.first << "\n";
-  }*/
-
 
   // A set with parameters that they have to be deleted after the for loop
   std::unordered_set <std::string> param_to_del;
 
-  // Print out constants in initial assignemnts
-  for (auto x = sconstant_init_assig.begin(); x != sconstant_init_assig.end(); ++x){
+  // Constants in initial assignemnts
+  for (auto x = sconstant_init_assig.cbegin(); x != sconstant_init_assig.cend(); ++x){
     if (param_to_del.find(x->first) == param_to_del.cend()) {
-      if (rate_rules_set.find(SBML_formulaToString(x->second)) ==
-          rate_rules_set.cend())
+      if (rate_rules_map.find(SBML_formulaToString(x->second)) ==
+          rate_rules_map.cend())
       {
-        //if (used_params.find(SBML_formulaToString(x->second))
-        //!= used_params.cend()){ //declare if it is used
         std::vector<std::string> dependencies_set
           = get_all_dependencies(*x->second,
                                       good_params,
                                       sconstant_init_assig,
-                                      assignment_rules_set,
-                                      model_reactions_set);
+                                      assignment_rules_map,
+                                      model_reactions_map,
+                                      {});
 
         for (auto it = dependencies_set.crbegin();
              it != dependencies_set.crend(); ++it)
         {
-          arit = assignment_rules_set.find(*it);
+          arit = assignment_rules_map.find(*it);
           cinitasit = sconstant_init_assig.find(*it);
-          if (arit != assignment_rules_set.cend()) {
-            /**const std::string toReplace("species");
-               // for the replacement of "species" label
-            size_t pos = formula.find(toReplace);
-            while (pos < formula.length()) {
-              if (pos != std::string::npos) {
-                formula.replace(pos,toReplace.length(),"");
-                pos = formula.find(toReplace);
-              }
-            }*/
-            genfile << "static constexpr " << Real << " " << arit->first << " = "
-                      << SBML_formulaToString(arit->second) << ";\n";
+          if (arit != assignment_rules_map.cend()) {
+            wcs_var_exp.push_back(arit->first);
+            wcs_var_exp_map.insert(std::make_pair(arit->first,arit->second));
           }
           if (cinitasit != sconstant_init_assig.cend()){
-            genfile << "static constexpr " << Real << " "
-                      << cinitasit->first << " = "
-                      << SBML_formulaToString(cinitasit->second) << ";\n";
+            wcs_const_exp.push_back(cinitasit->first);
+            wcs_const_exp_map.insert(std::make_pair(cinitasit->first,cinitasit->second));
             good_params.insert(cinitasit->first);
             param_to_del.insert(cinitasit->first);
           }
         }
-        genfile << "static constexpr " << Real << " " << x->first << " = "
-                  << SBML_formulaToString(x->second) << ";\n";
+        wcs_const_exp.push_back(x->first);
+        wcs_const_exp_map.insert(std::make_pair(x->first,x->second));
         good_params.insert(x->first);
         param_to_del.insert(x->first);
-      //}
       } else {
-        genfile << "static constexpr " << Real << " " << x->first << " = _init_"
-                  << SBML_formulaToString(x->second) << ";\n";
+        wcs_const_exp.push_back(x->first);
+        wcs_const_exp_map.insert(std::make_pair(x->first, x->second));
         good_params.insert(x->first);
         param_to_del.insert(x->first);
+      }
+    }
+  }
+
+  // No used parameters
+  /*for (auto& x: no_used_params) {
+    genfile << "\n" << x <<"," ;
+  }*/
+
+  // print no used parameters which are only used in the events formula
+  if ( m_ev_assig.size() > 0) {
+    for (unsigned int ic = 0u; ic < num_events; ic++) {
+      const LIBSBML_CPP_NAMESPACE::Event& event = *(events_list->get(ic));
+      const Trigger* trigger = event.getTrigger();
+      const ASTNode* astnode = trigger->getMath();
+      std::vector<std::string> dependencies_set
+       = get_all_dependencies(*astnode,
+                              good_params,
+                              sconstant_init_assig,
+                              assignment_rules_map,
+                              model_reactions_map,
+                              {});
+
+      for (auto it = dependencies_set.crbegin();
+        it != dependencies_set.crend(); ++it)
+      {
+        //genfile << "\n" << *it <<" " ;
+        if (*it == "time"){
+          cinitasit = sconstant_init_assig_notused.find("time_t");
+          good_params.insert("time_t");
+          good_params.insert("time");
+          param_to_del.insert("time_t");
+          param_to_del.insert("time");
+        } else {
+          cinitasit = sconstant_init_assig_notused.find(*it);
+        }
+        if (cinitasit != sconstant_init_assig_notused.cend()){
+          if (cinitasit->first == "time_t"){
+            wcs_const_exp.push_back("time");
+            wcs_const_exp_map.insert(std::make_pair("time",cinitasit->second));
+          } else {
+            wcs_const_exp.push_back(cinitasit->first);
+            wcs_const_exp_map.insert(std::make_pair(cinitasit->first,cinitasit->second));
+          }
+          good_params.insert(cinitasit->first);
+          param_to_del.insert(cinitasit->first);
+        }
       }
     }
   }
 
   // Remove parameters that have been declared
-  for (auto& x: param_to_del) {
+  for (const auto& x: param_to_del) {
     sconstant_init_assig.erase(x);
   }
 
-  genfile << "\n";
-  genfile << "extern \"C\" \n{\n";
-  // Print out  alias for event assignments
-  for  (const std::string& x: m_ev_assig) {
-    std::string e_label = x;
-    genfile << "  " << Real << " __init_" << e_label << " = _init_"
-              << e_label <<";\n";
-    // we delete these from good_params because we have to declare in rates
-    good_params.erase(e_label);
-  }
+  // Sets for keeping all consts and all vars
+  std::unordered_set<std::string>::const_iterator wcs_all_const_it, wcs_all_var_it;
 
-  // Print out alias for rate rules
-  for  (auto& x: rate_rules_set) {
-    std::string r_label = x.first;
-    genfile << "  " << Real << " __init_" << r_label << " = _init_"
-              << r_label <<";\n";
-    // we delete these from good_params because we have to declare in rates
-    good_params.erase(r_label);
+  // define global namespace for constants
+  genfile << "namespace WCS_GLOBAL_CONST {\n";
+  for (const auto& x: wcs_const) {
+    genfile << "  constexpr " << Real << " " << x.first << " = " << x.second << ";\n";
+    wcs_all_const.insert(x.first);
   }
+  for (const auto& x: wcs_const_exp) {
+    wcs_const_it = wcs_const_exp_map.find(x);
+    if (wcs_const_it != wcs_const_exp_map.cend()) {
+      arit = assignment_rules_map.find(SBML_formulaToString(wcs_const_it->second));
+      // if there is a assignment rule for a const
+      if (arit != assignment_rules_map.cend()) {
+        std::set<std::string, strcomp> expr_elements;
+        read_ast_node(*arit->second, expr_elements);
+        unsigned int is_const = 0u;
+        for (const auto& y: expr_elements) {
+          wcs_const_itv = wcs_const.find(y);
+          if ( wcs_const_itv != wcs_const.cend()) {
+            is_const = is_const + 1;
+          }
+          if ( std::find(wcs_const_exp.cbegin(), wcs_const_exp.cend(), y) != wcs_const_exp.cend()) {
+            is_const = is_const + 1;
+          }
+        }
+        if (is_const == expr_elements.size()) {
+          LIBSBML_CPP_NAMESPACE::ASTNode math;
+          math = *arit->second;
+          include_init_for_rate_rules(math, rate_rules_map);
+          genfile << "  constexpr " << Real << " " << wcs_const_it->first
+                  << " = " << SBML_formulaToString(&math) << ";\n";
+          wcs_all_const.insert(wcs_const_it->first);
+        } else {
+          WCS_THROW("There is a problem with the definition of const " \
+          + wcs_const_it->first + " (It takes value from a variable).");
+        }
 
-  // Print out alias for species thay are not defined in assignment rules
-  for (unsigned int ic = 0u; ic < speciesSize; ic++) {
-    if (assignment_rules_set.find(species_list->get(ic)->getIdAttribute()) ==
-        assignment_rules_set.cend())
-    {
-        genfile << "  " << Real << " __init_"
-                  << species_list->get(ic)->getIdAttribute() << " = _init_"
-                  << species_list->get(ic)->getIdAttribute() << ";\n";
+      } else {
+        LIBSBML_CPP_NAMESPACE::ASTNode math;
+        math = *wcs_const_it->second;
+        include_init_for_rate_rules(math, rate_rules_map);
+        genfile << "  constexpr " << Real << " " << wcs_const_it->first
+                << " = " << SBML_formulaToString(&math) << ";\n";
+        wcs_all_const.insert(wcs_const_it->first);
+      }
     }
   }
-  genfile << "}";
+  genfile << "};\n";
 
-  genfile << "\n//Define the functions\n";
-  for (unsigned int ic = 0u; ic < functionsSize; ic++) {
+  // define global structure for variables
+  genfile << "\n";
+  genfile << "struct WCS_GLOBAL_VAR {\n";
+  //insert event assignment variables
+  if ( m_ev_assig.size() > 0ul) {
+    for (const auto& x: m_ev_assig) {
+      genfile << "  " << Real << " " << x << ";\n";
+      wcs_all_var.insert(x);
+    }
+  }
+  for (const auto& x: wcs_var) { //include events too
+    wcs_all_var_it = wcs_all_var.find(x.first);
+    if (wcs_all_var_it == wcs_all_var.cend()) {
+      genfile << "  " << Real << " " << x.first << ";\n";
+      wcs_all_var.insert(x.first);
+    }
+  }
+  //include rate rules
+  for  (const auto& x: rate_rules_map) {
+    genfile << "  " << Real << " " << x.first << ";\n";
+    wcs_all_var.insert(x.first);
+  }
+  for (const auto& x: wcs_var_exp) {
+    wcs_var_it = wcs_var_exp_map.find(x);
+    if (wcs_var_it != wcs_var_exp_map.cend()) {
+      genfile << "  " << Real << " " << wcs_var_it->first << ";\n";
+      wcs_all_var.insert(wcs_var_it->first);
+    }
+  }
+  // print the rest of variables in assignment rules
+  for (const auto& x: assignment_rules_map) {
+    if ( std::find(wcs_var_exp.cbegin(), wcs_var_exp.cend(), x.first) == wcs_var_exp.cend()) {
+      genfile << "  " << Real << " " << x.first <<  ";\n";
+      wcs_all_var.insert(x.first);
+    }
+  }
+
+  genfile << "  WCS_GLOBAL_VAR();\n";
+  genfile << "  void init();\n";
+  genfile << "};\n";
+  genfile << "WCS_GLOBAL_VAR wcs_global_var;\n\n";
+  genfile << "WCS_GLOBAL_VAR::WCS_GLOBAL_VAR()\n";
+  genfile << "{\n";
+  genfile << "  init();\n";
+  genfile << "}\n";
+
+  genfile << "void WCS_GLOBAL_VAR::init()\n";
+  genfile << "{\n";
+  for (const auto& x: m_ev_assig) {
+    genfile << "  wcs_global_var." << x << " = WCS_GLOBAL_CONST::_init_" << x <<";\n";
+  }
+  for (const auto& x: wcs_var) { //include events too
+    evassigit = m_ev_assig.find(x.first);
+    if (evassigit == m_ev_assig.cend()) {
+      genfile << "  wcs_global_var." << x.first << " = " << x.second << ";\n";
+    }
+  }
+  //include rate rules
+  for  (const auto& x: rate_rules_map) {
+    genfile << "  wcs_global_var." << x.first << " = WCS_GLOBAL_CONST::_init_"
+            << x.first << ";\n";
+  }
+  for (const auto& x: wcs_var_exp) {
+    wcs_var_it = wcs_var_exp_map.find(x);
+    if (wcs_var_it != wcs_var_exp_map.cend()) {
+      LIBSBML_CPP_NAMESPACE::ASTNode math;
+      math = *wcs_var_it->second;
+      update_scope_ast_node(math, {}, wcs_all_const, {});
+      genfile << "  wcs_global_var." << wcs_var_it->first << " = "
+              << SBML_formulaToString(&math) << ";\n";
+    }
+  }
+  // print the rest of variables in assignment rules
+  for (const auto& x: assignment_rules_map) {
+    if ( std::find(wcs_var_exp.cbegin(), wcs_var_exp.cend(), x.first) == wcs_var_exp.cend()) {
+      genfile << "  wcs_global_var." << x.first <<  " = 0.0;\n";
+    }
+  }
+  genfile << "}\n";
+}
+
+
+void wcs::generate_cxx_code::print_functions(
+  const LIBSBML_CPP_NAMESPACE::Model& model,
+  const char * Real,
+  std::ofstream & genfile)
+{
+  const ListOfFunctionDefinitions* function_definition_list
+    = model.getListOfFunctionDefinitions();
+  const unsigned int num_functions = function_definition_list->size();
+  for (unsigned int ic = 0u; ic < num_functions; ic++) {
     const LIBSBML_CPP_NAMESPACE::FunctionDefinition& function
       = *(function_definition_list->get(ic));
 
@@ -648,6 +804,686 @@ const std::string  wcs::generate_cxx_code::generate_code(const LIBSBML_CPP_NAMES
     genfile << "  return " << SBML_formulaToString(function.getBody()) << ";";
     genfile << "\n}\n\n";
   }
+}
+
+void wcs::generate_cxx_code::print_event_functions(
+  const LIBSBML_CPP_NAMESPACE::Model& model,
+  const char * Real,
+  std::ofstream & genfile,
+  const event_assignments_t & m_ev_assig,
+  const std::unordered_set<std::string>& wcs_all_const,
+  const std::unordered_set<std::string>& wcs_all_var)
+{
+  const ListOfEvents* events_list = model.getListOfEvents();
+  const unsigned int num_events = events_list->size();
+  for (const auto& x: m_ev_assig) {
+    genfile << "extern \"C\" " << Real << " wcs__rate_" << x
+            << "() {\n";
+    genfile << "  " << Real << " " << x <<" = wcs_global_var." << x << ";\n";
+    genfile << "  " << Real << " time = WCS_GLOBAL_CONST::time;\n";
+
+    for (unsigned int ic = 0u; ic < num_events; ic++) {
+      const LIBSBML_CPP_NAMESPACE::Event& event = *(events_list->get(ic));
+      const ListOfEventAssignments* event_assignment_list
+      = event.getListOfEventAssignments();
+      const unsigned int num_event_assignments = event_assignment_list->size();
+      const Trigger* trigger = event.getTrigger();
+      const ASTNode* astnode = trigger->getMath();
+      std::string trigger_variable = SBML_formulaToString(astnode->getChild(0));
+      std::string trigger_value = SBML_formulaToString(astnode->getChild(1));
+      LIBSBML_CPP_NAMESPACE::ASTNode math = *astnode->getChild(1);
+      update_scope_ast_node(math, wcs_all_var, wcs_all_const, {});
+      for (unsigned int ici = 0u; ici < num_event_assignments; ici++) {
+        const LIBSBML_CPP_NAMESPACE::EventAssignment& eventassignment
+        = *(event_assignment_list->get(ici));
+        if (eventassignment.getVariable() == x){
+          //genfile << "  if (variable_tr_ev == \"" << trigger_variable << "\" && value_tr_ev == "
+          //        << trigger_value << ") {\n";
+          genfile << "  if (time == " << SBML_formulaToString(&math) << ") {\n";
+          genfile << "    " << x << " = " << SBML_formulaToString(eventassignment.getMath())
+                  << ";\n";
+          genfile << "    wcs_global_var." << x << " = " << x << ";\n";
+          genfile << "  }\n";
+        }
+      }
+    }
+
+    genfile << "\n  return " << x << ";\n" << "}\n\n";
+  }
+
+}
+
+void wcs::generate_cxx_code::print_global_state_functions(
+  const LIBSBML_CPP_NAMESPACE::Model& model,
+  const char * Real,
+  std::ofstream & genfile,
+  const std::unordered_set<std::string> & good_params,
+  const map_symbol_to_ast_node_t & sconstant_init_assig,
+  const assignment_rules_t & assignment_rules_map,
+  const model_reactions_t & model_reactions_map,
+  const std::unordered_set<std::string>& wcs_all_const,
+  const std::unordered_set<std::string>& wcs_all_var)
+{
+  const ListOfRules* rules_list = model.getListOfRules();
+  const unsigned int num_rules = rules_list->size();
+  typename assignment_rules_t::const_iterator arit;
+  typename model_reactions_t::const_iterator mrit;
+  for (unsigned int ic = 0u; ic < num_rules; ic++) {
+    const LIBSBML_CPP_NAMESPACE::Rule& rule = *(rules_list->get(ic));
+    if (rule.getType()==0) { //rate_rule
+      genfile << "extern \"C\" " << Real << " wcs__rate_" << rule.getVariable()
+                << "(const std::vector<" << Real << ">& __input) {\n";
+      //genfile << "  int __ii=0;\n";
+      std::vector<std::string> dependencies_set
+        = get_all_dependencies(*rule.getMath(),
+                                    good_params,
+                                    sconstant_init_assig,
+                                    assignment_rules_map,
+                                    model_reactions_map,
+                                    {});
+      std::set<std::string> var_names;
+      // print the function parameters with the order met in the formula
+      // put first to a set all variables taking an input
+      for (auto it = dependencies_set.crbegin();
+           it!= dependencies_set.crend(); ++it)
+      {
+        arit = assignment_rules_map.find(*it);
+        mrit = model_reactions_map.find(*it);
+        if (arit == assignment_rules_map.cend() && mrit == model_reactions_map.cend()){
+          var_names.insert(*it);
+        }
+      }
+      std::string formula = SBML_formulaToString(rule.getMath());
+      const auto input_map = build_input_map(formula, var_names);
+
+      std::vector<std::string> var_names_ord (input_map.size());
+      for (const auto& x: input_map) {
+        var_names_ord[x.second] = x.first;
+      }
+
+      //print first parameters in formula taking input
+      std::vector<std::string>::const_iterator it;
+      int par_index = 0;
+      for (it = var_names_ord.cbegin(); it < var_names_ord.cend(); it++){
+        if (*it != rule.getVariable()) {
+          genfile << "  " << Real << " " << *it << " = __input[" << par_index++ << "];\n";
+        }
+        var_names.erase(*it);
+      }
+      //print rest parameters (not in formula) taking input
+      for (const auto& x: var_names) {
+        if (x != rule.getVariable()) {
+          genfile << "  " << Real << " " << x << " = __input[" << par_index++ << "];\n";
+        }
+      }
+
+      LIBSBML_CPP_NAMESPACE::ASTNode math;
+      // Print the rest of the parameters not taking an input
+      for (auto it = dependencies_set.crbegin();
+           it!= dependencies_set.crend(); ++it)
+      {
+        arit = assignment_rules_map.find(*it);
+        mrit = model_reactions_map.find(*it);
+        if (arit != assignment_rules_map.cend()){
+          math = *arit->second;
+          update_scope_ast_node(math, wcs_all_var, wcs_all_const, {});
+          genfile << "  wcs_global_var." << arit->first << " = "
+                    << SBML_formulaToString(&math) << ";\n";
+        } else if (mrit != model_reactions_map.cend()){
+          math = *mrit->second;
+          update_scope_ast_node(math, wcs_all_var, wcs_all_const, {});
+          genfile << "  " << Real << " " << mrit->first << " = "
+                    << SBML_formulaToString(&math) << ";\n";
+        }
+      }
+      math = *rule.getMath();
+      update_scope_ast_node(math, wcs_all_var, wcs_all_const, {});
+      genfile << "  wcs_global_var." << rule.getVariable() << " = "
+              << SBML_formulaToString(&math) << ";\n";
+
+      genfile << "  if (!isfinite(wcs_global_var." << rule.getVariable()  << ")) {\n";
+      // find denominators of the dependent expressions of the rate rule formula
+      for (auto it = dependencies_set.crbegin();
+        it != dependencies_set.crend(); ++it)
+      {
+        arit = assignment_rules_map.find(*it);
+        mrit = model_reactions_map.find(*it);
+        if (arit != assignment_rules_map.cend()){ //assignment rules
+          std::string elem_with_scope = arit->first;
+          update_scope_str(elem_with_scope, wcs_all_var, wcs_all_const,{});
+          genfile << "    if (!isfinite(" << elem_with_scope << ")) {\n";
+          math = *arit->second;
+          update_scope_ast_node(math, wcs_all_var, wcs_all_const, {});
+          std::vector<std::string> denominators_noscope= return_all_denominators
+          (*arit->second, rule.getVariable());
+          std::vector<std::string> denominators = return_all_denominators
+          (math, rule.getVariable());
+          size_t sz = denominators.size();
+          if (sz > 0ul) {
+            for (size_t i=0ul; i<sz; i++) {
+              genfile << "      if (" << denominators[i] << " == 0) {\n"
+                      << "        WCS_THROW(\"Divide by zero in rate rule "
+                      << rule.getVariable()  << ", in expression of " << arit->first
+                      << " with the element " << denominators_noscope[i] << ".\"); \n"
+                      << "      }\n";
+            }
+          }
+          genfile << "      WCS_THROW(\"Infinite or NaN result in rate rule "
+                << rule.getVariable() << ", in expression " << arit->first << ".\"); \n";
+
+          genfile << "    }\n";
+        } else if (mrit != model_reactions_map.cend()){ //model reactions
+          std::string elem_with_scope = mrit->first;
+          update_scope_str(elem_with_scope, wcs_all_var, wcs_all_const,{});
+          genfile << "    if (!isfinite(" << elem_with_scope << ")) {\n";
+          math = *mrit->second;
+          update_scope_ast_node(math, wcs_all_var, wcs_all_const, {});
+          std::vector<std::string> denominators_noscope= return_all_denominators
+          (*mrit->second, rule.getVariable());
+          std::vector<std::string> denominators = return_all_denominators
+          (math, rule.getVariable());
+          size_t sz = denominators.size();
+          if (sz > 0ul) {
+            for (size_t i=0ul; i<sz; i++) {
+              genfile << "      if (" << denominators[i] << " == 0) {\n"
+                      << "        WCS_THROW(\"Divide by zero in rate rule "
+                      << rule.getVariable()  << ", in expression of " << mrit->first
+                      << " with the element " << denominators_noscope[i] << ".\"); \n"
+                      << "      }\n";
+            }
+          }
+          genfile << "      WCS_THROW(\"Infinite or NaN result in rate rule "
+                << rule.getVariable() << ", in expression " << mrit->first << ".\"); \n";
+
+          genfile << "    }\n";
+        }
+      }
+      // find denominators of the reaction rate formula
+      math = *rule.getMath();
+      update_scope_ast_node(math, wcs_all_var, wcs_all_const, {});
+      std::vector<std::string> denominators_rr_noscope = return_all_denominators
+      (*rule.getMath(), rule.getVariable());
+      std::vector<std::string> denominators_rr = return_all_denominators
+      (math, rule.getVariable());
+      size_t sz = denominators_rr.size();
+      if (sz > 0ul) {
+        for (size_t i=0ul; i<sz; i++) {
+          genfile << "    if (" << denominators_rr[i] << " == 0) {\n"
+                  << "      WCS_THROW(\"Divide by zero in rate rule "
+                  << rule.getVariable()
+                  << " with the element " << denominators_rr_noscope[i] << ".\"); \n"
+                  << "    }\n";
+        }
+      }
+      genfile << "    WCS_THROW(\"Infinite or NaN result in rate rule "
+              << rule.getVariable() << ".\"); \n";
+      genfile << "  }\n";
+
+
+
+
+      genfile << "\n  return " << SBML_formulaToString(&math)
+                << ";\n" << "}\n\n";
+    }
+  }
+}
+
+void wcs::generate_cxx_code::print_reaction_rates(
+  const LIBSBML_CPP_NAMESPACE::Model& model,
+  const char * Real,
+  std::ofstream & genfile,
+  const std::unordered_set<std::string> & good_params,
+  const map_symbol_to_ast_node_t & sconstant_init_assig,
+  const assignment_rules_t & assignment_rules_map,
+  const model_reactions_t & model_reactions_map,
+  const event_assignments_t & m_ev_assig,
+  const std::unordered_set<std::string>& wcs_all_const,
+  const std::unordered_set<std::string>& wcs_all_var,
+  wcs::params_map_t& dep_params_f,
+  wcs::params_map_t& dep_params_nf,
+  const rate_rules_dep_t& rate_rules_dep_map)
+{
+  const ListOfReactions* reaction_list = model.getListOfReactions();
+  const unsigned int num_reactions = reaction_list->size();
+  typename assignment_rules_t::const_iterator arit;
+  wcs::rate_rules_dep_t::const_iterator rrdit;
+  using  event_assignments_t = std::unordered_set<std::string>;
+  typename event_assignments_t::const_iterator evassigit;
+  for (unsigned int ic = 0u; ic < num_reactions; ic++) {
+    const LIBSBML_CPP_NAMESPACE::Reaction& reaction = *(reaction_list->get(ic));
+    const LIBSBML_CPP_NAMESPACE::ListOfLocalParameters* local_parameter_list
+      = reaction.getKineticLaw()->getListOfLocalParameters();
+    unsigned int num_localparameters = local_parameter_list->size();
+
+    genfile << "extern \"C\" " << Real << " wcs__rate_" << reaction.getIdAttribute()
+              << "(const std::vector<" << Real <<">& __input) {\n";
+
+    //print reaction's local parameters
+    using reaction_local_parameters_t = std::unordered_set<std::string>;
+    reaction_local_parameters_t localpset;
+    for (unsigned int pi = 0u; pi < num_localparameters; pi++) {
+      const LIBSBML_CPP_NAMESPACE::LocalParameter* localparameter = local_parameter_list->get(pi);
+      genfile << "  constexpr " << Real << " " << localparameter->getIdAttribute() << " = "
+              << localparameter->getValue() << ";\n";
+      localpset.insert(localparameter->getIdAttribute());
+    }
+    //genfile << "  int __ii=0;\n";
+    //genfile << "printf(\"Number of input arguments of %s received : %lu \", \""
+    //        << reaction.getIdAttribute() << "\", __input.size());\n";
+    //genfile << "printf(\"nfunction: %s \\n\", \"" << reaction.getIdAttribute() << "\");\n";
+    std::vector<std::string> dependencies_set
+    = get_all_dependencies(*reaction.getKineticLaw()->getMath(),
+                          good_params,
+                          sconstant_init_assig,
+                          assignment_rules_map,
+                          model_reactions_map,
+                          localpset);
+
+    std::set<std::string> var_names, all_var_names;
+    std::set<std::string>::const_iterator var_names_it, all_var_names_it;
+
+    // print the function parameters with the order met in the formula
+    //put first to a set all variables taking an input
+    for (auto it = dependencies_set.crbegin();
+         it != dependencies_set.crend(); ++it)
+    {
+      arit = assignment_rules_map.find(*it);
+      if (arit == assignment_rules_map.cend()){
+        var_names.insert(*it);
+      }
+    }
+    std::string formula = SBML_formulaToString(reaction.getKineticLaw()->getMath());
+    const auto input_map = build_input_map(formula, var_names);
+
+    std::vector<std::string> var_names_ord (input_map.size());
+    for (const auto& x: input_map) {
+      var_names_ord[x.second] = x.first;
+    }
+
+    //print first parameters in formula taking input
+    std::vector<std::string>::const_iterator it;
+    std::vector<std::string> par_names, par_names_nf;
+    all_var_names = var_names;
+    int par_index = 0;
+    for (it = var_names_ord.cbegin(); it < var_names_ord.cend(); it++){
+      rrdit = rate_rules_dep_map.find(*it);
+      evassigit = m_ev_assig.find(*it);
+      if (rrdit != rate_rules_dep_map.cend()) { //rate rules
+        const std::set<std::string>& params_fn = rrdit->second;
+        std::set<std::string> params_fn_dec;
+        std::string function_input;
+        std::set<std::string>::const_iterator itf;
+        // add all the dependent species of rate rules
+        for (itf = params_fn.cbegin(); itf != params_fn.cend(); itf++){
+          if (itf != params_fn.cbegin()) {
+           function_input = function_input + ", ";
+          }
+          var_names_it = var_names.find(*itf);
+          all_var_names_it = all_var_names.find(*itf);
+          if (all_var_names_it == all_var_names.cend()) {
+            genfile << "  " << Real << " " << *itf <<" = __input[" << par_index++ << "];\n";
+            var_names.erase(*itf);
+          } else {
+            if (var_names_it != var_names.cend()) {
+              genfile << "  " << Real << " " << *itf <<" = __input[" << par_index++ << "];\n";
+              var_names.erase(*itf);
+            }
+          }
+          function_input = function_input + *itf ;
+        }
+        genfile << "  wcs_global_var."  << *it << " = wcs__rate_" << *it << "(std::vector<"
+                << Real << "> {" << function_input << "});\n";
+        par_names.push_back(*it);
+      } else if (evassigit != m_ev_assig.cend()) { //events variables
+        std::string function_input;
+        function_input ="";
+        genfile << "  wcs_global_var." << *it << " = wcs__rate_" << *it << "(" << function_input << ");\n";
+      } else {
+        genfile << "  " << Real << " " << *it <<" = __input[" << par_index++ << "];\n";
+        par_names.push_back(*it);
+      }
+      var_names.erase(*it);
+    }
+    //print rest parameters (not in formula) taking input
+    for (const auto& x: var_names) {
+      rrdit = rate_rules_dep_map.find(x);
+      evassigit = m_ev_assig.find(x);
+      if (rrdit != rate_rules_dep_map.cend()) { //rate rules
+        const std::set<std::string>& params_fn = rrdit->second;
+        std::string function_input ;
+        std::set<std::string>::const_iterator itf;
+        // add all the dependent species of rate rules
+        for (itf = params_fn.cbegin(); itf != params_fn.cend(); itf++){
+          if (itf != params_fn.cbegin()) {
+            function_input = function_input + ", ";
+          }
+          var_names_it = var_names.find(*itf);
+          all_var_names_it = all_var_names.find(*itf);
+          if (all_var_names_it == all_var_names.cend()) {
+              genfile << "  " << Real << " " << *itf <<" = __input[" << par_index++ << "];\n";
+              var_names.erase(*itf);
+          } else {
+            if (var_names_it != var_names.cend()) {
+              genfile << "  " << Real << " " << *itf <<" = __input[" << par_index++ << "];\n";
+              var_names.erase(*itf);
+            }
+          }
+          function_input = function_input + *itf ;
+        }
+        genfile << "  wcs_global_var."  << x << " = wcs__rate_" << x << "(std::vector<" << Real
+                << "> {" << function_input << "});\n";
+        par_names_nf.push_back(x);
+      } else if (evassigit != m_ev_assig.cend()) { // event variables
+        std::string function_input;
+        function_input ="";
+        genfile << "  wcs_global_var." << x << " = wcs__rate_" << x << "(" << function_input << ");\n";
+      } else {
+        genfile << "  " << Real << " " << x <<" = __input[" << par_index++ << "];\n";
+        par_names_nf.push_back(x);
+      }
+    }
+
+    // put input parameters into maps
+    dep_params_f.insert(std::make_pair(reaction.getIdAttribute(),
+                                                 par_names));
+    dep_params_nf.insert(std::make_pair(reaction.getIdAttribute(),
+                                                 par_names_nf));
+
+    //genfile << "printf(\" and expected  %u \\n\", " << par_index << ");\n";
+    /*genfile << "  printf(\"Expected in generated code: \");\n";
+    for (auto& x: par_names) {
+      genfile << "  printf(\"%s, \", \"" << x << "\");\n";
+    }
+    for (auto& x: par_names_nf) {
+      genfile << "  printf(\" $ %s, \", \"" << x << "\");\n";
+    }*/
+
+    std::set<LIBSBML_CPP_NAMESPACE::ASTNode> all_denominators;
+    LIBSBML_CPP_NAMESPACE::ASTNode math;
+
+    //print the rest of the parameters not taking an input
+    for (auto it = dependencies_set.crbegin();
+         it != dependencies_set.crend(); ++it)
+    {
+      arit = assignment_rules_map.find(*it);
+      if (arit != assignment_rules_map.cend()){
+        math = *arit->second;
+        update_scope_ast_node(math, wcs_all_var, wcs_all_const, localpset);
+        genfile << "  wcs_global_var." << arit->first << " = "
+                  << SBML_formulaToString( &math) << ";\n";
+      }
+    }
+    math = *reaction.getKineticLaw()->getMath();
+    update_scope_ast_node(math, wcs_all_var, wcs_all_const, localpset);
+    genfile << "  " << Real << " " << reaction.getIdAttribute() << " = "
+              << SBML_formulaToString( &math)
+              << ";\n";
+    genfile << "  if (!isfinite(" << reaction.getIdAttribute() << ")) {\n";
+    // find denominators of the dependent expressions of the reaction rate formula
+    for (auto it = dependencies_set.crbegin();
+         it != dependencies_set.crend(); ++it)
+    {
+      arit = assignment_rules_map.find(*it);
+      if (arit != assignment_rules_map.cend()){
+        std::string elem_with_scope = arit->first;
+        update_scope_str(elem_with_scope, wcs_all_var, wcs_all_const,localpset);
+        genfile << "    if (!isfinite(" << elem_with_scope << ")) {\n";
+        math = *arit->second;
+        update_scope_ast_node(math, wcs_all_var, wcs_all_const, localpset);
+        std::vector<std::string> denominators_noscope =
+        return_all_denominators (*arit->second, reaction.getIdAttribute());
+        std::vector<std::string> denominators = return_all_denominators
+        (math, reaction.getIdAttribute());
+        size_t sz = denominators.size();
+        if (sz > 0ul) {
+          for (size_t i=0ul; i<sz; i++) {
+            genfile << "      if (" << denominators[i] << " == 0) {\n"
+                    << "        WCS_THROW(\"Divide by zero in reaction "
+                    << reaction.getIdAttribute() << ", in expression of " << arit->first
+                    << " with the element " << denominators_noscope[i] << ".\"); \n"
+                    << "      }\n";
+          }
+        }
+        genfile << "      WCS_THROW(\"Infinite or NaN result in reaction "
+                << reaction.getIdAttribute() << ", in expression " << arit->first << ".\"); \n";
+
+        genfile << "    }\n";
+      }
+    }
+    // find denominators of the reaction rate formula
+    math = *reaction.getKineticLaw()->getMath();
+    update_scope_ast_node(math, wcs_all_var, wcs_all_const, localpset);
+    std::vector<std::string> denominators_rr_noscope = return_all_denominators
+    (*reaction.getKineticLaw()->getMath(), reaction.getIdAttribute());
+    std::vector<std::string> denominators_rr = return_all_denominators
+    (math, reaction.getIdAttribute());
+    size_t sz = denominators_rr.size();
+    if (sz > 0ul) {
+      for (size_t i=0ul; i<sz; i++) {
+        genfile << "    if (" << denominators_rr[i] << " == 0) {\n"
+                << "      WCS_THROW(\"Divide by zero in reaction "
+                << reaction.getIdAttribute()
+                << " with the element " << denominators_rr_noscope[i] << ".\"); \n"
+                << "    }\n";
+      }
+    }
+    genfile << "    WCS_THROW(\"Infinite or NaN result in reaction "
+            << reaction.getIdAttribute() << ".\"); \n";
+    genfile << "  }\n";
+    //genfile << "  printf(\" Result of %s : %f \", \"" << reaction.getIdAttribute() << "\","
+    //        << reaction.getIdAttribute() << ");\n";
+    genfile << "  return " << reaction.getIdAttribute() << ";\n";
+    genfile << "}\n\n";
+
+  }
+
+}
+
+const std::string  wcs::generate_cxx_code::generate_code(
+  const LIBSBML_CPP_NAMESPACE::Model& model,
+  params_map_t& dep_params_f,
+  params_map_t& dep_params_nf,
+  rate_rules_dep_t& rate_rules_dep_map)
+{
+  const ListOfSpecies* species_list = model.getListOfSpecies();
+  const unsigned int num_species = species_list->size();
+  const ListOfReactions* reaction_list = model.getListOfReactions();
+  const unsigned int num_reactions = reaction_list->size();
+  const ListOfFunctionDefinitions* function_definition_list
+    = model.getListOfFunctionDefinitions();
+  const unsigned int num_functions = function_definition_list->size();
+  const ListOfRules* rules_list = model.getListOfRules();
+  const unsigned int num_rules = rules_list->size();
+  const ListOfEvents* events_list = model.getListOfEvents();
+  const unsigned int num_events = events_list->size();
+  const ListOfInitialAssignments* assignments_list
+    = model.getListOfInitialAssignments();
+  const unsigned int num_assignments = assignments_list->size();
+
+  const char * Real = generate_cxx_code::basetype_to_string<reaction_rate_t>::value;
+
+  char * pointerFilename;
+  pointerFilename = tmpnam (NULL);
+  //std::cout << "name file:" << pointerFilename << ".cc" << "\n";
+  std::stringstream ss;
+  ss << pointerFilename;
+  std::ofstream genfile;
+  std::string filename = ss.str() + ".cc";
+  genfile.open(filename);
+  std::string utilspath = __FILE__;
+  std::string replacetext("generate_cxx_code.cpp");
+  size_t posr = utilspath.find(replacetext);
+  utilspath.replace(posr, replacetext.length(), "exception.hpp");
+
+  genfile << "/** Autogenerated source code, do not edit! \n */"
+            << "\n\n//C++ includes\n"
+            << "#include <vector>\n"
+            << "#include <cmath>\n"
+            << "#include <cstdio>\n"
+            << "#include <string>\n"
+            << "#include <math.h>\n"
+            << "#include <iostream>\n"
+            << "#include \"utils/exception.hpp\"\n\n"
+            << "//Include the text of the SBML in here.\n"
+            << "//Use \"xxd -i\" to get the text as a C symbol.\n"
+            << "extern \"C\" \n{\n"
+            << "  unsigned char __original_sbml[] = \"\";\n}\n\n"
+            << "//Constants and other functions defined by the SBML standard.\n\n"
+            << "//Get the correct floating point type from the code at runtime.\n"
+            << "typedef " << Real << " reaction_rate_t;\n"
+            //<< "typedef reaction_rate_t " << Real << ";\n\n"
+            << "//Prototype all the functions\n";
+
+  for (unsigned int ic = 0u; ic < num_functions; ic++) {
+    const LIBSBML_CPP_NAMESPACE::FunctionDefinition& function
+      = *(function_definition_list->get(ic));
+    genfile << "static inline " << Real << " " << function.getIdAttribute() <<"(";
+    unsigned int num_arg = function.getNumArguments();
+
+    for (unsigned int ia = 0u; ia < num_arg; ia++) {
+      genfile << Real << " " << function.getArgument(ia)->getName();
+      if (ia!=num_arg-1) {
+        genfile << ", ";
+      }
+    }
+    genfile << ");\n";
+  }
+
+  using  model_constants_t = std::unordered_set<std::string>;
+  typename model_constants_t::const_iterator constit;
+  // A set for model constants
+  model_constants_t sconstants;
+
+  // A map for initial_assignments
+  initial_assignments_t sinitial_assignments;
+
+  //  A map for constants in initial assignments
+  constant_init_ass_t sconstant_init_assig;
+
+  // A map for model rate rules
+  rate_rules_t rate_rules_map;
+
+  typename assignment_rules_t::const_iterator arit;
+  // A map for model assignment rules
+  assignment_rules_t assignment_rules_map;
+
+  typename model_reactions_t::const_iterator mrit;
+  // A map for model reactions
+  model_reactions_t model_reactions_map;
+
+  std::unordered_set <std::string> good_params, used_params,
+  model_species;
+  std::unordered_set <std::string>::const_iterator upit, msit;
+
+
+
+  // Put reactions in a map
+  for (unsigned int ic = 0; ic < num_reactions; ic++) {
+    const LIBSBML_CPP_NAMESPACE::Reaction& reaction = *(reaction_list->get(ic));
+    if (!reaction.isSetKineticLaw()) {
+      WCS_THROW("The formula of the reaction " + reaction.getIdAttribute() + " should be set.");
+    }
+    model_reactions_map.insert(std::make_pair(reaction.getIdAttribute(),
+                                              reaction.getKineticLaw()->getMath()));
+  }
+
+  // Put initial assignments in map
+  for (unsigned int ic = 0u; ic < num_assignments; ic++) {
+    const LIBSBML_CPP_NAMESPACE::InitialAssignment& initialassignment
+      = *(assignments_list->get(ic));
+    sinitial_assignments.insert(std::make_pair(initialassignment.getSymbol(),
+                                               initialassignment.getMath()));
+  }
+
+  // Put species in a set
+  for (unsigned int ic = 0u; ic < num_species; ic++) {
+    if (assignment_rules_map.find(species_list->get(ic)->getIdAttribute())
+        == assignment_rules_map.cend())
+    {
+      model_species.insert(species_list->get(ic)->getIdAttribute());
+    }
+  }
+
+  genfile << "\n";
+
+  typename event_assignments_t::const_iterator evassigit;
+  // A set for model event assignments
+  event_assignments_t m_ev_assig;
+
+  //Put event assignments in a set
+  for (unsigned int ic = 0u; ic < num_events; ic++) {
+    const LIBSBML_CPP_NAMESPACE::Event& event = *(events_list->get(ic));
+    const ListOfEventAssignments* event_assignment_list
+      = event.getListOfEventAssignments();
+    const unsigned int num_event_assignments = event_assignment_list->size();
+
+    for (unsigned int ici = 0u; ici < num_event_assignments; ici++) {
+      const LIBSBML_CPP_NAMESPACE::EventAssignment& eventassignment
+        = *(event_assignment_list->get(ici));
+      if (m_ev_assig.find(eventassignment.getVariable()) == m_ev_assig.cend()) {
+        //genfile << eventassignment.getVariable() <<"\n";
+        m_ev_assig.insert(eventassignment.getVariable());
+      }
+    }
+  }
+
+
+  // Put rate rules and assignements rules in maps
+  for (unsigned int ic = 0; ic < num_rules; ic++) {
+    const LIBSBML_CPP_NAMESPACE::Rule& rule = *(rules_list->get(ic));
+    if (rule.getType() == 0) { //rate_rule
+      rate_rules_map.insert(std::make_pair(rule.getVariable(), rule.getMath()));
+    }
+    if (rule.getType() == 1) { //assignment_rule
+      assignment_rules_map.insert(std::make_pair(rule.getVariable(), rule.getMath()));
+    }
+
+  }
+
+  // Find used parameters in the rates and the differential rates
+  find_used_params(model, used_params, sinitial_assignments, assignment_rules_map,
+  model_reactions_map, rate_rules_map, model_species, m_ev_assig);
+
+
+  genfile << "//Define all the constants and initial states\n";
+  std::unordered_set<std::string> wcs_all_const, wcs_all_var;
+  print_constants_and_initial_states(model, Real, genfile, sconstant_init_assig, sinitial_assignments,
+  assignment_rules_map, used_params, good_params, model_reactions_map,rate_rules_map,
+  wcs_all_const, wcs_all_var, m_ev_assig);
+
+
+  if ( num_functions > 0ul) {
+    genfile << "\n//Define the functions\n";
+    print_functions(model, Real, genfile);
+  }
+
+
+  // Put dependencies of rate rules in a map (for transient parameters)
+  typename rate_rules_dep_t::const_iterator rrdit;
+
+  for  (const auto& x: rate_rules_map) {
+    std::set<std::string> var_f;
+    std::vector<std::string> dependencies_set
+      = get_all_dependencies(*x.second,
+                                  good_params,
+                                  sconstant_init_assig,
+                                  assignment_rules_map,
+                                  model_reactions_map,
+                                  {});
+      for (auto it = dependencies_set.crbegin();
+           it!= dependencies_set.crend(); ++it)
+      {
+        arit = assignment_rules_map.find(*it);
+        mrit = model_reactions_map.find(*it);
+        if (arit == assignment_rules_map.cend() && mrit == model_reactions_map.cend())
+        {
+          if  (*it != x.first) {
+            var_f.insert(*it);
+          }
+        }
+      }
+    rate_rules_dep_map.insert(std::make_pair(x.first, var_f));
+  }
 
 
   /**genfile << "Size of used params: " << used_params.size() <<"\n" ;
@@ -659,138 +1495,22 @@ const std::string  wcs::generate_cxx_code::generate_code(const LIBSBML_CPP_NAMES
   }
   genfile << "Size of good params: " << good_params.size() <<"\n\n" ;*/
 
+  // define functions for events
+  if ( m_ev_assig.size() > 0ul) {
+    genfile << "\n//Define functions for events\n";
+    print_event_functions(model, Real, genfile, m_ev_assig, wcs_all_const, wcs_all_var);
+  }
+
+  genfile << "\n//Define the functions for updating global state variables\n";
+  //genfile << "\n//Define differential rates\n";
+  print_global_state_functions(model, Real, genfile, good_params, sconstant_init_assig,
+  assignment_rules_map, model_reactions_map, wcs_all_const, wcs_all_var);
 
   genfile << "//Define the rates\n";
-  for (unsigned int ic = 0u; ic < reactionsSize; ic++) {
-    const LIBSBML_CPP_NAMESPACE::Reaction& reaction = *(reaction_list->get(ic));
+  print_reaction_rates(model, Real, genfile, good_params, sconstant_init_assig,
+  assignment_rules_map, model_reactions_map, m_ev_assig, wcs_all_const, wcs_all_var, dep_params_f,
+  dep_params_nf, rate_rules_dep_map);
 
-    genfile << "extern \"C\" " << Real << " wcs__rate_" << reaction.getIdAttribute()
-              << "(const std::vector<" << Real <<">& __input) {\n";
-    genfile << "  int __ii=0;\n";
-    //genfile << "printf(\" Number of input arguments of %s: %u \\n\", \"" << reaction.getIdAttribute() << "\", __input.size());\n";
-    //genfile << "printf(\"nfunction: %s \\n\", \"" << reaction.getIdAttribute() << "\");\n";
-    std::vector<std::string> dependencies_set
-      = get_all_dependencies(*reaction.getKineticLaw()->getMath(),
-                                  good_params,
-                                  sconstant_init_assig,
-                                  assignment_rules_set,
-                                  model_reactions_set);
-
-    std::set<std::string> var_names;
-    // print the function parameters with the order met in the formula
-    //put first to a set all variables taking an input
-    for (auto it = dependencies_set.crbegin();
-         it != dependencies_set.crend(); ++it)
-    {
-      arit = assignment_rules_set.find(*it);
-      if (arit == assignment_rules_set.cend()){
-        var_names.insert(*it);
-      }
-    }
-    std::string formula = SBML_formulaToString(reaction.getKineticLaw()->getMath());
-    const auto input_map = build_input_map(formula, var_names);
-
-    std::vector<std::string> var_names_ord (input_map.size());
-    for (auto& x: input_map) {
-      var_names_ord[x.second] = x.first;
-    }
-
-    //print first parameters in formula taking input
-    std::vector<std::string>::iterator it;
-    for (it = var_names_ord.begin(); it < var_names_ord.end(); it++){
-      genfile << "  " << Real << " " << *it <<" = __input[__ii++];\n";
-      var_names.erase(*it);
-    }
-    //print rest parameters (not in formula) taking input
-    for (auto& x: var_names) {
-      genfile << "  " << Real << " " << x <<" = __input[__ii++];\n";
-    }
-
-    //print the rest of the parameters not taking an input
-    for (auto it = dependencies_set.crbegin();
-         it != dependencies_set.crend(); ++it)
-    {
-      arit = assignment_rules_set.find(*it);
-      if (arit != assignment_rules_set.cend()){
-        genfile << "  " << Real << " " << arit->first << " = "
-                  << SBML_formulaToString(arit->second) << ";\n";
-      }
-    }
-
-    genfile << "  " << Real << " " << reaction.getIdAttribute() << " = "
-              << SBML_formulaToString(reaction.getKineticLaw()->getMath())
-              << ";\n";
-    genfile << "  return " << reaction.getIdAttribute() << ";\n" << "}\n\n";
-  }
-
-  genfile << "\n//Define differential rates\n";
-  for (unsigned int ic = 0u; ic < rulesSize; ic++) {
-    const LIBSBML_CPP_NAMESPACE::Rule& rule = *(rules_list->get(ic));
-    if (rule.getType()==0) { //rate_rule
-      genfile << "extern \"C\" " << Real << " wcs__rate_" << rule.getVariable()
-                << "(const std::vector<" << Real << ">& __input) {\n";
-      genfile << "  int __ii=0;\n";
-
-      std::vector<std::string> dependencies_set
-        = get_all_dependencies(*rule.getMath(),
-                                    good_params,
-                                    sconstant_init_assig,
-                                    assignment_rules_set,
-                                    model_reactions_set);
-      std::set<std::string> var_names;
-      // print the function parameters with the order met in the formula
-      // put first to a set all variables taking an input
-      for (auto it = dependencies_set.crbegin();
-           it!= dependencies_set.crend(); ++it)
-      {
-        arit = assignment_rules_set.find(*it);
-        mrit = model_reactions_set.find(*it);
-        if (arit == assignment_rules_set.cend() && mrit == model_reactions_set.cend()){
-          var_names.insert(*it);
-        }
-      }
-      std::string formula = SBML_formulaToString(rule.getMath());
-      const auto input_map = build_input_map(formula, var_names);
-
-      std::vector<std::string> var_names_ord (input_map.size());
-      for (auto& x: input_map) {
-        var_names_ord[x.second] = x.first;
-      }
-
-      //print first parameters in formula taking input
-      std::vector<std::string>::iterator it;
-      for (it = var_names_ord.begin(); it < var_names_ord.end(); it++){
-        genfile << "  " << Real << " " << *it <<" = __input[__ii++];\n";
-        var_names.erase(*it);
-      }
-      //print rest parameters (not in formula) taking input
-      for (auto& x: var_names) {
-        genfile << "  " << Real << " " << x <<" = __input[__ii++];\n";
-      }
-
-
-      // Print the rest of the parameters not taking an input
-      for (auto it = dependencies_set.crbegin();
-           it!= dependencies_set.crend(); ++it)
-      {
-        arit = assignment_rules_set.find(*it);
-        mrit = model_reactions_set.find(*it);
-        if (arit != assignment_rules_set.cend()){
-          genfile << "  " << Real << " " << arit->first << " = "
-                    << SBML_formulaToString(arit->second) << ";\n";
-        } else if (mrit != model_reactions_set.cend()){
-          genfile << "  " << Real << " " << mrit->first << " = "
-                    << SBML_formulaToString(mrit->second) << ";\n";
-        }
-        /*else {
-          genfile << "  " << Real << " " << *it <<" = __input[__ii++];\n";
-        }*/
-      }
-
-      genfile << "\n  return " << SBML_formulaToString(rule.getMath())
-                << ";\n" << "}\n\n";
-    }
-  }
 
   genfile.close();
   return filename;
@@ -810,12 +1530,18 @@ const std::string  wcs::generate_cxx_code::compile_code(const std::string genera
   std::string lib_filename1 = stem + ".o";
   std::string lib_filename2 = stem + ".so";
 
-  std::string system1 = std::string(CMAKE_CXX_COMPILER) + " " + CMAKE_CXX_FLAGS +
-  " -std=c++17 -g -fPIC " + CMAKE_CXX_SHARED_LIBRARY_FLAGS + " -c " + generated_filename;
+  const std::string suppress_warnings = " -Wno-unused ";
 
-  std::string system2 = std::string(CMAKE_CXX_COMPILER) + " " + CMAKE_CXX_FLAGS +
-  " -std=c++17 -g -fPIC " + CMAKE_CXX_SHARED_LIBRARY_FLAGS  + " -shared -export-dynamic "
-  + lib_filename1 + " -o " + lib_filename2;
+  std::string system1
+    = std::string(CMAKE_CXX_COMPILER) + " " + CMAKE_CXX_FLAGS + suppress_warnings
+    + " -std=c++17 -g -fPIC " + WCS_INCLUDE_DIR + CMAKE_CXX_SHARED_LIBRARY_FLAGS
+    + " -c " + generated_filename;
+
+  std::string system2
+    = std::string(CMAKE_CXX_COMPILER) + " " + CMAKE_CXX_FLAGS
+    + " -std=c++17 -g -fPIC " + CMAKE_CXX_SHARED_LIBRARY_FLAGS
+    + " -shared -Wl,--export-dynamic " + lib_filename1 + " -o " + lib_filename2;
+
 
   system(system1.c_str());
   system(system2.c_str());

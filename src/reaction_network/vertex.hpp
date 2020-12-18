@@ -192,10 +192,9 @@ Vertex::Vertex(
   m_p = std::unique_ptr< Reaction<v_desc_t> >(new Reaction<v_desc_t>);
   dynamic_cast<Reaction<v_desc_t>*>(m_p.get())->set_rate_constant(1);
 
-  using reaction_parameters = std::unordered_set<std::string>;
-  typename reaction_parameters::const_iterator mpit;
-  reaction_parameters mpset;
-  reaction_parameters pset;
+  using reaction_parameters_t = std::unordered_set<std::string>;
+  typename reaction_parameters_t::const_iterator mpit, lpit;
+  reaction_parameters_t mpset, lpset, pset;
   std::string formula;
 
   if (reaction.isSetKineticLaw()) {
@@ -212,6 +211,11 @@ Vertex::Vertex(
     = model.getListOfParameters();
   unsigned int parametersSize = parameter_list->size();
 
+  //Add local parameters
+  const LIBSBML_CPP_NAMESPACE::ListOfLocalParameters* local_parameter_list
+    = reaction.getKineticLaw()->getListOfLocalParameters();
+  unsigned int num_local_parameters = local_parameter_list->size();
+
   sbml_utils sbml_o;
   pset=sbml_o.get_reaction_parameters(model, reaction);
 
@@ -221,13 +225,68 @@ Vertex::Vertex(
     mpset.insert(parameter->getIdAttribute());
   }
 
+  // Create an unordered_set for all local parameters of reaction
+  for (unsigned int pi = 0u; pi < num_local_parameters; pi++) {
+    const LIBSBML_CPP_NAMESPACE::LocalParameter* localparameter
+    = local_parameter_list->get(pi);
+    lpset.insert(localparameter->getIdAttribute());
+  }
+
+  // Put initial assignments in map
+  using  all_assignments_type
+  = std::unordered_map<std::string, const LIBSBML_CPP_NAMESPACE::ASTNode *>;
+  typename all_assignments_type::const_iterator allassigit;
+
+  const LIBSBML_CPP_NAMESPACE::ListOfInitialAssignments* assignments_list
+  = model.getListOfInitialAssignments();
+  const unsigned int num_assignments = assignments_list->size();
+  // A map for all assignments
+  all_assignments_type all_assignments;
+  //add initial assignments
+  for (unsigned int ic = 0u; ic < num_assignments; ic++) {
+    const LIBSBML_CPP_NAMESPACE::InitialAssignment& initial_assignment
+    = *(assignments_list->get(ic));
+    all_assignments.insert(std::make_pair(initial_assignment.getSymbol(),
+                                          initial_assignment.getMath()));
+  }
+  //add rate rule assigments
+  const LIBSBML_CPP_NAMESPACE::ListOfRules* rules_list = model.getListOfRules();
+  const unsigned int rulesSize = rules_list->size();
+  //add rate rules
+  for (unsigned int ic = 0u; ic < rulesSize; ic++) {
+    const LIBSBML_CPP_NAMESPACE::Rule& rule
+    = *(rules_list->get(ic));
+    all_assignments.insert(std::make_pair(rule.getVariable(),
+                                          rule.getMath()));
+  }
+
   //Add parameters
   for  (const std::string& x: pset) {
     std::string s_label = x;
+    // model parameters
     mpit = mpset.find(s_label) ;
     if (mpit != mpset.end()) {
       std::stringstream ss;
-      ss << parameter_list->get(s_label)->getValue();
+      if (parameter_list->get(s_label)->isSetValue()){
+        ss << parameter_list->get(s_label)->getValue();
+        std::string parametervalue = ss.str();
+        wholeformula = wholeformula + "var " + s_label
+                     + " := " + parametervalue +  "; ";
+      } else {
+        allassigit = all_assignments.find(s_label);
+        if (allassigit != all_assignments.end()) {
+          ss << LIBSBML_CPP_NAMESPACE::SBML_formulaToString(allassigit->second);
+          std::string parametervalue = ss.str();
+          wholeformula = wholeformula + " " + s_label
+                       + " := " + parametervalue +  "; ";
+        }
+      }
+    }
+    // reaction local parameters
+    lpit = lpset.find(s_label) ;
+    if (lpit != lpset.end()) {
+      std::stringstream ss;
+      ss << local_parameter_list->get(s_label)->getValue();
       std::string parametervalue = ss.str();
       wholeformula = wholeformula + "var " + s_label
                    + " := " + parametervalue +  "; ";
@@ -274,7 +333,7 @@ template <typename P> P& Vertex::checked_property() const
 {
   auto ptr = dynamic_cast<P*>(m_p.get());
   if (ptr == nullptr) {
-    WCS_THROW("Attempted to dereference a wrong type of property porinter.");
+    WCS_THROW("Attempted to dereference a wrong type of property pointer.");
   }
   return *ptr;
 }

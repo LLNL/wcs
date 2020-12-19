@@ -228,7 +228,8 @@ static void show_max_per_part(
   const MaxPerPart& mpp,
   const std::string& title,
   size_t nparts,
-  const Partition_Info::graph_t& g)
+  const Partition_Info::graph_t& g,
+  bool brief_max)
 {
   using std::operator<<;
   using namespace std;
@@ -241,10 +242,16 @@ static void show_max_per_part(
       if (mx.first <= 0ul) {
         continue;
       }
-      const auto vt_str = Vertex::vt_str.at(static_cast<Vertex::vertex_type>(t+1));
-      for (const auto& vd: mx.second) {
-        const auto v_label = g[vd].get_label();
-        str += ' ' + vt_str + " <" + v_label + ", " + to_string(mx.first) + ">";
+      const auto vt_str
+        = Vertex::vt_str.at(static_cast<Vertex::vertex_type>(t+1));
+      if (brief_max) {
+        str += " <" + vt_str + ' ' + to_string(mx.first) + '>';
+      } else {
+        for (const auto& vd: mx.second) {
+          const auto v_label = g[vd].get_label();
+          str += ' ' + vt_str
+               + " <" + v_label + ", " + to_string(mx.first) + ">";
+        }
       }
     }
     cout << str << endl;
@@ -282,7 +289,7 @@ static void show_comm_volume_per_part(
   }
 }
 
-void Partition_Info::report() const
+void Partition_Info::report(bool brief_max) const
 {
   using std::operator<<;
   using namespace std;
@@ -306,15 +313,15 @@ void Partition_Info::report() const
   std::cout << "--------------------------------------";
   show_max_per_part<n_types>(m_max_indegree,
                              "\nMaximum of indegrees of local vertices:",
-                             m_num_parts, g);
+                             m_num_parts, g, brief_max);
 
   show_max_per_part<n_types>(m_max_outdegree,
                              "\nMaximum of outdegrees of local vertices:",
-                             m_num_parts, g);
+                             m_num_parts, g, brief_max);
 
   show_max_per_part<n_types>(m_max_degree,
                              "\nMaximum of degrees of local vertices:",
-                             m_num_parts, g);
+                             m_num_parts, g, brief_max);
 
   std::cout << "--------------------------------------";
   show_sum_per_part<n_types>(m_load,

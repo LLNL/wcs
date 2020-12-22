@@ -31,7 +31,7 @@ if (Protobuf_PROTOC_EXECUTABLE)
 
     if (NOT Protobuf_FOUND)
       message(FATAL_ERROR "Protobuf not found.")
-    endif ()
+    endif (NOT Protobuf_FOUND)
   else (PROTOBUF_DIR)
     message(FATAL_ERROR "Specify the target protobuf library "
                         "installation path, PROTOBUF_DIR")
@@ -54,21 +54,36 @@ else (Protobuf_PROTOC_EXECUTABLE)
     if (NOT Protobuf_FOUND)
       # Redo searching without hint
       find_package(Protobuf "${PROTOBUF_MIN_VERSION}" CONFIG QUIET REQUIRED)
-    endif ()
+    endif (NOT Protobuf_FOUND)
+  else (PROTOBUF_ROOT)
+    set(Protobuf_DIR ${CMAKE_INSTALL_PREFIX})
+    find_package(Protobuf "${PROTOBUF_MIN_VERSION}" CONFIG QUIET
+      NAMES protobuf PROTOBUF
+      HINTS
+      "${Protobuf_DIR}" "${PROTOBUF_DIR}"
+      "$ENV{Protobuf_DIR}" "$ENV{PROTOBUF_DIR}"
+      PATH_SUFFIXES lib64/cmake/protobuf lib/cmake/protobuf
+      NO_DEFAULT_PATH)
 
     if (NOT Protobuf_FOUND)
-      message(FATAL_ERROR "Protobuf not found.")
-    endif ()
-  else (PROTOBUF_ROOT)
-    message(STATUS "Building protobuf ...")
-    set(BUILD_PROTOBUF ON)
-    include(${CMAKE_SOURCE_DIR}/external/protobuf/CMakeLists.txt)
-    set(Protobuf_DIR ${CMAKE_INSTALL_PREFIX})
-    set(Protobuf_PROTOC_EXECUTABLE ${CMAKE_INSTALL_PREFIX}/bin/protoc)
+      message(STATUS "Protobuf not found. Need to build and install it first.")
+      set(BUILD_PROTOBUF ON)
+      include(${CMAKE_SOURCE_DIR}/external/protobuf/CMakeLists.txt)
+      return()
+    endif (NOT Protobuf_FOUND)
   endif (PROTOBUF_ROOT)
 endif (Protobuf_PROTOC_EXECUTABLE)
 
+
+if (NOT Protobuf_FOUND)
+  message(FATAL_ERROR "Protobuf not found.")
+endif (NOT Protobuf_FOUND)
+
+get_target_property(Protobuf_LIBRARY protobuf::libprotobuf LOCATION_RELEASE)
+get_target_property(Protobuf_EXECUTABLE protobuf::protoc LOCATION_RELEASE)
+
 message(STATUS "Found Protobuf: ${Protobuf_DIR}")
-message(STATUS "Found protoc: ${Protobuf_PROTOC_EXECUTABLE}")
+message(STATUS "Found libprotobuf: ${Protobuf_LIBRARY}")
+message(STATUS "Found protoc: ${Protobuf_EXECUTABLE}")
 
 set(WCS_HAS_PROTOBUF TRUE)

@@ -139,5 +139,7 @@ if (${_IS_SYSTEM_DIR} STREQUAL "-1")
     "${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}")
 endif ()
 
+set(CMAKE_C_COMPILER_ID ${CMAKE_CXX_COMPILER_ID})
+
 # Testing for compiler feature supports 
 #include(CheckCXXSourceCompiles)

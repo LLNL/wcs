@@ -211,6 +211,17 @@ include(SetupProtobuf)
 
 # Required dependencies
 
+if (NOT WCS_HAS_PROTOBUF)
+  if (BUILD_PROTOBUF)
+    set(To_Ignore ${BOOST_ROOT}${METIS_ROOT}${SBML_ROOT}${WCS_WITH_METIS})
+    message(STATUS "Type `make` to build protobuf, which is a required package.")
+    message(STATUS "Then, rerun cmake to configure WCS with protobuf.")
+    return ()
+  else (BUILD_PROTOBUF)
+    message(FATAL_ERROR "protobuf is required!")
+  endif (BUILD_PROTOBUF)
+endif ()
+
 if (DEFINED BOOST_ROOT)
     message(STATUS "BOOST_ROOT: " ${BOOST_ROOT})
     set(Boost_NO_SYSTEM_PATHS ON)
@@ -340,6 +351,8 @@ add_subdirectory(src)
 
 # Create the WCS library
 add_library(wcs ${WCS_SOURCES} ${WCS_HEADERS})
+add_dependencies(wcs protobuf::libprotobuf)
+add_dependencies(wcs protobuf::protoc)
 
 target_include_directories(wcs PUBLIC
   $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}>
@@ -389,17 +402,16 @@ if (WCS_HAS_METIS)
   target_include_directories(wcs SYSTEM PUBLIC ${METIS_INCLUDE_DIR})
 endif (WCS_HAS_METIS)
 
-if (WCS_HAS_PROTOBUF)
-  target_link_libraries(wcs PUBLIC ${PROTOBUF_LIBRARIES})
-  target_include_directories(wcs SYSTEM PUBLIC ${PROTOBUF_INCLUDE_DIRS})
-endif (WCS_HAS_PROTOBUF)
-
 if (WCS_WITH_UNIT_TESTING)
   add_dependencies(wcs CATCH2)
   target_include_directories(wcs PUBLIC
     $<BUILD_INTERFACE:${CATCH2_INCLUDE_DIR}>
     $<INSTALL_INTERFACE:${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_INCLUDEDIR}/catch2>)
 endif (WCS_WITH_UNIT_TESTING)
+
+if (WCS_HAS_PROTOBUF)
+  target_link_libraries(wcs PUBLIC protobuf::libprotobuf)
+endif (WCS_HAS_PROTOBUF)
 
 ################################################################
 # Add executables

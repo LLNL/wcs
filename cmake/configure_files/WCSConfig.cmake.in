@@ -90,11 +90,14 @@ if (WCS_HAS_METIS)
 endif (WCS_HAS_METIS)
 
 if (WCS_HAS_PROTOBUF)
-  if (NOT PROTOBUF_ROOT)
-    set(PROTOBUFS_ROOT "@PROTOBUF_ROOT@")
+  if (NOT Protobuf_DIR)
+    set(Protobuf_DIR "@Protobuf_DIR@")
+  endif ()
+  if (Not Protobuf_PROTOC_EXECUTABLE)
+    set(Protobuf_PROTOC_EXECUTABLE "@Protobuf_EXECUTABLE@")
   endif ()
 
-  find_package(PROTOBUF REQUIRED)
+  find_package(Protobuf REQUIRED)
 endif (WCS_HAS_PROTOBUF)
 
 
@@ -118,5 +121,6 @@ if (NOT TARGET WCS::wcs)
 endif (NOT TARGET WCS::wcs)
 
 check_required_components(WCS)
+check_required_components(protobuf)
 
 set(WCS_LIBRARIES WCS::wcs)

@@ -1,4 +1,4 @@
-if (NOT BUILD_PROTOBUF)
+if (BUILD_PROTOBUF)
   project(Protobuf C CXX)
   cmake_minimum_required(VERSION 3.12)
 endif ()
@@ -18,7 +18,7 @@ set(CMAKE_GENERATOR "Unix Makefiles" CACHE INTERNAL "" FORCE)
 
 message(STATUS "INSTALL_PREFIX: ${CMAKE_INSTALL_PREFIX}")
 include(ExternalProject)
-ExternalProject_Add(PROTOBUF
+ExternalProject_Add(PROTOBUF_PROJECT
   PREFIX "${CMAKE_CURRENT_BINARY_DIR}"
   TMP_DIR "${CMAKE_CURRENT_BINARY_DIR}/tmp"
   STAMP_DIR "${CMAKE_CURRENT_BINARY_DIR}/stamp"
@@ -47,6 +47,7 @@ ExternalProject_Add(PROTOBUF
   -DCMAKE_MACOSX_RPATH=ON
   -DCMAKE_POSITION_INDEPENDENT_CODE=ON
   -Dprotobuf_BUILD_TESTS=OFF
+  -DBUILD_SHARED_LIBS=ON
   )
 set(PROTOBUF_DIR ${CMAKE_INSTALL_PREFIX}
   CACHE INTERNAL "The install prefix of Protobuf.")

@@ -214,13 +214,14 @@ include(SetupProtobuf)
 if (NOT WCS_HAS_PROTOBUF)
   if (BUILD_PROTOBUF)
     set(To_Ignore ${BOOST_ROOT}${METIS_ROOT}${SBML_ROOT}${WCS_WITH_METIS})
-    message(STATUS "Type `make` to build protobuf, which is a required package.")
-    message(STATUS "Then, rerun cmake to configure WCS with protobuf.")
+    message(STATUS "Type `make` to build protobuf, which is a required package."
+                   "Then, rerun cmake in the exactly the same way to configure "
+                   "WCS with protobuf.")
     return ()
   else (BUILD_PROTOBUF)
     message(FATAL_ERROR "protobuf is required!")
   endif (BUILD_PROTOBUF)
-endif ()
+endif (NOT WCS_HAS_PROTOBUF)
 
 if (DEFINED BOOST_ROOT)
     message(STATUS "BOOST_ROOT: " ${BOOST_ROOT})
@@ -351,8 +352,10 @@ add_subdirectory(src)
 
 # Create the WCS library
 add_library(wcs ${WCS_SOURCES} ${WCS_HEADERS})
-add_dependencies(wcs protobuf::libprotobuf)
-add_dependencies(wcs protobuf::protoc)
+if (WCS_HAS_PROTOBUF)
+  add_dependencies(wcs protobuf::libprotobuf)
+  add_dependencies(wcs protobuf::protoc)
+endif (WCS_HAS_PROTOBUF)
 
 target_include_directories(wcs PUBLIC
   $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}>
@@ -629,11 +632,12 @@ install(
   )
 
 # Build tree export
-export(EXPORT WCSTargets NAMESPACE WCS:: FILE WCSTargets.cmake)
+#export(EXPORT WCSTargets NAMESPACE WCS:: FILE WCSTargets.cmake)
 
 # Install export
 install(EXPORT WCSTargets
   NAMESPACE WCS::
+  FILE WCSTargets.cmake
   DESTINATION "${CMAKE_INSTALL_DIR}")
 
 # Install the cmake stuff

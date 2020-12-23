@@ -8,10 +8,17 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}")
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/modules")
 list(APPEND CMAKE_MODULE_PATH "@EXTRA_CMAKE_MODULE_DIR@")
 
+include(GNUInstallDirs)
+include(ExternalProject)
+include(WCSCMakeUtilities)
+include(CMakePackageConfigHelpers)
+
+
 set(WCS_VERSION ${PACKAGE_VERSION})
 
 # Record compiler information
 set(WCS_CXX_COMPILER "@CMAKE_CXX_COMPILER@")
+set(WCS_C_COMPILER "@CMAKE_C_COMPILER@")
 
 set(WCS_CXX_FLAGS "@CMAKE_CXX_FLAGS@")
 
@@ -41,12 +48,19 @@ set(WCS_HAS_PROTOBUF @WCS_HAS_PROTOBUF@)
 
 # Setup dependencies
 
+if (NOT BOOST_ROOT)
+  set(BOOST_ROOT "@BOOST_ROOT@")
+  if (NOT BOOST_ROOT)
+    unset(BOOST_ROOT)
+  endif (NOT BOOST_ROOT)
+endif (NOT BOOST_ROOT)
+
 if (WCS_HAS_SUNDIALS)
   if (NOT SUNDIALS_ROOT)
     set(SUNDIALS_ROOT "@SUNDIALS_ROOT@")
   endif ()
 
-  find_package(SUNDIALS REQUIRED)
+  find_package(Sundials REQUIRED)
 endif (WCS_HAS_SUNDIALS)
 
 if (WCS_HAS_SBML)
@@ -56,22 +70,6 @@ if (WCS_HAS_SBML)
 
   find_package(SBML REQUIRED)
 endif (WCS_HAS_SBML)
-
-if (WCS_HAS_EXPRTK)
-  if (NOT EXPRTK_ROOT)
-    set(EXPRTK_ROOT "@EXPRTK_ROOT@")
-  endif ()
-
-  find_package(EXPRTK REQUIRED)
-endif (WCS_HAS_EXPRTK)
-
-if (WCS_HAS_CEREAL)
-  if (NOT CEREAL_ROOT)
-    set(CEREAL_ROOT "@CEREAL_ROOT@")
-  endif ()
-
-  find_package(CEREAL REQUIRED)
-endif (WCS_HAS_CEREAL)
 
 if (WCS_HAS_ROSS)
   if (NOT ROSS_ROOT)
@@ -86,18 +84,25 @@ if (WCS_HAS_METIS)
     set(METIS_ROOT "@METIS_ROOT@")
   endif ()
 
-  find_package(METIS REQUIRED)
+  find_package(Metis REQUIRED)
 endif (WCS_HAS_METIS)
 
 if (WCS_HAS_PROTOBUF)
+  set(PROTOBUF_MIN_VERSION "@PROTOBUF_MIN_VERSION@")
+
   if (NOT Protobuf_DIR)
     set(Protobuf_DIR "@Protobuf_DIR@")
   endif ()
-  if (Not Protobuf_PROTOC_EXECUTABLE)
-    set(Protobuf_PROTOC_EXECUTABLE "@Protobuf_EXECUTABLE@")
+  if ("@Protobuf_PROTOC_EXECUTABLE@")
+    set(Protobuf_PROTOC_EXECUTABLE "@Protobuf_PROTOC_EXECUTABLE@")
   endif ()
 
-  find_package(Protobuf REQUIRED)
+  find_package(Protobuf "${PROTOBUF_MIN_VERSION}" CONFIG QUIET
+    NAMES protobuf PROTOBUF
+    HINTS
+    "${Protobuf_DIR}" "$ENV{Protobuf_DIR}"
+    PATH_SUFFIXES lib64/cmake/protobuf lib/cmake/protobuf
+    NO_DEFAULT_PATH)
 endif (WCS_HAS_PROTOBUF)
 
 

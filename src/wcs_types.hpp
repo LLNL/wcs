@@ -62,6 +62,10 @@ constexpr size_t cnt_digits = 21ul;
 using frag_size_t = unsigned;
 constexpr frag_size_t default_frag_size = 16384u;
 
+/// The maximum path length of the generated file without the file extension,
+/// used in the generated_cxx_code.cpp
+constexpr size_t wcs_gen_path_max = 26u;
+
 /**@}*/
 } // end of namespace wcs
 #endif // __WCS_TYPES_HPP__

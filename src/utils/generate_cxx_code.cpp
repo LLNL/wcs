@@ -1302,11 +1302,18 @@ const std::string  wcs::generate_cxx_code::generate_code(
 
   const char * Real = generate_cxx_code::basetype_to_string<reaction_rate_t>::value;
 
-  char * pointerFilename;
-  pointerFilename = tmpnam (NULL);
-  //std::cout << "name file:" << pointerFilename << ".cc" << "\n";
+  char tmp_filename[wcs::wcs_gen_path_max];
+  int fd = -1;
+  strncpy(tmp_filename,"/tmp/wcs_generated_XXXXXX",wcs::wcs_gen_path_max);
+  fd = mkstemp(tmp_filename);
+
+  if(fd < 1)
+  {
+    WCS_THROW("\n Creation of temp file failed with error "+strerror(errno));
+  }
+
   std::stringstream ss;
-  ss << pointerFilename;
+  ss << tmp_filename;
   std::ofstream genfile;
   std::string filename = ss.str() + ".cc";
   genfile.open(filename);

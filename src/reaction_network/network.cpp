@@ -18,6 +18,7 @@
 #include "utils/graph_factory.hpp"
 #include "utils/input_filetype.hpp"
 #include "utils/generate_cxx_code.hpp"
+#include "utils/timer.hpp"
 #include <type_traits> // is_same<>
 #include <algorithm> // lexicographical_compare(), sort()
 #include <limits> // numeric_limits
@@ -349,6 +350,30 @@ reaction_rate_t Network::set_reaction_rate(const Network::v_desc_t r) const
     }
   }
   return rprop.calc_rate(std::move(params));
+}
+
+double Network::compute_all_reaction_rates(const unsigned n) const
+{
+  double t_start = get_time();
+  for (unsigned i = 0u; i < n; i++) {
+    for (const auto& r: reaction_list()) {
+      auto & rprop = m_graph[r].checked_property< Reaction<v_desc_t> >();
+      const auto& ri = rprop.get_rate_inputs();
+      std::vector<reaction_rate_t> params;
+      // GG: rate constant is part of the Reaction object
+      params.reserve(ri.size()+1u); // reserve space for species count and rate constant
+
+      for (auto driver : ri) { // add species counts here and the rate constant will be appended later
+        const auto& s = m_graph[driver.first].checked_property<Species>();
+        //const stoic_t num_same = driver.second;
+        species_cnt_t n = s.get_count();
+        params.push_back(static_cast<reaction_rate_t>(n));
+      }
+
+      rprop.calc_rate(std::move(params));
+    }
+  }
+  return get_time() - t_start;
 }
 
 reaction_rate_t Network::get_reaction_rate(const Network::v_desc_t r) const

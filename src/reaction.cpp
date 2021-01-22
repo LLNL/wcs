@@ -16,9 +16,10 @@
 #include <fstream>
 
 
-#define OPTIONS "ho:"
+#define OPTIONS "hi:o:"
 static const struct option longopts[] = {
     {"help",    no_argument,  0, 'h'},
+    {"num_iter", required_argument, 0, 'i'},
     {"outfile", required_argument,  0, 'o'},
     { 0, 0, 0, 0 },
 };
@@ -38,6 +39,10 @@ void print_usage(const std::string exec, int code)
     "    OPTIONS:\n"
     "    -h, --help\n"
     "            Display this usage information\n"
+    "\n"
+    "    -i, --num_iter\n"
+    "            Specify the number of iterations to compute all"
+    "            the reaction rates for measuring time\n"
     "\n"
     "    -o, --outfile\n"
     "            Specify the output file name\n"
@@ -117,11 +122,15 @@ int main(int argc, char** argv)
   int c;
   int rc = 0;
   std::string outfile;
+  unsigned int num_iter = 0u;
 
   while ((c = getopt_long(argc, argv, OPTIONS, longopts, NULL)) != -1) {
     switch (c) {
       case 'h': /* --help */
         print_usage(argv[0], 0);
+        break;
+      case 'i': /* --num_iter */
+        num_iter = static_cast<unsigned>(atoi(optarg));
         break;
       case 'o': /* --outfile */
         outfile = std::string(optarg);
@@ -144,6 +153,12 @@ int main(int argc, char** argv)
   rnet.init();
 
   count_active_reactions(rnet);
+
+  if (num_iter > 0u) {
+    double t = rnet.compute_all_reaction_rates(num_iter);
+    std::cout << "Time to compute reactions rates "
+              << num_iter << " times: " << t << " sec" << std::endl;
+  }
 
   const wcs::Network::graph_t& g = rnet.graph();
 

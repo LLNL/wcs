@@ -153,12 +153,7 @@ int main(int argc, char** argv)
   rnet.init();
 
   count_active_reactions(rnet);
-
-  if (num_iter > 0u) {
-    double t = rnet.compute_all_reaction_rates(num_iter);
-    std::cout << "Time to compute reactions rates "
-              << num_iter << " times: " << t << " sec" << std::endl;
-  }
+  
 
   const wcs::Network::graph_t& g = rnet.graph();
 
@@ -174,5 +169,12 @@ int main(int argc, char** argv)
   }
 
   traverse(rnet);
+  
+  if (num_iter > 0u) {
+    double t = rnet.compute_all_reaction_rates(num_iter);
+    std::cout << "Time to compute reactions rates "
+              << num_iter << " times: " << t << " sec" << std::endl;
+  }
+
   return rc;
 }

@@ -71,25 +71,37 @@
  + [**Protocol Buffers**](https://developers.google.com/protocol-buffers)
    We use the google protocol buffers library for parsing the configuration file
    of simulation, which is written by users in the [**protocol buffers language**](https://developers.google.com/protocol-buffers/docs/proto3).
-   By default, the source will be downloaded, and the library as well as the
-   protoc compiler will be built and installed along with the rest of WCS project
-   files. Therefore, no pre-installation is necessary. However, it is possible to
-   link with a pre-installed copy by setting the cmake option `-DPROTOBUF_ROOT=<path>`.
+   This is a required package. A user can indicate the location of a
+   pre-installed copy via ``-DPROTOBUF_ROOT=<path>`. Without it, building WCS
+   consists of two stages. In the first stage, the source of protocol buffer will
+   be downloaded. Then, the library as well as the protoc compiler will be built
+   and installed under where the rest of WCS project will be.
+   In the second stage, the WCS project will be built using the protocol buffer
+   installed in the first stage. Both stages require the same set of options for
+   the cmake command.
    In case of cross-compiling, the path to the protoc compiler and the path to
    the library built for the target platform can be explicitly specified via
    `-DProtobuf_PROTOC_EXECUTABLE=<installation-for-host/bin/protoc>`
-   and `-DPROTOBUF_DIR=<installation-for-target>`
+   and `-DPROTOBUF_DIR=<installation-for-target>` respectively.
 
 ## Getting started:
  ```
  git clone https://github.com/llnl/wcs.git
  mkdir build; cd build
+ # The first invocation of cmake will setup to build protocol buffer
  cmake -DBOOST_ROOT:PATH=<PathToYourBoostDev> \
        -DCMAKE_INSTALL_PREFIX:PATH=<YourInstallPath> \
        -DWCS_WITH_SBML:BOOL=ON \
        -DSBML_ROOT:PATH=<path-to-libsbml> \
        ../wcs
- make
+ make -j 4
+ # The second invocation of cmake will setup to build the WCS project
+ cmake -DBOOST_ROOT:PATH=<PathToYourBoostDev> \
+       -DCMAKE_INSTALL_PREFIX:PATH=<YourInstallPath> \
+       -DWCS_WITH_SBML:BOOL=ON \
+       -DSBML_ROOT:PATH=<path-to-libsbml> \
+       ../wcs
+ make -j 4
  make install
  ```
 

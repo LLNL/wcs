@@ -1,0 +1,22 @@
+sim_setup {
+  seed: 7
+  max_iter: 10
+  method: NRM
+  trajectory: Sampling
+  sampling_interval_iter: 10
+  outfile: "trajectory.txt"
+}
+part_setup {
+  n_iters: 10
+  n_parts: 2
+  seed: 1234
+  ufactor: 30
+  ub_vwgt: 200
+  vratio: 0.1
+  infile: "graph_in.txt"
+  outfile: "part_out.txt"
+}
+des_setup {
+  nlp: 1
+  run_id: "example"
+}

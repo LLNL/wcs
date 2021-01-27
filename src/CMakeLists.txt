@@ -14,6 +14,7 @@ set_full_path(THIS_DIR_SOURCES
 
 # Add the subdirectories
 add_subdirectory(partition)
+add_subdirectory(proto)
 add_subdirectory(reaction_network)
 add_subdirectory(sim_methods)
 add_subdirectory(utils)

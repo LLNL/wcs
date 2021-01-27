@@ -1,0 +1,8 @@
+n_iters: 10
+n_parts: 2
+seed: 1234
+ufactor: 30
+ub_vwgt: 200
+vratio: 0.1
+infile: "graph_in.txt"
+outfile: "part_out.txt"

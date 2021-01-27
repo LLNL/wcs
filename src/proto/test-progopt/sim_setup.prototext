@@ -1,0 +1,6 @@
+seed: 7
+max_iter: 10
+method: NRM
+trajectory: Sampling
+sampling_interval_iter: 10
+outfile: "trajectory.txt"

@@ -5,16 +5,18 @@ set_full_path(THIS_DIR_HEADERS
   des.hpp
   ssa-cfg.hpp
   wcs-ross-bf.hpp
+  wcs_params.hpp
   )
 
 set_full_path(THIS_DIR_SOURCES
+  wcs_params.cpp
   )
 
 # Add the subdirectories
+add_subdirectory(partition)
 add_subdirectory(reaction_network)
 add_subdirectory(sim_methods)
 add_subdirectory(utils)
-add_subdirectory(partition)
 
 # Propagate the files up the tree
 set(WCS_HEADERS "${WCS_HEADERS}" "${THIS_DIR_HEADERS}" PARENT_SCOPE)

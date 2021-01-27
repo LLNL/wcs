@@ -15,6 +15,11 @@
 #include "reaction_network/network.hpp"
 #include <fstream>
 
+#ifdef WCS_HAS_VTUNE
+__itt_domain* vtune_domain_react = __itt_domain_create("Reactions");
+__itt_string_handle* vtune_handle_react = __itt_string_handle_create("react");
+#endif // WCS_HAS_VTUNE
+
 
 #define OPTIONS "hi:o:"
 static const struct option longopts[] = {
@@ -119,6 +124,13 @@ void count_active_reactions(const wcs::Network& rnet)
 
 int main(int argc, char** argv)
 {
+ #ifdef WCS_HAS_VTUNE
+  __itt_pause();
+ #endif // WCS_HAS_VTUNE
+ #ifdef WCS_HAS_HPCTOOLKIT
+  hpctoolkit_sampling_stop();
+ #endif // WCS_HAS_HPCTOOLKIT
+
   int c;
   int rc = 0;
   std::string outfile;
@@ -153,8 +165,8 @@ int main(int argc, char** argv)
   rnet.init();
 
   count_active_reactions(rnet);
-  
 
+ #ifndef WCS_PERF_PROF
   const wcs::Network::graph_t& g = rnet.graph();
 
   if (outfile.empty()) {
@@ -169,9 +181,27 @@ int main(int argc, char** argv)
   }
 
   traverse(rnet);
-  
+ #endif // !WCS_PERF_PROF
+
   if (num_iter > 0u) {
+   #ifdef WCS_HAS_VTUNE
+    __itt_resume();
+    __itt_task_begin(vtune_domain_react, __itt_null, __itt_null, vtune_handle_react);
+   #endif // WCS_HAS_VTUNE
+   #ifdef WCS_HAS_HPCTOOLKIT
+    hpctoolkit_sampling_start();
+   #endif // WCS_HAS_HPCTOOLKIT
+
     double t = rnet.compute_all_reaction_rates(num_iter);
+
+   #ifdef WCS_HAS_VTUNE
+    __itt_task_end(vtune_domain_react);
+    __itt_pause();
+   #endif // WCS_HAS_VTUNE
+   #ifdef WCS_HAS_HPCTOOLKIT
+    hpctoolkit_sampling_stop();
+   #endif // WCS_HAS_HPCTOOLKIT
+
     std::cout << "Time to compute reactions rates "
               << num_iter << " times: " << t << " sec" << std::endl;
   }

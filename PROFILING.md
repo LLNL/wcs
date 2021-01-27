@@ -1,12 +1,12 @@
 ### A note for setting up performance profiling
 
- Often, we are not interested in the cost of a certain region of the code
- but only in the performance of a specific region that we target to optimize.
+ Often, we are not interested in profiling the entire code but only in
+ understanding the performance of a specific region that we target to optimize.
  In such a case, we need to indicate the code region to profile such that a
  profiling tool can avoid measuring uninterested regions of the code, and
  focus on collecting data from where we are interested in.
 
- + [**VTune**]( https://software.intel.com/content/www/us/en/develop/tools/oneapi/components/vtune-profiler.html)
+ + [**VTune**]( https://software.intel.com/content/www/us/en/develop/tools/oneapi/components/vtune-profiler.html):
     To mark the code region to profile, we compile the code with a header
     and link with the static library of the tool such that we can insert the
     calls to start and stop profiling, which are
@@ -18,7 +18,7 @@
     Use the following cmake options when building WCS:
       `-DWCS_WITH_VTUNE:BOOL=ON -DVTUNE_DIR:PATH=...`
 
- + [**HPCToolkit**]( http://hpctoolkit.org)
+ + [**HPCToolkit**]( http://hpctoolkit.org):
     To mark the code region to profile, we compile the code with the header
     and link with the dynamic library of the tool such that we can insert the 
     calls to start and stop profiling, which are
@@ -32,7 +32,7 @@
     Use the following cmake options when building WCS:
       `-DWCS_WITH_HPCTOOLKIT:BOOL=ON -DHPCTOOLKIT_DIR:PATH=...`
 
- + [**gprof**]( https://hpc.llnl.gov/software/development-environment-software/gprof)
+ + [**gprof**]( https://hpc.llnl.gov/software/development-environment-software/gprof):
     To compile the code for generating the measurement file that can be
     analyzed by gprof, use the cmake option `-DWCS_GPROF:BOOL=ON`.
     It will add `-pg` compiler option.
@@ -40,7 +40,7 @@
     we can selectively disable an uninteresting region of the code as described
     below using the macro definition `WCS_PERF_PROF`
 
- + Misc.
+ + Misc.: 
     See `src/reaction.cpp` to see an example of how the start and stop is
     instrumented. Also, see the generated `wcs_config.hpp` that includes
     the headers for the profiling tools.

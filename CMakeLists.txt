@@ -109,7 +109,10 @@ option(WCS_WITH_EXPRTK "Include ExprTk" OFF)
 option(WCS_WITH_CEREAL "Include Cereal" ON)
 
 option(WCS_WITH_VTUNE
-  "Link the Intel VTune profiling library" OFF)
+  "Statically link the Intel VTune profiling library" OFF)
+
+option(WCS_WITH_HPCTOOLKIT
+  "Dynamically link the HPCToolkit profiling library" OFF)
 
 option(WCS_WITH_ROSS "Use ROSS" OFF)
 
@@ -309,6 +312,22 @@ if (WCS_WITH_VTUNE)
   endif (VTune_FOUND)
 endif (WCS_WITH_VTUNE)
 
+if (WCS_WITH_HPCTOOLKIT)
+  find_package(HPCToolkit MODULE)
+
+  if (HPCToolkit_FOUND)
+    set(WCS_HAS_HPCTOOLKIT TRUE)
+  else ()
+    set(WCS_HAS_HPCTOOLKIT FALSE)
+    set(WCS_WITH_HPCTOOLKIT OFF)
+    message(WARNING
+      "Requested WCS_WITH_HPCTOOLKIT=ON, but HPCTOOLKIT support not detected. "
+      "Support NOT enabled. "
+      "Try setting HPCTOOLKIT_DIR to point to the HPCToolkit install prefix "
+      "and reconfigure.")
+  endif (HPCToolkit_FOUND)
+endif (WCS_WITH_HPCTOOLKIT)
+
 if (WCS_WITH_ROSS)
   set(WCS_HAS_ROSS FALSE)
   find_package(ROSS MODULE)
@@ -402,6 +421,11 @@ endif (WCS_HAS_CEREAL)
 if (WCS_HAS_VTUNE)
   target_link_libraries(wcs PUBLIC ${VTUNE_STATIC_LIB})
   target_include_directories(wcs SYSTEM PUBLIC ${VTUNE_INCLUDE_PATH})
+endif ()
+
+if (WCS_HAS_HPCTOOLKIT)
+  target_link_libraries(wcs PUBLIC ${HPCTOOLKIT_DYN_LIB})
+  target_include_directories(wcs SYSTEM PUBLIC ${HPCTOOLKIT_INCLUDE_PATH})
 endif ()
 
 if (WCS_HAS_METIS)
@@ -768,6 +792,7 @@ append_str_tf(_str
   WCS_HAS_CEREAL
   WCS_HAS_CATCH2
   WCS_HAS_VTUNE
+  WCS_HAS_HPCTOOLKIT
   WCS_HAS_DOXYGEN
   WCS_HAS_ROSS
   WCS_HAS_METIS

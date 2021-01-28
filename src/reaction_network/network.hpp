@@ -97,6 +97,9 @@ class Network {
   void set_reaction_rate(const v_desc_t r, const reaction_rate_t rate) const;
   reaction_rate_t set_reaction_rate(const v_desc_t r) const;
   reaction_rate_t get_reaction_rate(const v_desc_t r) const;
+  /** Computes reaction rate of every reaction `n' number of times and returns
+    * total execution time */
+  double compute_all_reaction_rates(const unsigned n = 1u) const;
 
   size_t get_num_vertices() const;
   size_t get_num_species() const;

@@ -28,6 +28,7 @@
 #cmakedefine WCS_HAS_CEREAL
 #cmakedefine WCS_HAS_CATCH2
 #cmakedefine WCS_HAS_VTUNE
+#cmakedefine WCS_HAS_HPCTOOLKIT
 #cmakedefine WCS_HAS_ROSS
 #cmakedefine WCS_HAS_METIS
 #cmakedefine WCS_HAS_STD_FILESYSTEM
@@ -38,6 +39,19 @@
 
 #ifdef WCS_HAS_VTUNE
 #include <ittnotify.h>
+#endif
+
+#ifdef WCS_HAS_HPCTOOLKIT
+#include <hpctoolkit.h>
+#endif
+
+/* flag to allow disabling a selective region of the code
+ * during performance profiling */
+#cmakedefine WCS_PERF_PROF
+#if !defined(WCS_PERF_PROF)
+ #if defined(WCS_HAS_VTUNE) || defined(WCS_HAS_HPCTOOLKIT)
+  #define WCS_PERF_PROF 1
+ #endif
 #endif
 
 #endif /* WCS_CONFIG_H__ */

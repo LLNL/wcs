@@ -72,7 +72,7 @@
    We use the google protocol buffers library for parsing the configuration file
    of simulation, which is written by users in the [**protocol buffers language**](https://developers.google.com/protocol-buffers/docs/proto3).
    This is a required package. A user can indicate the location of a
-   pre-installed copy via ``-DPROTOBUF_ROOT=<path>`. Without it, building WCS
+   pre-installed copy via `-DPROTOBUF_ROOT=<path>`. Without it, building WCS
    consists of two stages. In the first stage, the source of protocol buffer will
    be downloaded. Then, the library as well as the protoc compiler will be built
    and installed under where the rest of WCS project will be.

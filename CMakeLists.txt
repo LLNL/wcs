@@ -203,12 +203,29 @@ endif ()
 include(GNUInstallDirs)
 include(ExternalProject)
 include(SetupCXX)
+include(SetupProtobuf)
 
 ################################################################
 # Initialize dependencies
 ################################################################
 
 # Required dependencies
+
+if (NOT WCS_HAS_PROTOBUF)
+  if (BUILD_PROTOBUF)
+    set(To_Ignore ${BOOST_ROOT}${METIS_ROOT}${SBML_ROOT}${WCS_WITH_METIS})
+    message(STATUS "!!!!!!!!!!!!!!!!!!!!!!! Attention !!!!!!!!!!!!!!!!!!!!!!!!!")
+    message(STATUS "Type `make` to build protobuf, which is a required package.")
+    message(STATUS "Then, rerun cmake in the exactly the same way to configure ")
+    message(STATUS "WCS with protobuf just installed.")
+    message(STATUS "Alternatively, use -DPROTOBUF_ROOT:PATH=<path-to-protobuf>")
+    message(STATUS "to avoid two-staged building.")
+    message(STATUS "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+    return ()
+  else (BUILD_PROTOBUF)
+    message(FATAL_ERROR "protobuf is required!")
+  endif (BUILD_PROTOBUF)
+endif (NOT WCS_HAS_PROTOBUF)
 
 if (DEFINED BOOST_ROOT)
     message(STATUS "BOOST_ROOT: " ${BOOST_ROOT})
@@ -223,7 +240,7 @@ endif ()
 find_package(Boost
     #         HINTS ${BOOST_ROOT} $ENV{BOOST_ROOT}
              REQUIRED COMPONENTS
-             graph regex filesystem system)
+             graph regex filesystem system program_options)
 
 message(STATUS "Boost_INCLUDE_DIRS: " ${Boost_INCLUDE_DIRS})
 message(STATUS "Boost_LIBRARY_DIRS: " ${Boost_LIBRARY_DIRS})
@@ -311,7 +328,6 @@ if (WCS_WITH_METIS)
   endif (METIS_FOUND)
 endif (WCS_WITH_METIS)
 
-
 if (WCS_WITH_UNIT_TESTING)
   include(SetupCatch2)
   include(CTest)
@@ -340,6 +356,10 @@ add_subdirectory(src)
 
 # Create the WCS library
 add_library(wcs ${WCS_SOURCES} ${WCS_HEADERS})
+if (WCS_HAS_PROTOBUF)
+  add_dependencies(wcs protobuf::libprotobuf)
+  add_dependencies(wcs protobuf::protoc)
+endif (WCS_HAS_PROTOBUF)
 
 target_include_directories(wcs PUBLIC
   $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}>
@@ -395,6 +415,10 @@ if (WCS_WITH_UNIT_TESTING)
     $<BUILD_INTERFACE:${CATCH2_INCLUDE_DIR}>
     $<INSTALL_INTERFACE:${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_INCLUDEDIR}/catch2>)
 endif (WCS_WITH_UNIT_TESTING)
+
+if (WCS_HAS_PROTOBUF)
+  target_link_libraries(wcs PUBLIC protobuf::libprotobuf)
+endif (WCS_HAS_PROTOBUF)
 
 ################################################################
 # Add executables
@@ -518,7 +542,7 @@ install(
 
 install(
   TARGETS  ${WCS_UNIT_TEST_TARGETS}
-  EXPORT   WCSTargets
+#  EXPORT   WCSTargets
   RUNTIME  DESTINATION ${CMAKE_INSTALL_PREFIX}/tests/unit
   ARCHIVE  DESTINATION ${CMAKE_INSTALL_LIBDIR}
   LIBRARY  DESTINATION ${CMAKE_INSTALL_LIBDIR}
@@ -580,6 +604,8 @@ write_basic_package_version_file(
 # This is for the build tree
 set(INCLUDE_INSTALL_DIRS
   "${CMAKE_SOURCE_DIR}/src"
+  "${CMAKE_SOURCE_DIR}/src/partition"
+  "${CMAKE_SOURCE_DIR}/src/proto"
   "${CMAKE_SOURCE_DIR}/src/reaction_network"
   "${CMAKE_SOURCE_DIR}/src/sim_methods"
   "${CMAKE_SOURCE_DIR}/src/utils")
@@ -612,11 +638,12 @@ install(
   )
 
 # Build tree export
-export(EXPORT WCSTargets NAMESPACE WCS:: FILE WCSTargets.cmake)
+#export(EXPORT WCSTargets NAMESPACE WCS:: FILE WCSTargets.cmake)
 
 # Install export
 install(EXPORT WCSTargets
   NAMESPACE WCS::
+  FILE WCSTargets.cmake
   DESTINATION "${CMAKE_INSTALL_DIR}")
 
 # Install the cmake stuff
@@ -631,6 +658,14 @@ install(DIRECTORY cmake/modules
   FILES_MATCHING PATTERN "*.cmake")
 
 # Install header files
+install(
+  DIRECTORY "${PROJECT_SOURCE_DIR}/src/partition"
+  DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
+  FILES_MATCHING PATTERN "*.h" PATTERN "*.hpp")
+install(
+  DIRECTORY "${PROJECT_SOURCE_DIR}/src/proto"
+  DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
+  FILES_MATCHING PATTERN "*.h" PATTERN "*.hpp")
 install(
   DIRECTORY "${PROJECT_SOURCE_DIR}/src/reaction_network"
   DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
@@ -647,6 +682,10 @@ install(
   FILES "${PROJECT_BINARY_DIR}/wcs_config.hpp"
         "${PROJECT_SOURCE_DIR}/src/wcs_types.hpp"
         "${PROJECT_SOURCE_DIR}/src/bgl.hpp"
+        "${PROJECT_SOURCE_DIR}/src/des.hpp"
+        "${PROJECT_SOURCE_DIR}/src/ssa-cfg.hpp"
+        "${PROJECT_SOURCE_DIR}/src/wcs-ross-bf.hpp"
+        "${PROJECT_SOURCE_DIR}/src/wcs_params.hpp"
   DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}")
 
 if (WCS_HAS_EXPRTK)
@@ -731,7 +770,8 @@ append_str_tf(_str
   WCS_HAS_VTUNE
   WCS_HAS_DOXYGEN
   WCS_HAS_ROSS
-  WCS_HAS_METIS)
+  WCS_HAS_METIS
+  WCS_HAS_PROTOBUF)
 string(APPEND _str
   "\n== End WCS Configuration Summary ==\n")
 

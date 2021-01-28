@@ -1,0 +1,85 @@
+/******************************************************************************
+ *                                                                            *
+ *    Copyright 2020   Lawrence Livermore National Security, LLC and other    *
+ *    Whole Cell Simulator Project Developers. See the top-level COPYRIGHT    *
+ *    file for details.                                                       *
+ *                                                                            *
+ *    SPDX-License-Identifier: MIT                                            *
+ *                                                                            *
+ ******************************************************************************/
+
+syntax = "proto3";
+
+package wcs_proto;
+
+message WCS_Params {
+  message Simulation_Params {
+    // The seed for random number generator. Without this,
+    // it will use a value dependent on the current system clock.
+    uint32 seed = 1;
+
+    // The maximum number of reaction iterations to run.
+    uint32 max_iter = 2;
+    // The upper limit of simulation time to run.
+    double max_time = 3;
+
+    enum SSA_Method {
+      Direct = 0;
+      NRM = 1;
+      SOD = 2;
+    }
+    // SSA method to use: Direct, NRM, or SOD
+    SSA_Method method = 4;
+
+    enum Trajectory_Type {
+      None = 0;
+      Tracing = 1;
+      Sampling = 2;
+    }
+    // Trajectory recording method: None, Tracing, or Sampling
+    Trajectory_Type trajectory = 5;
+
+    // Further sampling specifics in case of sampling
+    oneof Sampling_Interval {
+      uint32 sampling_interval_iter = 6;
+      double sampling_interval_time = 7;
+    }
+
+    // Specify how many records to keep per temporary output file
+    // fragment in tracing/sampling.
+    uint32 frag_size = 8;
+  
+    // Name of the output file for tracing/sampling.
+    string outfile = 9;
+    // The name of the file to export the reaction network into
+    // in the GraphViz format.
+    string gvizfile = 10;
+  }
+  
+  message Partition_Params {
+    int32  n_iters = 1; ///< Number of refinement iterations
+    int32  n_parts = 2; ///< Number of partitions
+    int32  seed = 3;    ///< Random number seed
+    int32  ufactor = 4; ///< Uniform load balance factor
+    int32  ub_vwgt = 5; ///< Upper-bound of vertex weight
+    double vratio = 6;  ///< Ratio of vertex weight to size
+    bool   rm_coarse = 7; ///< Coarsening by random matching
+    bool   minconn = 8; ///< Minimize the maximum connectivity
+    bool   cut_obj = 9; ///< optimize edge-cut rather than communication volume
+    bool   run_embedded = 10; ///< Whether to run the hard-coded example
+    bool   verbose = 11; ///< Whether to show details
+    int32  dbglvl = 12; ///< Metis debug level
+  
+    string infile = 13;
+    string outfile = 14;
+  }
+  
+  message DES_Params {
+    int32 nlp = 1; ///< Number of LPs per processor
+    string run_id = 2; ///< User supplied run name
+  }
+
+  Simulation_Params sim_setup = 1;
+  Partition_Params part_setup = 2;
+  DES_Params des_setup = 3;
+}

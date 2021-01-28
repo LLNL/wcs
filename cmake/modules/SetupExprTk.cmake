@@ -8,7 +8,8 @@ set(EXPRTK_HEADER exprtk.hpp)
 
 find_file(EXPRTK ${EXPRTK_HEADER}
           HINTS ${EXPRTK_SOURCE_DIR}
-                $ENV{EXPRTK_ROOT} ${EXPRTK_ROOT})
+                $ENV{EXPRTK_ROOT} ${EXPRTK_ROOT}
+                $ENV{EXPRTK_DIR} ${EXPRTK_DIR})
 
 if (EXPRTK)
   message(STATUS "Found ExprTk: ${EXPRTK}")

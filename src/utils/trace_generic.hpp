@@ -31,6 +31,7 @@ public:
   TraceGeneric& operator=(TraceGeneric&& other) = default;
 
   ~TraceGeneric() override;
+  using Trajectory::record_step;
   void record_step(const sim_time_t t, cnt_updates_t&& updates) override;
   void finalize(const sim_time_t t) override;
 

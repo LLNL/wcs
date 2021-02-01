@@ -50,6 +50,10 @@
    If both are on, `USE_GCC_LIBCXX` is turned off. When `USE_GCC_LIBCXX`
    is on, `GCC_TOOLCHAIN_VER` can be set accordingly (e.g., "8.1.0").
 
+ + **Guide specific to using the intel compiler on Livermore Computing (LC) platforms**
+   For gcc Interoperability, use `-DGCC_PATH=<path-to-gcc>`. Otherwise,
+   icc picks up the gcc in default path, which may not support c++17.
+
  + **cmake 3.12 or later**
    This requirement mostly comes from the compatibility between the cmake
    module `find_package()`, and the version of boost used. An older version

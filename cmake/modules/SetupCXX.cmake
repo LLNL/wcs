@@ -98,7 +98,15 @@ endif ()
 
 # Turn off some annoying warnings
 if (CMAKE_CXX_COMPILER_ID MATCHES "Intel")
-  wcs_check_and_append_flag(CMAKE_CXX_FLAGS -diag-disable=2196)
+  # Bugs with Intel compiler version 19
+  #https://community.intel.com/t5/Intel-C-Compiler/quot-if-constexpr-quot-and-quot-missing-return-statement-quot-in/td-p/1154551
+  #https://bitbucket.org/berkeleylab/upcxx/issues/286/icc-bug-bogus-warning-use-of-offsetof-with
+  # set(GCC_PATH "-gcc-name=/usr/tce/packages/gcc/gcc-8.1.0/bin/gcc")
+  if (GCC_PATH)
+    set(GCC_INTEROP "-gcc-name=${GCC_PATH}")
+  endif (GCC_PATH)
+  wcs_check_and_append_flag(CMAKE_CXX_FLAGS -diag-disable=2196 -wd1011 -wd1875 ${GCC_INTEROP})
+
 endif ()
 
 

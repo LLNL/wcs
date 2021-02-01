@@ -94,7 +94,8 @@ seed_seq_param_t make_seed_seq_input(const T& v)
                                       T>::type;
   typename std::hash<U> h;
 
-  const auto hv = h(static_cast<const U>(v)); // 64-bit type (i.e. size_t)
+  //const auto hv = h(static_cast<const U>(v)); // 64-bit type (i.e. size_t)
+  const auto hv = h(static_cast<U>(v)); // 64-bit type (i.e. size_t)
 
   // NOTE: This conditional is only needed if seed_seq trims a 64-bit integer
   // input element into a 32-bit one loosing the information before processing

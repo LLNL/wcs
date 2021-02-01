@@ -58,6 +58,7 @@ public:
                          const sim_iter_t i_start = static_cast<sim_iter_t>(0u));
 
   void initialize() override;
+  using Trajectory::record_step;
   void record_step(const sim_time_t t, const r_desc_t r) override;
   void finalize(const sim_time_t t) override;
 

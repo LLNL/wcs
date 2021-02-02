@@ -194,15 +194,12 @@ void Network::init()
   m_species.reserve(num_vertices);
 
   v_iter_t vi, vi_end;
-  int reaction_sz=0;
-  int sum_in=0, sum_out=0;
   for (boost::tie(vi, vi_end) = boost::vertices(m_graph); vi != vi_end; ++vi) {
     const v_prop_t& v = m_graph[*vi];
     const auto vt = static_cast<v_prop_t::vertex_type>(v.get_typeid());
     if (vt == v_prop_t::_species_) {
       m_species.emplace_back(*vi);
     } else {
-      reaction_sz = reaction_sz +1;
       using directed_category = boost::graph_traits<graph_t>::directed_category;
       constexpr bool is_bidirectional
         = std::is_same<directed_category, boost::bidirectional_tag>::value;
@@ -256,8 +253,6 @@ void Network::init()
         reaction_out = reaction_out + 1; 
       }
 
-      sum_in = sum_in + reaction_in;
-      sum_out = sum_out + reaction_out;
       m_reactions.emplace_back(reaction);
 
       auto& r = m_graph[*vi].checked_property< Reaction<v_desc_t> >();
@@ -310,11 +305,6 @@ void Network::init()
     }
   }
   
-  double mean_in = sum_in / reaction_sz;
-  double mean_out = sum_out / reaction_sz;
-  using std::operator<<;
-  std::cout << "Reactions " << reaction_sz << " mean of inputs " << mean_in << ", mean of outputs "  << mean_out << std::endl;
-
   sort_species();
   build_index_maps();
 
@@ -494,7 +484,7 @@ bool Network::check_reaction(const wcs::Network::v_desc_t r) const
     const auto& sp_reactant = sv_reactant.property<Species>();
     const auto stoichio = m_graph[ei_in].get_stoichiometry_ratio();
     if (!sp_reactant.dec_check(stoichio)) {
-     #if 1  // change to 1 to take all messages (0 default)
+     #if 0  // change to 1 to take all messages (0 default)
       using std::operator>>;
       std::cerr << "reaction " << m_graph[r].get_label()
                 << " has insufficient amount of reactants "

@@ -116,6 +116,8 @@ option(WCS_WITH_HPCTOOLKIT
 
 option(WCS_WITH_ROSS "Use ROSS" OFF)
 
+option(WCS_WITH_OPENMP "Enable OpenMP" OFF)
+
 option(WCS_WITH_METIS "Enable METIS library" OFF)
 
 option(WCS_WITH_UNIT_TESTING
@@ -143,24 +145,9 @@ endif ()
 #set(WCS_VERTEX_LIST_TYPE "::boost::listS"
 #  CACHE STRING "The BGL vertex list type to use in WCS")
 
+######################### For clang ###############################
 #set(WCS_OUT_EDGE_LIST_TYPE "::boost::vecS"
 #  CACHE STRING "The BGL out edge list type to use in WCS")
-
-################################################################
-# Initialize build
-################################################################
-
-set(CMAKE_SKIP_BUILD_RPATH  FALSE)
-set(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)
-set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
-set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}")
-
-# the RPATH to be used when installing, but only if it's not a system directory
-list(FIND CMAKE_PLATFORM_IMPLICIT_LINK_DIRECTORIES
-     "${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}" isSystemDir)
-if("${isSystemDir}" STREQUAL "-1")
-    set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}")
-endif("${isSystemDir}" STREQUAL "-1")
 
 #  Setup specific to using clang on Livermore Computing (LC) platforms
 #
@@ -200,6 +187,22 @@ if (USE_GCC_LIBCXX)
     set_property(CACHE GCC_TOOLCHAIN_VER PROPERTY STRINGS
                  "4.9.3" "6.1.0" "7.1.0" "7.3.0" "8.1.0")
 endif ()
+
+################################################################
+# Initialize build
+################################################################
+
+set(CMAKE_SKIP_BUILD_RPATH  FALSE)
+set(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)
+set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
+set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}")
+
+# the RPATH to be used when installing, but only if it's not a system directory
+list(FIND CMAKE_PLATFORM_IMPLICIT_LINK_DIRECTORIES
+     "${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}" isSystemDir)
+if("${isSystemDir}" STREQUAL "-1")
+    set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}")
+endif("${isSystemDir}" STREQUAL "-1")
 
 # Get installation directories -- these get used in various places;
 # best to just make them available
@@ -339,6 +342,15 @@ if (WCS_WITH_ROSS)
   endif (ROSS_FOUND)
 endif (WCS_WITH_ROSS)
 
+if (OpenMP_CXX_FOUND)
+  set(WCS_HAS_OPENMP TRUE)
+
+  find_package(NUMA MODULE)
+  if (NUMA_FOUND)
+    set(WCS_HAS_NUMA TRUE)
+  endif (NUMA_FOUND)
+endif (OpenMP_CXX_FOUND)
+
 if (WCS_WITH_METIS)
   set(WCS_HAS_METIS FALSE)
   find_package(Metis MODULE)
@@ -378,6 +390,12 @@ add_library(wcs ${WCS_SOURCES} ${WCS_HEADERS})
 if (WCS_HAS_PROTOBUF)
   add_dependencies(wcs protobuf::libprotobuf)
   add_dependencies(wcs protobuf::protoc)
+  if (WCS_HAS_OPENMP)
+    add_dependencies(wcs OpenMP::OpenMP_CXX)
+    if (WCS_HAS_NUMA)
+      add_dependencies(wcs NUMA::numa)
+    endif (WCS_HAS_NUMA)
+  endif (WCS_HAS_OPENMP)
 endif (WCS_HAS_PROTOBUF)
 
 target_include_directories(wcs PUBLIC
@@ -443,6 +461,13 @@ endif (WCS_WITH_UNIT_TESTING)
 if (WCS_HAS_PROTOBUF)
   target_link_libraries(wcs PUBLIC protobuf::libprotobuf)
 endif (WCS_HAS_PROTOBUF)
+
+if (WCS_HAS_OPENMP)
+  target_link_libraries(wcs PUBLIC OpenMP::OpenMP_CXX)
+  if (WCS_HAS_NUMA)
+    target_link_libraries(wcs PUBLIC NUMA::numa)
+  endif (WCS_HAS_NUMA)
+endif (WCS_HAS_OPENMP)
 
 ################################################################
 # Add executables
@@ -795,6 +820,8 @@ append_str_tf(_str
   WCS_HAS_HPCTOOLKIT
   WCS_HAS_DOXYGEN
   WCS_HAS_ROSS
+  WCS_HAS_OPENMP
+  WCS_HAS_NUMA
   WCS_HAS_METIS
   WCS_HAS_PROTOBUF)
 string(APPEND _str

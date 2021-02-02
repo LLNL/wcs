@@ -157,6 +157,12 @@
  further be refined by custom algorithm. To link with Metis, use the cmake
  options `-DWCS_WITH_METIS=ON` and `-DMETIS_ROOT=<path-to-metis-install>`.
 
+## Taking advanage of OpenMP:
+ Build WCS with the cmake option `-DWCS_WITH_OPENMP:BOOL=ON`.
+ Then, for accelerating execution performance, use the OpenMP environment
+ variables to control the parallelism and the processor affinity, such as
+ `OMP_NUM_THREADS`, `OMP_PROC_BIND`, and `OMP_PLACES`.
+
 ## Unit testing:
  + [**Catch2**](https://github.com/catchorg/Catch2)
  We rely on Catch2 for unit testing. To enable testing for development, set

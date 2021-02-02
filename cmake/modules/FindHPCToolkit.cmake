@@ -1,6 +1,5 @@
 # Exports the following variables
-#
-#   WCS_HAS_HPCTOOLKIT
+#   HPCToolkit_FOUND
 #   HPCTOOLKIT_INCLUDE_DIR
 #   HPCTOOLKIT_DYN_LIB
 #
@@ -28,7 +27,7 @@ find_package_handle_standard_args(HPCToolkit
 
 if (HPCToolkit_INCLUDE_PATH AND HPCTOOLKIT_DYN_LIB)
   if (NOT TARGET hpctoolkit::hpctoolkit)
-    add_library(hpctoolkit::hpctoolkit STATIC IMPORTED)
+    add_library(hpctoolkit::hpctoolkit SHARED IMPORTED)
   endif ()
 
   set_target_properties(hpctoolkit::hpctoolkit PROPERTIES

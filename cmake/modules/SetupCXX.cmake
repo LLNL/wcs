@@ -77,7 +77,9 @@ else ()
   set(CXX_VERSION "${CMAKE_CXX_COMPILER_VERSION}")
 endif ()
 
-# Special handling if we're compiling with Clang's address sanitizer
+# - Special handling if we're compiling with Clang's address sanitizer
+# - gcc toolchain handling for interoperability, especially with the exteral
+#   libraries pre-built using gcc
 if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   if (USE_CLANG_LIBCXX)
     wcs_check_and_append_flag(CMAKE_CXX_FLAGS "--stdlib=libc++")
@@ -153,6 +155,10 @@ if (${_IS_SYSTEM_DIR} STREQUAL "-1")
 endif ()
 
 set(CMAKE_C_COMPILER_ID ${CMAKE_CXX_COMPILER_ID})
+
+if (WCS_WITH_OPENMP)
+  find_package(OpenMP REQUIRED)
+endif (WCS_WITH_OPENMP)
 
 # Testing for compiler feature supports 
 #include(CheckCXXSourceCompiles)

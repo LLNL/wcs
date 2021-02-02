@@ -81,7 +81,7 @@ protected:
   wcs::sim_time_t recompute_reaction_time(const v_desc_t& vd);
   wcs::sim_time_t adjust_reaction_time(const v_desc_t& vd, wcs::sim_time_t rt);
   void update_reactions(const priority_t& fired,
-                        const SSA_NRM::affected_reactions_t& affected,
+                        const Sim_Method::affected_reactions_t& affected,
                         reaction_times_t& affected_rtimes);
   void revert_reaction_updates(const reaction_times_t& affected);
 

@@ -41,6 +41,9 @@
 
 #ifdef WCS_HAS_OPENMP
 #include <omp.h>
+#cmakedefine WCS_OMP_REACTION_UPDATES
+#cmakedefine WCS_OMP_REACTION_REACTANTS
+#cmakedefine WCS_OMP_REACTION_PRODUCTS
 #endif
 
 #ifdef WCS_HAS_NUMA

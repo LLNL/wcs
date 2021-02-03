@@ -8,9 +8,11 @@
  *                                                                            *
  ******************************************************************************/
 
-#include <type_traits>
-#include <cassert>
-#include <algorithm>
+#include <type_traits> // std::is_same, std::is_pod
+#include <cassert>     // assert
+#include <algorithm>   // std::max
+#include <functional>  // std::hash
+#include <limits>      // std::numeric_limits
 #include "utils/exception.hpp"
 
 namespace wcs {
@@ -48,12 +50,36 @@ inline void RNGen<D, V>::use_seed_seq(const wcs::seed_seq_param_t& p)
 template <template <typename> typename D, typename V>
 inline void RNGen<D, V>::param(const RNGen<D, V>::param_type& p)
 {
+ #if defined(_OPENMP)
+  m_gen.resize(omp_get_max_threads());
+  assert (m_gen.size() <=
+          static_cast<size_t>(std::numeric_limits<n_threads_t>::max()));
+  #pragma omp parallel num_threads(m_gen.size())
+  {
+    const auto tid = omp_get_thread_num();
+    m_gen[tid] = std::make_unique<generator_type>();
+    if (m_sseq_used) {
+      wcs::seed_seq_param_t sseq_thread_param;
+      sseq_thread_param.reserve(m_sseq_param.size()+1);
+      sseq_thread_param = m_sseq_param;
+      sseq_thread_param.push_back(tid);
+      std::seed_seq sseq(sseq_thread_param.begin(), sseq_thread_param.end());
+      m_gen[tid]->seed(sseq);
+    } else {
+    // https://www.boost.org/doc/libs/1_55_0/doc/html/hash/reference.html#boost.hash_combine
+      unsigned seed = m_seed ^ (std::hash<unsigned>()(tid) + 0x9e3779b9
+                                + (m_seed << 6) + (m_seed >> 2));
+      m_gen[tid]->seed(seed);
+    }
+  }
+ #else
   if (m_sseq_used) {
     std::seed_seq sseq(m_sseq_param.begin(), m_sseq_param.end());
     m_gen.seed(sseq);
   } else {
     m_gen.seed(m_seed);
   }
+ #endif // defined(_OPENMP)
   m_distribution.param(p);
   m_distribution.reset();
 }
@@ -67,7 +93,11 @@ inline typename RNGen<D, V>::param_type RNGen<D, V>::param() const
 template <template <typename> typename D, typename V>
 inline typename RNGen<D, V>::result_type RNGen<D, V>::operator()()
 {
+ #if defined(_OPENMP)
+  return m_distribution(*(m_gen[omp_get_thread_num()]));
+ #else
   return m_distribution(m_gen);
+ #endif // defined(_OPENMP)
 }
 
 template <template <typename> typename D, typename V>
@@ -104,13 +134,21 @@ constexpr unsigned RNGen<D, V>::get_state_size()
 template <template <typename> typename D, typename V>
 inline typename RNGen<D, V>::generator_type& RNGen<D, V>::engine()
 {
+ #if defined(_OPENMP)
+  return *(m_gen[omp_get_thread_num()]);
+ #else
   return m_gen;
+ #endif // defined(_OPENMP)
 }
 
 template <template <typename> typename D, typename V>
 inline const typename RNGen<D, V>::generator_type& RNGen<D, V>::engine() const
 {
+ #if defined(_OPENMP)
+  return *(m_gen[omp_get_thread_num()]);
+ #else
   return m_gen;
+ #endif // defined(_OPENMP)
 }
 
 template <template <typename> typename D, typename V>
@@ -140,7 +178,21 @@ template <typename S>
 inline S& RNGen<D, V>::save_bits(S& os) const
 {
   assert (check_bits_compatibility(os));
-  os << bits(m_seed) << bits(m_sseq_used) << bits(m_sseq_param) << bits(m_gen) << bits(m_distribution);
+ #if defined(_OPENMP)
+  const auto num_gens = static_cast<n_threads_t>(m_gen.size());
+
+  os << bits(m_seed) << bits(m_sseq_used) << bits(m_sseq_param)
+     << bits(num_gens);
+
+  for (const auto& g: m_gen) {
+    if (!!g) os << bits(*g);
+  }
+
+  os << bits(m_distribution);
+ #else
+  os << bits(m_seed) << bits(m_sseq_used) << bits(m_sseq_param) << bits(m_gen)
+     << bits(m_distribution);
+ #endif // defined(_OPENMP)
   return os;
 }
 
@@ -149,16 +201,42 @@ template <typename S>
 inline S& RNGen<D, V>::load_bits(S& is)
 {
   assert (check_bits_compatibility(is));
-  is >> bits(m_seed) >> bits(m_sseq_used) >> bits(m_sseq_param) >> bits(m_gen) >> bits(m_distribution);
+ #if defined(_OPENMP)
+  n_threads_t num_gens = 0u;
+  is >> bits(m_seed) >> bits(m_sseq_used) >> bits(m_sseq_param)
+     >> bits(num_gens);
+
+  m_gen.resize(num_gens);
+
+  for (auto& g: m_gen) {
+     g = std::make_unique<generator_type>();
+     is >> bits(*g);
+  }
+
+  is >> bits(m_distribution);
+ #else
+  is >> bits(m_seed) >> bits(m_sseq_used) >> bits(m_sseq_param) >> bits(m_gen)
+     >> bits(m_distribution);
+ #endif // defined(_OPENMP)
   return is;
 }
 
 template <template <typename> typename D, typename V>
 inline size_t RNGen<D, V>::byte_size() const
 {
+  // It is also assumed that the generator_type is a POD structure
+  assert (std::is_pod<generator_type>::value);
+ #if defined(_OPENMP)
+  assert (m_gen.size() > 0u);
+  return (sizeof(m_seed) + sizeof(m_sseq_used) +
+          m_sseq_param.size() * sizeof(seed_seq_param_t::value_type) +
+          sizeof(n_threads_t) + sizeof(*(m_gen[0])) * m_gen.size() +
+          sizeof(m_distribution));
+ #else
   return (sizeof(m_seed) + sizeof(m_sseq_used) +
           m_sseq_param.size() * sizeof(seed_seq_param_t::value_type) +
           sizeof(m_gen) + sizeof(m_distribution));
+ #endif // defined(_OPENMP)
 }
 
 /**@}*/

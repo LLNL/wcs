@@ -227,7 +227,9 @@ void SSA_NRM::update_reactions(
 {
   const auto& t_fired = fired.first;
   const auto& r_fired = fired.second;
+ #if defined(WCS_HAS_ROSS)
   affected_rtimes.clear();
+ #endif // defined(WCS_HAS_ROSS)
 
   const auto dt_fired = recompute_reaction_time(r_fired);
 
@@ -236,8 +238,34 @@ void SSA_NRM::update_reactions(
   iheap::update(m_heap.begin(), m_heap.end(), indexer,
                 r_fired, t_fired + dt_fired, less_priority);
 
+ #if defined(WCS_HAS_ROSS)
   affected_rtimes.emplace_back(std::make_pair(r_fired, t_fired));
+ #endif // defined(WCS_HAS_ROSS)
 
+ #if defined(_OPENMP)
+  std::vector<v_desc_t> r_affected(affected.begin(), affected.end());
+  #pragma omp parallel for
+  for (size_t i = 0ul; i < r_affected.size(); i++)
+  {
+    v_desc_t& r = r_affected[i];
+    const auto t = m_heap[indexer(r)].first; // reaction time
+
+    const auto dt = adjust_reaction_time(r, t - t_fired);
+    #pragma omp critical
+    {
+      iheap::update(m_heap.begin(), m_heap.end(), indexer,
+                    r, t_fired + dt, less_priority);
+    }
+
+    // Record the reaction time before update
+    #if defined(WCS_HAS_ROSS)
+    #pragma omp critical
+    {
+      affected_rtimes.push_back(std::make_pair(r, t));
+    }
+    #endif // defined(WCS_HAS_ROSS)
+  }
+ #else // defined(_OPENMP)
   for (auto& r: affected) {
     const auto t = m_heap[indexer(r)].first; // reaction time
 
@@ -245,9 +273,12 @@ void SSA_NRM::update_reactions(
     iheap::update(m_heap.begin(), m_heap.end(), indexer,
                   r, t_fired + dt, less_priority);
 
+   #if defined(WCS_HAS_ROSS)
     // Record the reaction time before update
     affected_rtimes.push_back(std::make_pair(r, t));
+   #endif // defined(WCS_HAS_ROSS)
   }
+ #endif // defined(_OPENMP)
 }
 
 void SSA_NRM::revert_reaction_updates(

@@ -48,7 +48,7 @@ endif (${WCS_GPROF})
 # Initialize C++ flags
 wcs_check_and_append_flag(CMAKE_CXX_FLAGS
   -fPIC -g -Wall -Wextra -Wno-unused-parameter -Wnon-virtual-dtor
-  -Wno-deprecated-declarations -std=c++17 ${COMPILER_OPT_FOR_GPROF})
+  -Wno-deprecated-declarations -std=c++17 ${COMPILER_OPT_FOR_GPROF} ${USER_FLAGS})
   #taking out -Wshadow as ExprTK generates too much warnings
 
 # Disable all optimization in debug for better viewing under debuggers

@@ -112,7 +112,9 @@ public:
 
   bool fire_reaction(Sim_State_Change& digest);
 
+ #ifdef ENABLE_SPECIES_UPDATE_TRACKING
   void undo_species_updates(const cnt_updates_t& updates) const;
+ #endif // ENABLE_SPECIES_UPDATE_TRACKING
   bool undo_reaction(const Sim_Method::v_desc_t& rd_undo) const;
 
 protected:

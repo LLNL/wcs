@@ -15,6 +15,8 @@
 #include "sim_methods/update.hpp"
 #include "reaction_network/network.hpp"
 
+//#define ENABLE_SPECIES_UPDATE_TRACKING
+
 namespace wcs {
 /** \addtogroup wcs_sim_methods
  *  @{ */
@@ -33,8 +35,10 @@ struct Sim_State_Change {
   sim_time_t m_sim_time; ///< Current simulation time
   v_desc_t m_reaction_fired;
 
+ #ifdef ENABLE_SPECIES_UPDATE_TRACKING
   /// species counts updated as a result of firing the reaction
   cnt_updates_t m_species_updated;
+ #endif // ENABLE_SPECIES_UPDATE_TRACKING
 
   /// species concentrations updated as a result of firing the reaction
   //conc_updates_t m_species_updated;
@@ -65,7 +69,9 @@ struct Sim_State_Change {
 
   void clear() {
     m_sim_time = wcs::Network::get_etime_ulimit();
+   #ifdef ENABLE_SPECIES_UPDATE_TRACKING
     m_species_updated.clear();
+   #endif // ENABLE_SPECIES_UPDATE_TRACKING
     m_reactions_affected.clear();
     m_reaction_times.clear();
     m_rng_state.clear();

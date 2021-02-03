@@ -135,7 +135,7 @@ bool Sim_Method::fire_reaction(Sim_State_Change& digest)
   reactions_affected.clear();
 
   // ========================= reactant species ================================
- #if defined(_OPENMP) && defined (OMP_REACTION_REACTANTS) // -------------------
+ #if defined(_OPENMP) && defined(WCS_OMP_REACTION_REACTANTS) // ----------------
   using e_desc_t = wcs::Network::e_desc_t;
   using ie_iter_t = boost::graph_traits<Network::graph_t>::in_edge_iterator;
   ie_iter_t iei, iei_end;
@@ -191,7 +191,7 @@ bool Sim_Method::fire_reaction(Sim_State_Change& digest)
       }
     }
   }
- #else // defined(_OPENMP) && defined (OMP_REACTION_REACTANTS) // --------------
+ #else // defined(_OPENMP) && defined(WCS_OMP_REACTION_REACTANTS) // -----------
   for (const auto ei_in :
        boost::make_iterator_range(boost::in_edges(rd_firing, g)))
   {
@@ -233,10 +233,10 @@ bool Sim_Method::fire_reaction(Sim_State_Change& digest)
       reactions_affected.insert(rd_affected);
     }
   }
- #endif // defined(_OPENMP) && defined (OMP_REACTION_REACTANTS) // -------------
+ #endif // defined(_OPENMP) && defined(WCS_OMP_REACTION_REACTANTS) // ----------
 
   // ========================== product species ================================
- #if defined(_OPENMP) && defined(OMP_REACTION_PRODUCTS) // ---------------------
+ #if defined(_OPENMP) && defined(WCS_OMP_REACTION_PRODUCTS) // -----------------
   using oe_iter_t = boost::graph_traits<Network::graph_t>::out_edge_iterator;
   oe_iter_t oei, oei_end;
   boost::tie(oei, oei_end) = boost::out_edges(rd_firing, g);
@@ -288,7 +288,7 @@ bool Sim_Method::fire_reaction(Sim_State_Change& digest)
       }
     }
   }
- #else // defined(_OPENMP) && defined(OMP_REACTION_PRODUCTS) // ----------------
+ #else // defined(_OPENMP) && defined(WCS_OMP_REACTION_PRODUCTS) // ------------
   for (const auto ei_out :
        boost::make_iterator_range(boost::out_edges(rd_firing, g)))
   {
@@ -327,7 +327,7 @@ bool Sim_Method::fire_reaction(Sim_State_Change& digest)
       reactions_affected.insert(rd_affected);
     }
   }
- #endif // defined(_OPENMP) && defined(OMP_REACTION_PRODUCTS) // ---------------
+ #endif // defined(_OPENMP) && defined(WCS_OMP_REACTION_PRODUCTS) // -----------
 
   return true;
 }

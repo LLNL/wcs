@@ -15,6 +15,10 @@
 #include <limits>      // std::numeric_limits
 #include "utils/exception.hpp"
 
+#if defined(WCS_HAS_OPENMP) && !defined(_OPENMP)
+#error OpenMP is not enabled.
+#endif
+
 namespace wcs {
 /** \addtogroup wcs_utils
  *  @{ */

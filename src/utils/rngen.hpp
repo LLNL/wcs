@@ -13,6 +13,7 @@
 
 #include <random>
 #include <chrono>
+#include <memory>
 
 #if defined(WCS_HAS_CONFIG)
 #include "wcs_config.hpp"
@@ -22,6 +23,7 @@
 
 #if defined(WCS_HAS_CEREAL)
 #include <cereal/types/vector.hpp>
+#include <cereal/types/memory.hpp>
 #include <cereal/archives/binary.hpp>
 #include "utils/state_io_cereal.hpp"
 ENABLE_CUSTOM_CEREAL (std::minstd_rand);
@@ -93,6 +95,7 @@ class RNGen {
   size_t byte_size() const;
 
  protected:
+  using n_threads_t = uint8_t; ///< Type for number of openmp threads
   /**
    * seed value when a single seed value is used or the master seed
    * to generate a seed sequence
@@ -102,7 +105,11 @@ class RNGen {
   bool m_sseq_used;
   /// seed_seq input
   seed_seq_param_t m_sseq_param;
+#if defined(_OPENMP)
+  std::vector< std::unique_ptr<generator_type> > m_gen;
+#else
   generator_type m_gen;
+#endif
   distribution_t m_distribution;
 };
 

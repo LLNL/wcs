@@ -242,12 +242,12 @@ void SSA_NRM::update_reactions(
   affected_rtimes.emplace_back(std::make_pair(r_fired, t_fired));
  #endif // defined(WCS_HAS_ROSS)
 
- #if defined(_OPENMP)
-  std::vector<v_desc_t> r_affected(affected.begin(), affected.end());
+ #if defined(_OPENMP) && defined(WCS_OMP_REACTION_UPDATES)
+  const std::vector<v_desc_t> r_affected(affected.begin(), affected.end());
   #pragma omp parallel for
   for (size_t i = 0ul; i < r_affected.size(); i++)
   {
-    v_desc_t& r = r_affected[i];
+    const v_desc_t& r = r_affected[i];
     const auto t = m_heap[indexer(r)].first; // reaction time
 
     const auto dt = adjust_reaction_time(r, t - t_fired);
@@ -266,7 +266,7 @@ void SSA_NRM::update_reactions(
     #endif // defined(WCS_HAS_ROSS)
   }
  #else // defined(_OPENMP)
-  for (auto& r: affected) {
+  for (const auto& r: affected) {
     const auto t = m_heap[indexer(r)].first; // reaction time
 
     const auto dt = adjust_reaction_time(r, t - t_fired);

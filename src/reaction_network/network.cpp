@@ -715,5 +715,47 @@ partition_id_t Network::get_partition_id() const
   return m_pid;
 }
 
+void Network::print() const
+{
+  using s_prop_t = wcs::Species;
+
+  std::cout << "Species:";
+  for(const auto& vd : species_list()) {
+    const auto& sv = m_graph[vd];
+    const auto& sp = sv.property<s_prop_t>();
+    std::cout << ' ' << sv.get_label() << '[' << sp.get_count() << ']';
+  }
+
+  std::cout << "\n\nReactions:\n";
+  for(const auto& vd : reaction_list()) {
+    using directed_category
+      = typename boost::graph_traits<wcs::Network::graph_t>::directed_category;
+    constexpr bool is_bidirectional
+      = std::is_same<directed_category, boost::bidirectional_tag>::value;
+
+    const auto& rv = m_graph[vd]; // reaction vertex
+    const auto& rp = rv.property<r_prop_t>(); // reaction vertex property
+    std::cout << "  " << rv.get_label()
+              << " with rate constant " << rp.get_rate_constant() << " :";
+
+    std::cout << " produces";
+    for(const auto vi_out : boost::make_iterator_range(boost::out_edges(vd, m_graph))) {
+      std::cout << ' ' << m_graph[boost::target(vi_out, m_graph)].get_label();
+    }
+
+    if constexpr (is_bidirectional) {
+      std::cout << " from a set of reactants";
+      for(const auto vi_in : boost::make_iterator_range(boost::in_edges(vd, m_graph))) {
+        const auto& sv = m_graph[boost::source(vi_in, m_graph)];
+        const auto& sp = sv.property<s_prop_t>();
+        std::cout << ' ' << sv.get_label() << " [" << sp.get_count() << "]";
+      }
+    }
+
+    std::cout << std::endl << "    by the rate " << rp.get_rate()
+              << " <= {" << rp.get_rate_formula() << "}" << std::endl;
+  }
+}
+
 /**@}*/
 } // end of namespace wcs

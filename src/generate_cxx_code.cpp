@@ -31,12 +31,13 @@ LIBSBML_CPP_NAMESPACE_USE
 
 int main(int argc, char** argv)
 {
-  if (argc != 2) {
-    std::cout << "Usage: " << argv[0] << " filename" << std::endl;
+  if ((argc != 2) && (argc != 3))  {
+    std::cout << "Usage: " << argv[0] << " filename [gen_library(0|1)]" << std::endl;
     return 0;
   }
 
   const char* filename = argv[1];
+  const bool gen_lib = (argc > 2) && (atoi(argv[2]) != 0);
   SBMLReader reader;
   SBMLDocument* document = reader.readSBML(filename);
   const unsigned int num_errors = document->getNumErrors();
@@ -62,9 +63,14 @@ int main(int argc, char** argv)
   using rate_rules_dep = std::unordered_map <std::string, std::set<std::string>>;
   params_map dep_params_f, dep_params_nf;
   rate_rules_dep rate_rules_dep_map;
-  const std::string genfile = wcs::generate_cxx_code::generate_code(*model,
-  dep_params_f, dep_params_nf, rate_rules_dep_map);
-  std::cout << "Generated filename: " << genfile << "\n";
+  wcs::generate_cxx_code code_generator("wcs_generated_code.so", true, false, false);
+  code_generator.generate_code(*model, dep_params_f, dep_params_nf,
+                               rate_rules_dep_map);
+  std::cout << "Generated filename: " << code_generator.get_src_filename() << "\n";
+  if (gen_lib) {
+    const std::string library_file = code_generator.compile_code();
+    std::cout << "library file: " << library_file << std::endl;
+  }
 
   delete document;
   return 0;

@@ -91,8 +91,16 @@ class Network {
   using map_desc2idx_t = std::unordered_map<v_desc_t, v_idx_t>;
 
  public:
-  /// Load an input Graph ML file
-  void load(const std::string graphml_filename);
+  /** Load an input model file.
+   *  We primarily support SBML as the formats of an input file. However,
+   *  GraphML format is also allowed. The type of a file is automatically
+   *  detected. With SBML, we may set to generate the reaction formula code.
+   *  If that is the case and there already exists a library file generated
+   *  in a previous run, by default, we skip the generation of a new library
+   *  file and reuse the existing library file. Setting the second argument
+   *  `reuse` to false forces regeneration.
+   */
+  void load(const std::string graphml_filename, const bool reuse = true);
   void init();
   void set_reaction_rate(const v_desc_t r, const reaction_rate_t rate) const;
   reaction_rate_t set_reaction_rate(const v_desc_t r) const;
@@ -160,7 +168,7 @@ class Network {
   void sort_species();
   void build_index_maps();
   void loadGraphML(const std::string graphml_filename);
-  void loadSBML(const std::string sbml_filename);
+  void loadSBML(const std::string sbml_filename, const bool reuse = true);
   void print_parameters_of_reactions(
   const params_map_t& dep_params_f,
   const params_map_t& dep_params_nf,

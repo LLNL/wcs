@@ -20,7 +20,12 @@
 #include <iostream>
 #include <fstream>
 #include <sstream>
-#include <cstdlib> //system
+#include <cstdlib> // system
+#include <climits> // PATH_MAX
+#include <cstring> // strncpy
+#include <fcntl.h> // O_CREAT
+#include <unistd.h> // close
+#include <sys/wait.h> // WEXITSTATUS
 #include "wcs_types.hpp"
 #include <set>
 #include <regex>
@@ -206,11 +211,7 @@ generate_cxx_code::return_all_denominators(
   return denominators;
 }
 
-
-
-} // end of namespace wcs
-
-std::unordered_map<std::string, size_t> build_input_map(
+static std::unordered_map<std::string, size_t> build_input_map(
   const std::string& formula,
   const std::set<std::string>& var_names)
 {
@@ -233,6 +234,7 @@ std::unordered_map<std::string, size_t> build_input_map(
   }
   return input_map;
 }
+
 struct strcomp {
   bool operator() (const std::string& lhs, const std::string& rhs) const
   {return lhs.size()>rhs.size();}
@@ -260,7 +262,7 @@ void read_ast_node(
 }
 
 // Update with the correct scope a math formula
-void update_scope_ast_node(
+static void update_scope_ast_node(
   LIBSBML_CPP_NAMESPACE::ASTNode& math,
   const std::unordered_set<std::string>& wcs_var,
   const std::unordered_set<std::string>& wcs_const,
@@ -298,7 +300,7 @@ void update_scope_ast_node(
 }
 
 // Update with the correct scope a element string
-void update_scope_str(
+static void update_scope_str(
   std::string& math,
   const std::unordered_set<std::string>& wcs_var,
   const std::unordered_set<std::string>& wcs_const,
@@ -319,7 +321,7 @@ void update_scope_str(
 }
 
 // Include init for initializations with rate rules
-void include_init_for_rate_rules(
+static void include_init_for_rate_rules(
   LIBSBML_CPP_NAMESPACE::ASTNode& math,
   const std::unordered_map <std::string, const ASTNode *>& raterules)
 {
@@ -343,7 +345,7 @@ void include_init_for_rate_rules(
   }
 }
 
-void wcs::generate_cxx_code::find_used_params(
+void generate_cxx_code::find_used_params(
   const LIBSBML_CPP_NAMESPACE::Model& model,
   std::unordered_set <std::string>& used_params,
   const initial_assignments_t& sinitial_assignments,
@@ -444,10 +446,10 @@ void wcs::generate_cxx_code::find_used_params(
 
 }
 
-void wcs::generate_cxx_code::print_constants_and_initial_states(
+void generate_cxx_code::print_constants_and_initial_states(
   const LIBSBML_CPP_NAMESPACE::Model& model,
   const char * Real,
-  std::ofstream & genfile,
+  std::ostream & genfile,
   map_symbol_to_ast_node_t & sconstant_init_assig,
   const initial_assignments_t& sinitial_assignments,
   const assignment_rules_t& assignment_rules_map,
@@ -778,10 +780,10 @@ void wcs::generate_cxx_code::print_constants_and_initial_states(
 }
 
 
-void wcs::generate_cxx_code::print_functions(
+void generate_cxx_code::print_functions(
   const LIBSBML_CPP_NAMESPACE::Model& model,
   const char * Real,
-  std::ofstream & genfile)
+  std::ostream & genfile)
 {
   const ListOfFunctionDefinitions* function_definition_list
     = model.getListOfFunctionDefinitions();
@@ -806,10 +808,10 @@ void wcs::generate_cxx_code::print_functions(
   }
 }
 
-void wcs::generate_cxx_code::print_event_functions(
+void generate_cxx_code::print_event_functions(
   const LIBSBML_CPP_NAMESPACE::Model& model,
   const char * Real,
-  std::ofstream & genfile,
+  std::ostream & genfile,
   const event_assignments_t & m_ev_assig,
   const std::unordered_set<std::string>& wcs_all_const,
   const std::unordered_set<std::string>& wcs_all_var)
@@ -853,10 +855,10 @@ void wcs::generate_cxx_code::print_event_functions(
 
 }
 
-void wcs::generate_cxx_code::print_global_state_functions(
+void generate_cxx_code::print_global_state_functions(
   const LIBSBML_CPP_NAMESPACE::Model& model,
   const char * Real,
-  std::ofstream & genfile,
+  std::ostream & genfile,
   const std::unordered_set<std::string> & good_params,
   const map_symbol_to_ast_node_t & sconstant_init_assig,
   const assignment_rules_t & assignment_rules_map,
@@ -1028,10 +1030,10 @@ void wcs::generate_cxx_code::print_global_state_functions(
   }
 }
 
-void wcs::generate_cxx_code::print_reaction_rates(
+void generate_cxx_code::print_reaction_rates(
   const LIBSBML_CPP_NAMESPACE::Model& model,
   const char * Real,
-  std::ofstream & genfile,
+  std::ostream & genfile,
   const std::unordered_set<std::string> & good_params,
   const map_symbol_to_ast_node_t & sconstant_init_assig,
   const assignment_rules_t & assignment_rules_map,
@@ -1279,7 +1281,106 @@ void wcs::generate_cxx_code::print_reaction_rates(
 
 }
 
-const std::string  wcs::generate_cxx_code::generate_code(
+
+/**
+ *  If `regen` is set to false (which is the default), then the library file
+ *  at the given path is reused. If no file exists at the path specified, or
+ *  the extention of the file is not `.so`, which is for a dynamic library,
+ *  then a new file is generated with the same name except that the extension
+ *  is replaced with `.so`. If the given path is an empty string, then
+ *  `[wcs_default_gen_name].so` file is generated under current directory.
+ *  Caller can set `save_log` for dignosis if compilation failure is expected.
+ *  By default, it is off. Caller can also set or unset `cleanup` argument
+ *  to remove the temporary source file generated or leave it.
+ *  By default, it is on.
+ */
+generate_cxx_code::generate_cxx_code(const std::string& libpath,
+                                     bool regen, bool save_log, bool cleanup)
+: m_lib_filename(libpath), m_regen(regen),
+  m_save_log(save_log), m_cleanup(cleanup)
+{
+  m_regen = m_regen || !check_if_file_exists(m_lib_filename);
+
+  if (m_lib_filename.empty()) {
+    m_regen = true;
+    m_lib_filename = std::string(wcs_default_gen_name) + ".so";
+    std::cerr << "Generating " + m_lib_filename << std::endl;
+  }
+
+  std::string dir;
+  std::string stem;
+  std::string ext;
+
+  extract_file_component(m_lib_filename, dir, stem, ext);
+
+  if (ext != ".so") {
+    m_regen = true;
+    m_lib_filename = dir + (dir.empty()? "./" : "/") + stem + ".so";
+    std::cerr << "Generating " + m_lib_filename << std::endl;
+  }
+}
+
+//https://stackoverflow.com/questions/8243743/is-there-a-null-stdostream-implementation-in-c-or-libraries
+class nullstream : public std::ostream {
+ public:
+  nullstream() : std::ostream(nullptr) {}
+};
+
+template <typename T>
+const nullstream &operator<<(nullstream &&os, const T&) {
+  return os;
+}
+
+/**
+ *  Open an output stream for the code to be generated. In case that, it is
+ *  set to generate code, open a temporary file with a unique name under /tmp,
+ *  which has an extension `.cc`. If it is not set to generate a code, but
+ *  to reuse the existing library file, a null stream is open.
+ */
+void generate_cxx_code::open_ostream()
+{
+ #if (__GLIBC__ < 2) || (__GLIBC_MINOR__ < 11)
+   #error Requires Glibc version >= 2.19 for mkostemps()
+   //std::cerr << "Glibc version: " << __GLIBC__ << "." << __GLIBC_MINOR__ << std::endl;
+ #endif
+
+  if (m_regen) {
+    std::string dir;
+    std::string stem;
+    std::string ext;
+
+    extract_file_component(m_lib_filename, dir, stem, ext);
+    std::string src_name = "/tmp/" + stem + "_XXXXXX.cc";
+
+   #if defined(PATH_MAX)
+    char tmp_filename[PATH_MAX];
+    strncpy(tmp_filename,src_name.c_str(), PATH_MAX);
+   #else
+    char tmp_filename[4096];
+    strncpy(tmp_filename,src_name.c_str(), 4096);
+   #endif
+
+    int fd = mkostemps(tmp_filename, 3, O_CREAT | O_RDWR | O_EXCL);
+
+    if (fd < 1) {
+      WCS_THROW("\n Creation of temp file failed with error " + strerror(errno));
+    }
+
+    std::stringstream ss;
+    ss << tmp_filename;
+    m_src_filename = ss.str();
+    close(fd);
+
+    m_os_ptr = std::make_unique<std::ofstream>(m_src_filename);
+    if (!m_os_ptr || !(*m_os_ptr)) {
+      WCS_THROW("\n Failed to open a source file " + m_src_filename);
+    }
+  } else {
+    m_os_ptr = std::make_unique<nullstream>();
+  }
+}
+
+void generate_cxx_code::generate_code(
   const LIBSBML_CPP_NAMESPACE::Model& model,
   params_map_t& dep_params_f,
   params_map_t& dep_params_nf,
@@ -1302,21 +1403,13 @@ const std::string  wcs::generate_cxx_code::generate_code(
 
   const char * Real = generate_cxx_code::basetype_to_string<reaction_rate_t>::value;
 
-  char tmp_filename[wcs::wcs_gen_path_max];
-  int fd = -1;
-  strncpy(tmp_filename,"/tmp/wcs_generated_XXXXXX",wcs::wcs_gen_path_max);
-  fd = mkstemp(tmp_filename);
+  open_ostream();
 
-  if(fd < 1)
-  {
-    WCS_THROW("\n Creation of temp file failed with error "+strerror(errno));
+  if (!m_os_ptr) {
+    WCS_THROW("\n Failed to open a source file " + m_src_filename);
   }
+  auto& genfile = *m_os_ptr;
 
-  std::stringstream ss;
-  ss << tmp_filename;
-  std::ofstream genfile;
-  std::string filename = ss.str() + ".cc";
-  genfile.open(filename);
   std::string utilspath = __FILE__;
   std::string replacetext("generate_cxx_code.cpp");
   size_t posr = utilspath.find(replacetext);
@@ -1387,9 +1480,12 @@ const std::string  wcs::generate_cxx_code::generate_code(
   // Put reactions in a map
   for (unsigned int ic = 0; ic < num_reactions; ic++) {
     const LIBSBML_CPP_NAMESPACE::Reaction& reaction = *(reaction_list->get(ic));
+
     if (!reaction.isSetKineticLaw()) {
-      WCS_THROW("The formula of the reaction " + reaction.getIdAttribute() + " should be set.");
+      WCS_THROW("The formula of the reaction " + reaction.getIdAttribute() \
+                + " should be set.");
     }
+
     model_reactions_map.insert(std::make_pair(reaction.getIdAttribute(),
                                               reaction.getKineticLaw()->getMath()));
   }
@@ -1448,20 +1544,23 @@ const std::string  wcs::generate_cxx_code::generate_code(
   }
 
   // Find used parameters in the rates and the differential rates
-  find_used_params(model, used_params, sinitial_assignments, assignment_rules_map,
-  model_reactions_map, rate_rules_map, model_species, m_ev_assig);
+  generate_cxx_code::find_used_params(
+    model, used_params, sinitial_assignments, assignment_rules_map,
+    model_reactions_map, rate_rules_map, model_species, m_ev_assig);
 
 
   genfile << "//Define all the constants and initial states\n";
   std::unordered_set<std::string> wcs_all_const, wcs_all_var;
-  print_constants_and_initial_states(model, Real, genfile, sconstant_init_assig, sinitial_assignments,
-  assignment_rules_map, used_params, good_params, model_reactions_map,rate_rules_map,
-  wcs_all_const, wcs_all_var, m_ev_assig);
+
+  generate_cxx_code::print_constants_and_initial_states(
+    model, Real, genfile, sconstant_init_assig, sinitial_assignments,
+    assignment_rules_map, used_params, good_params, model_reactions_map,
+    rate_rules_map, wcs_all_const, wcs_all_var, m_ev_assig);
 
 
   if ( num_functions > 0ul) {
     genfile << "\n//Define the functions\n";
-    print_functions(model, Real, genfile);
+    generate_cxx_code::print_functions(model, Real, genfile);
   }
 
 
@@ -1470,25 +1569,29 @@ const std::string  wcs::generate_cxx_code::generate_code(
 
   for  (const auto& x: rate_rules_map) {
     std::set<std::string> var_f;
+
     std::vector<std::string> dependencies_set
-      = get_all_dependencies(*x.second,
-                                  good_params,
-                                  sconstant_init_assig,
-                                  assignment_rules_map,
-                                  model_reactions_map,
-                                  {});
-      for (auto it = dependencies_set.crbegin();
-           it!= dependencies_set.crend(); ++it)
+      = generate_cxx_code::get_all_dependencies(
+                             *x.second,
+                             good_params,
+                             sconstant_init_assig,
+                             assignment_rules_map,
+                             model_reactions_map,
+                             {});
+
+    for (auto it = dependencies_set.crbegin();
+         it!= dependencies_set.crend(); ++it)
+    {
+      arit = assignment_rules_map.find(*it);
+      mrit = model_reactions_map.find(*it);
+      if (arit == assignment_rules_map.cend() && mrit == model_reactions_map.cend())
       {
-        arit = assignment_rules_map.find(*it);
-        mrit = model_reactions_map.find(*it);
-        if (arit == assignment_rules_map.cend() && mrit == model_reactions_map.cend())
-        {
-          if  (*it != x.first) {
-            var_f.insert(*it);
-          }
+        if  (*it != x.first) {
+          var_f.insert(*it);
         }
       }
+    }
+
     rate_rules_dep_map.insert(std::make_pair(x.first, var_f));
   }
 
@@ -1505,57 +1608,116 @@ const std::string  wcs::generate_cxx_code::generate_code(
   // define functions for events
   if ( m_ev_assig.size() > 0ul) {
     genfile << "\n//Define functions for events\n";
-    print_event_functions(model, Real, genfile, m_ev_assig, wcs_all_const, wcs_all_var);
+    generate_cxx_code::print_event_functions(model, Real, genfile, m_ev_assig,
+                                             wcs_all_const, wcs_all_var);
   }
 
   genfile << "\n//Define the functions for updating global state variables\n";
   //genfile << "\n//Define differential rates\n";
-  print_global_state_functions(model, Real, genfile, good_params, sconstant_init_assig,
-  assignment_rules_map, model_reactions_map, wcs_all_const, wcs_all_var);
+  generate_cxx_code::print_global_state_functions(
+    model, Real, genfile, good_params, sconstant_init_assig,
+    assignment_rules_map, model_reactions_map, wcs_all_const, wcs_all_var);
 
   genfile << "//Define the rates\n";
-  print_reaction_rates(model, Real, genfile, good_params, sconstant_init_assig,
-  assignment_rules_map, model_reactions_map, m_ev_assig, wcs_all_const, wcs_all_var, dep_params_f,
-  dep_params_nf, rate_rules_dep_map);
+  generate_cxx_code::print_reaction_rates(
+    model, Real, genfile, good_params, sconstant_init_assig,
+    assignment_rules_map, model_reactions_map, m_ev_assig,
+    wcs_all_const, wcs_all_var, dep_params_f,
+    dep_params_nf, rate_rules_dep_map);
 
-
-  genfile.close();
-  return filename;
-
+  if (m_regen) {
+    dynamic_cast<std::ofstream*>(m_os_ptr.get())->close();
+  }
 }
 
-const std::string  wcs::generate_cxx_code::compile_code(const std::string generated_filename)
+std::string generate_cxx_code::compile_code()
 {
   std::string dir;
   std::string stem;
   std::string ext;
-  extract_file_component(generated_filename, dir, stem, ext);
+
+  if (!m_regen) {
+    return m_lib_filename;
+  }
+
+  if (m_src_filename.empty()) {
+    WCS_THROW("\n No source file to compile! Run generate_code() first.");
+    return "";
+  }
+
+  extract_file_component(m_src_filename, dir, stem, ext);
 
   //std::string lib_filename1 = dir + stem + ".o";
   //std::string lib_filename2 = dir + stem + ".so";
 
-  std::string lib_filename1 = stem + ".o";
-  std::string lib_filename2 = stem + ".so";
+  const std::string obj_filename = stem + ".o";
+  //m_lib_filename = stem + ".so";
 
   const std::string suppress_warnings = " -Wno-unused ";
+  const std::string compilation_log = (m_save_log? " 2> wcs_compile_log.txt" : "");
 
-  std::string system1
+  std::string cmd1
     = std::string(CMAKE_CXX_COMPILER) + " " + CMAKE_CXX_FLAGS + suppress_warnings
     + " -std=c++17 -g -fPIC " + WCS_INCLUDE_DIR + CMAKE_CXX_SHARED_LIBRARY_FLAGS
-    + " -c " + generated_filename;
+    + " -c " + m_src_filename + compilation_log;
 
-  std::string system2
+  std::string cmd2
     = std::string(CMAKE_CXX_COMPILER) + " " + CMAKE_CXX_FLAGS
     + " -std=c++17 -g -fPIC " + CMAKE_CXX_SHARED_LIBRARY_FLAGS
-    + " -shared -Wl,--export-dynamic " + lib_filename1 + " -o " + lib_filename2;
+    + " -shared -Wl,--export-dynamic " + obj_filename + " -o " + m_lib_filename;
 
+  std::string cmd3 = "rm -f " + obj_filename
+                   + (m_cleanup? " " + m_src_filename : "");
 
-  system(system1.c_str());
-  system(system2.c_str());
+  int ret = 0;
 
-  return lib_filename2;
+  ret = system(cmd1.c_str());
+  if (!WIFEXITED(ret)) {
+    std::string msg = "The command `" + cmd1 + "` has failed.";
+    std::cerr << msg << std::endl;
+    return "";
+  } else if (WEXITSTATUS(ret) != 0) {
+    std::string msg = "The compilation of " + m_src_filename
+                    + " has failed. The command used is\n" + cmd1;
+    if (m_save_log) msg += " See wcs_compile_log.txt for further details.";
+    std::cerr << msg << std::endl;
+    return "";
+  }
+
+  ret = system(cmd2.c_str());
+  if (!WIFEXITED(ret)) {
+    std::string msg = "The command `" + cmd2 + "` has failed.";
+    std::cerr << msg << std::endl;
+    return "";
+  } else if (WEXITSTATUS(ret) != 0) {
+    std::string msg = "Failed to create " + m_lib_filename + ".";
+                    + " The command used is\n" + cmd2;
+    std::cerr << msg << std::endl;
+    return "";
+  }
+
+  ret = system(cmd3.c_str());
+  if (!WIFEXITED(ret)) {
+    std::string msg = "The command `" + cmd3 + "` has failed.";
+    std::cerr << msg << std::endl;
+    return "";
+  }
+
+  m_regen = false;
+
+  return m_lib_filename;
 }
 
 
+std::string generate_cxx_code::get_src_filename() const
+{
+  return m_src_filename;
+}
+std::string generate_cxx_code::get_lib_filename() const
+{
+  return m_lib_filename;
+}
+
+} // end of namespace wcs
 
 #endif // defined(WCS_HAS_SBML)

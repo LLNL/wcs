@@ -74,5 +74,14 @@ std::string append_to_stem(const std::string path, const std::string str)
   return (parent_dir + stem + str + ext);
 }
 
+bool check_if_file_exists(const std::string filename)
+{
+#if defined(WCS_HAS_STD_FILESYSTEM)
+  return std::filesystem::exists(std::filesystem::path(filename));
+#else
+  return boost::filesystem::exists(boost::filesystem::path(filename));
+#endif
+}
+
 /**@}*/
 } // end of namespace wcs

@@ -83,5 +83,18 @@ bool check_if_file_exists(const std::string filename)
 #endif
 }
 
+/** Return a library name that ends with '.so' with the rest the same as the
+ * model file name */
+std::string get_libname_from_model(const std::string& model_filename)
+{
+  std::string dir, stem, ext;
+  extract_file_component(model_filename, dir, stem, ext);
+
+  if (ext == ".so") {
+    WCS_THROW("Model filename should not have the extension '.so'");
+  }
+  return dir + stem + ".so";
+}
+
 /**@}*/
 } // end of namespace wcs

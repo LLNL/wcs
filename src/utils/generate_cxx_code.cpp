@@ -1315,7 +1315,7 @@ generate_cxx_code::generate_cxx_code(const std::string& libpath,
 
   if (ext != ".so") {
     m_regen = true;
-    m_lib_filename = dir + (dir.empty()? "./" : "/") + stem + ".so";
+    m_lib_filename = dir + stem + ".so";
     std::cerr << "Generating " + m_lib_filename << std::endl;
   }
 }

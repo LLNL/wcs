@@ -36,6 +36,9 @@ void extract_file_component(const std::string path, std::string& parent_dir,
 std::string append_to_stem(const std::string path, const std::string str);
 
 bool check_if_file_exists(const std::string filename);
+
+std::string get_libname_from_model(const std::string& model_filename);
+
 /**@}*/
 } // end of namespace wcs
 #endif //  __WCS_UTILS_FILE__

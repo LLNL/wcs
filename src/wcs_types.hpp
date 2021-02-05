@@ -46,6 +46,9 @@ using partition_id_t = v_idx_t;
 using idx_t = v_idx_t;
 #endif // defined(WCS_HAS_METIS)
 
+constexpr sim_time_t max_sim_time
+  = std::numeric_limits<sim_time_t>::max() - 1;
+
 constexpr partition_id_t unassigned_partition
   = std::numeric_limits<partition_id_t>::max();
 

@@ -43,7 +43,7 @@ static const struct option longopts[] = {
 struct Config {
   Config()
   : seed(0u), max_iter(10u),
-    max_time(wcs::Network::get_etime_ulimit()),
+    max_time(wcs::max_sim_time),
     method(1),
     tracing(false),
     sampling(false),

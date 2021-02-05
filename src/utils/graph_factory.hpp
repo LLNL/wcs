@@ -524,16 +524,6 @@ GraphFactory::convert_to(
       }
     }
   }
-  #if !defined(WCS_HAS_EXPRTK)
-  // delete .o and .so files
-  std::string dir;
-  std::string stem;
-  std::string ext;
-  extract_file_component(library_file, dir, stem, ext);
-  std::string lib_filename1 = stem + ".o";
-  std::string system1 = " rm " + library_file + " " + lib_filename1;
-  system(system1.c_str());
-  #endif // !defined(WCS_HAS_EXPRTK)
 }
 #endif // defined(WCS_HAS_SBML)
 

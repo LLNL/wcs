@@ -66,7 +66,7 @@ class Partition_Info
 
   void reset_num_partitions();
   void scan(bool verbose = false);
-  void report() const;
+  void report(bool brief_max = false) const;
 
  protected:
   /// Network with partition info

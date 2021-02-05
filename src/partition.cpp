@@ -394,7 +394,7 @@ int main(int argc, char** argv)
 
   wcs::Partition_Info pinfo(rnet_ptr);
   pinfo.scan(cfg.verbose);
-  pinfo.report();
+  pinfo.report(cfg.dbglvl < 513);
 
   std::cout << "objval = " << objval << std::endl;
 

@@ -224,7 +224,6 @@ void Network::init()
       }
       #endif // !defined(WCS_HAS_EXPRTK)
 
-      int reaction_in=0, reaction_out=0; 
       if constexpr (is_bidirectional) {
         for(const auto ei_in :
             boost::make_iterator_range(boost::in_edges(reaction, m_graph))) {
@@ -241,7 +240,6 @@ void Network::init()
           const auto st = m_graph[ei_in].get_stoichiometry_ratio();
           involved_species.insert(std::make_pair(m_graph[reactant].get_label(),
                                                  std::make_pair(reactant, st)));
-          reaction_in = reaction_in + 1;   
         }
       }
 
@@ -250,7 +248,6 @@ void Network::init()
         v_desc_t product = boost::target(ei_out, m_graph);
         products.insert(std::make_pair(m_graph[product].get_label(),
                                        std::make_pair(product, 1)));
-        reaction_out = reaction_out + 1; 
       }
 
       m_reactions.emplace_back(reaction);
@@ -304,7 +301,7 @@ void Network::init()
       set_reaction_rate(*vi);
     }
   }
-  
+
   sort_species();
   build_index_maps();
 
@@ -463,7 +460,8 @@ sim_time_t Network::get_etime_ulimit()
 
 /**
  * Check if the condition for reaction is satisfied such as whether a
- * sufficient number of reactants exist.
+ * sufficient number of reactants exist. If not, the reaction rate is
+ * set to zero.
  */
 bool Network::check_reaction(const wcs::Network::v_desc_t r) const
 {
@@ -713,6 +711,78 @@ const Network::reaction_list_t& Network::my_species_list() const
 partition_id_t Network::get_partition_id() const
 {
   return m_pid;
+}
+
+void Network::print() const
+{
+  using s_prop_t = wcs::Species;
+
+  std::cout << "Species:";
+  for(const auto& vd : species_list()) {
+    const auto& sv = m_graph[vd];
+    const auto& sp = sv.property<s_prop_t>();
+    std::cout << ' ' << sv.get_label() << '[' << sp.get_count() << ']';
+  }
+  size_t num_inactive = 0ul;
+
+  std::cout << "\n\nReactions:\n";
+  for(const auto& vd : reaction_list()) {
+    using directed_category
+      = typename boost::graph_traits<wcs::Network::graph_t>::directed_category;
+    constexpr bool is_bidirectional
+      = std::is_same<directed_category, boost::bidirectional_tag>::value;
+
+    const auto& rv = m_graph[vd]; // reaction vertex
+    const auto& rp = rv.property<r_prop_t>(); // reaction vertex property
+    std::cout << "  " << rv.get_label()
+              << " with rate constant " << rp.get_rate_constant() << " :";
+
+    bool inactive = false;
+
+    std::cout << " produces";
+    for(const auto vi_out : boost::make_iterator_range(boost::out_edges(vd, m_graph))) {
+      const auto& sv = m_graph[boost::target(vi_out, m_graph)];
+      const auto& sp = sv.property<s_prop_t>();
+      std::cout << ' ' << sv.get_label();
+      if (!inactive) {
+        if constexpr (wcs::Vertex::_num_vertex_types_  > 3) {
+          // in case of a vertex type other than the species or the reaction
+          if (sv.get_type() != wcs::Vertex::_species_) continue;
+        }
+        const auto stoichio = m_graph[vi_out].get_stoichiometry_ratio();
+        inactive |= sp.inc_check(stoichio);
+      }
+    } // end of for loop over out-edges
+
+    if constexpr (is_bidirectional) {
+      std::cout << " from a set of reactants";
+      for(const auto vi_in : boost::make_iterator_range(boost::in_edges(vd, m_graph))) {
+        const auto& sv = m_graph[boost::source(vi_in, m_graph)];
+        const auto& sp = sv.property<s_prop_t>();
+        std::cout << ' ' << sv.get_label() << " [" << sp.get_count() << "]";
+
+        if (!inactive) {
+          if constexpr (wcs::Vertex::_num_vertex_types_  > 3) {
+            // in case of a vertex type other than the species or the reaction
+            if (sv.get_type() != wcs::Vertex::_species_) continue;
+          }
+          const auto stoichio = m_graph[vi_in].get_stoichiometry_ratio();
+          inactive |= sp.dec_check(stoichio);
+        }
+      } // end of for loop over in-edges
+    } // end of is_bidirectional
+
+    num_inactive += static_cast<size_t>(inactive);
+    if (inactive) {
+      m_graph[vd].property<r_prop_t>().set_rate(0.0);
+    }
+
+    std::cout << std::endl << "    by the rate " << rp.get_rate()
+              << " <= {" << rp.get_rate_formula() << "}" << std::endl;
+  } // end of for loop over the reaction list
+
+  std::cout << "Num inactive reactions: "
+            << num_inactive << "/" << reaction_list().size() << std::endl;
 }
 
 /**@}*/

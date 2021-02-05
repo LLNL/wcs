@@ -156,6 +156,7 @@ bool Sim_Method::fire_reaction(Sim_State_Change& digest)
       std::string err = "Not enough reactants of " + sv_updating.get_label()
                       + "[" + std::to_string(sp_updating.get_count())
                       + "] for reaction " + g[rd_firing].get_label();
+      //m_net_ptr->print();
       WCS_THROW(err);
       return false;
     }

@@ -55,59 +55,6 @@ void print_usage(const std::string exec, int code)
   exit(code);
 }
 
-using graph_t  = boost::adjacency_list<
-    boost::vecS,
-    boost::vecS,
-    boost::bidirectionalS,
-    wcs::Vertex,
-    wcs::Edge,
-    boost::no_property,
-    boost::vecS>;
-
-
-void traverse(const wcs::Network& rnet)
-{
-  const wcs::Network::graph_t& g = rnet.graph();
-  using r_prop_t = wcs::Reaction<wcs::Network::v_desc_t>;
-  using s_prop_t = wcs::Species;
-
-  std::cout << "Species:";
-  for(const auto& vd : rnet.species_list()) {
-    const auto& sv = g[vd];
-    const auto& sp = sv.property<s_prop_t>();
-    std::cout << ' ' << sv.get_label() << '[' << sp.get_count() << ']';
-  }
-
-  std::cout << "\n\nReactions:\n";
-  for(const auto& vd : rnet.reaction_list()) {
-    using directed_category
-      = typename boost::graph_traits<wcs::Network::graph_t>::directed_category;
-    constexpr bool is_bidirectional
-      = std::is_same<directed_category, boost::bidirectional_tag>::value;
-
-    const auto& rv = g[vd];
-    const auto& rp = rv.property<r_prop_t>();
-    std::cout << "  " << rv.get_label()
-              << " with rate constant " << rp.get_rate_constant() << " :";
-
-    std::cout << " produces";
-    for(const auto vi_out : boost::make_iterator_range(boost::out_edges(vd, g))) {
-      std::cout << ' ' << g[boost::target(vi_out, g)].get_label();
-    }
-
-    if constexpr (is_bidirectional) {
-      std::cout << " from a set of reactants";
-      for(const auto vi_in : boost::make_iterator_range(boost::in_edges(vd, g))) {
-        const auto& sv = g[boost::source(vi_in, g)];
-        const auto& sp = sv.property<s_prop_t>();
-        std::cout << ' ' << sv.get_label() << " [" << sp.get_count() << "]";
-      }
-    }
-
-    std::cout << std::endl << "    by the rate " << rp.get_rate()
-              << " <= {" << rp.get_rate_formula() << "}" << std::endl;
-  }
-}
 
 void count_active_reactions(const wcs::Network& rnet)
 {
@@ -180,7 +127,7 @@ int main(int argc, char** argv)
     rc = -1;
   }
 
-  traverse(rnet);
+  rnet.print();
  #endif // !WCS_PERF_PROF
 
   if (num_iter > 0u) {

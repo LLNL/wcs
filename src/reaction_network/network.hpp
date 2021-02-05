@@ -155,6 +155,8 @@ class Network {
   /// Return the id of this partition
   partition_id_t get_partition_id() const;
 
+  void print() const;
+
  protected:
   /// Sort the species list by the label (in lexicogrphical order)
   void sort_species();
@@ -162,9 +164,9 @@ class Network {
   void loadGraphML(const std::string graphml_filename);
   void loadSBML(const std::string sbml_filename);
   void print_parameters_of_reactions(
-  const params_map_t& dep_params_f,
-  const params_map_t& dep_params_nf,
-  const rate_rules_dep_t& rate_rules_dep_map);
+         const params_map_t& dep_params_f,
+         const params_map_t& dep_params_nf,
+         const rate_rules_dep_t& rate_rules_dep_map);
 
  protected:
   /// The BGL graph to represent a reaction network

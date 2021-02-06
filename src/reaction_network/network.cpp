@@ -41,14 +41,14 @@ using rate_rules_dep_t = std::unordered_map <std::string, std::set<std::string>>
 rate_rules_dep_t rate_rules_dep_map;
 #endif // !defined(WCS_HAS_EXPRTK
 
-void Network::load(const std::string filename)
+void Network::load(const std::string filename, const bool reuse)
 {
   input_filetype fn(filename);
   input_filetype::input_type filetype = fn.detect();
   if (filetype == input_filetype::input_type::_graphml_) {
     loadGraphML(filename);
   } else if (filetype == input_filetype::input_type::_sbml_) {
-    loadSBML(filename);
+    loadSBML(filename, reuse);
   } else if (filetype == input_filetype::input_type::_ioerror_) {
     WCS_THROW("Could not find the requested file.");
     return;
@@ -122,7 +122,7 @@ void Network::print_parameters_of_reactions(
   #endif // !defined(WCS_HAS_EXPRTK
 }
 
-void Network::loadSBML(const std::string sbml_filename)
+void Network::loadSBML(const std::string sbml_filename, const bool reuse)
 {
   #if defined(WCS_HAS_SBML)
 
@@ -157,19 +157,26 @@ void Network::loadSBML(const std::string sbml_filename)
 
   #if !defined(WCS_HAS_EXPRTK)
 
+  const std::string lib_filename = get_libname_from_model(sbml_filename);
+  generate_cxx_code code_generator(lib_filename, reuse);
+
   typename params_map_t::const_iterator pit;
-  //dep_params_f = all params in formula expected as input per reaction
-  //dep_params_nf = all params not in formula expected as input per reaction
-  //rate_rules_dep_map = all rate_rules (params in dep_params_f and dep_params_nf) with their dependent params (transient parameters)
-  const std::string generated_source = wcs::generate_cxx_code::generate_code(*model,
-  dep_params_f, dep_params_nf, rate_rules_dep_map);
-  const std::string library_file = wcs::generate_cxx_code::compile_code(generated_source);
+  // dep_params_f = all params in formula expected as input per reaction
+  // dep_params_nf = all params not in formula expected as input per reaction
+  // rate_rules_dep_map = all rate_rules (params in dep_params_f and dep_params_nf)
+  // with their dependent params (transient parameters)
+  code_generator.generate_code(*model,
+        dep_params_f, dep_params_nf, rate_rules_dep_map);
+
+  const std::string library_file = code_generator.compile_code();
 
   //using std::operator<<;
   //std::cout << "Generated file: " << generated_source << std::endl;
   // print_parameters_of_reactions(dep_params_f, dep_params_nf, rate_rules_dep_map);
 
-  gfactory.convert_to(*model, m_graph, library_file, dep_params_f, dep_params_nf, rate_rules_dep_map);
+  gfactory.convert_to(*model, m_graph, library_file,
+                      dep_params_f, dep_params_nf,
+                      rate_rules_dep_map);
 
   #else
   gfactory.convert_to(*model, m_graph, "",{},{},{});

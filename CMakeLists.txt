@@ -514,6 +514,25 @@ target_include_directories(ssa-bin PUBLIC
   $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/src>
   $<INSTALL_INTERFACE:${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_INCLUDEDIR}>)
 
+# add executable ssa_omp
+if (WCS_HAS_METIS)
+  add_executable( ssa_omp-bin src/ssa_omp.cpp )
+  target_include_directories(ssa_omp-bin PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}>
+    $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/src>
+    $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/src>
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_INCLUDEDIR}>)
+
+  target_include_directories(ssa_omp-bin
+      PRIVATE $<TARGET_PROPERTY:wcs,INTERFACE_INCLUDE_DIRECTORIES>
+      ${Protobuf_DIR}/include ${Boost_INCLUDE_DIRS})
+
+  target_link_libraries(ssa_omp-bin wcs ${LIB_FILESYSTEM} protobuf::libprotobuf
+                        wcs_proto -L${Boost_LIBRARY_DIRS} boost_program_options)
+
+  set_target_properties(ssa_omp-bin PROPERTIES OUTPUT_NAME ssa_omp)
+endif (WCS_HAS_METIS)
+
 target_link_libraries(ssa-bin PRIVATE wcs ${LIB_FILESYSTEM})
 set_target_properties(ssa-bin PROPERTIES OUTPUT_NAME ssa)
 set_target_properties(ssa-bin PROPERTIES CMAKE_INSTALL_RPATH

@@ -44,7 +44,7 @@ void Metis_Params::make_options_consistent()
   if (m_ratio_w2s == 0.0) {
     // Vertex size is not used. Thus, the partitioning objective is edge-cut
     m_opts[METIS_OPTION_OBJTYPE] = METIS_OBJTYPE_CUT;
-  } else { 
+  } else {
     // Partitioning objective: comm volumne
     m_opts[METIS_OPTION_OBJTYPE] = METIS_OBJTYPE_VOL;
   }
@@ -78,7 +78,7 @@ void Metis_Params::set_ratio_of_vertex_weight_to_size(double r)
 }
 
 /// Specify the number of desired partitions and the input graph
-bool Metis_Params::set(idx_t np, std::shared_ptr<const wcs::Network> rnet)
+bool Metis_Params::set(idx_t np, std::shared_ptr<wcs::Network> rnet)
 {
   m_rnet = rnet;
   if (!m_rnet) {
@@ -125,18 +125,34 @@ bool Metis_Params::set_options(mobjtype_et objective, mctype_et coarsening,
     return false;
   }
 
-  m_opts[METIS_OPTION_OBJTYPE] = static_cast<idx_t>(objective); // Partitioning objective
-  m_opts[METIS_OPTION_CTYPE] = static_cast<idx_t>(coarsening); // Coarsening
-  m_opts[METIS_OPTION_NITER] = static_cast<idx_t>(niter); // Number of refinement iterations
-  m_opts[METIS_OPTION_SEED]  = static_cast<idx_t>(seed + 10007);
+  // Partitioning objective
+  m_opts[METIS_OPTION_OBJTYPE] = static_cast<idx_t>(objective);
+  // Coarsening
+  m_opts[METIS_OPTION_CTYPE] = static_cast<idx_t>(coarsening);
+  // Number of refinement iterations
+  m_opts[METIS_OPTION_NITER] = static_cast<idx_t>(niter);
+  // By passing a different value to Metis, we use a different seed for
+  // network initialization later
+  set_seed(seed);
   // Minimize the maximum degree of subdomain graph
   m_opts[METIS_OPTION_MINCONN] = static_cast<idx_t>(minconn);
-  m_opts[METIS_OPTION_UFACTOR] = static_cast<idx_t>(ufactor); // Maximum allowed load imbalance
+  // Maximum allowed load imbalance
+  m_opts[METIS_OPTION_UFACTOR] = static_cast<idx_t>(ufactor);
   m_opts[METIS_OPTION_DBGLVL] = static_cast<idx_t>(dbglvl);
 
   make_options_consistent();
 
   return true;
+}
+
+idx_t Metis_Params::get_seed() const
+{
+  return (m_opts[METIS_OPTION_SEED] - 10007);
+}
+
+void Metis_Params::set_seed(idx_t seed)
+{
+  m_opts[METIS_OPTION_SEED] = seed + 10007;
 }
 
 void Metis_Params::print() const
@@ -163,7 +179,7 @@ void Metis_Params::print() const
   std::cout << "Objective: " << objective_str.at(m_opts[METIS_OPTION_OBJTYPE]) << std::endl;
   std::cout << "Coarsening: " << coarsening_str.at(m_opts[METIS_OPTION_CTYPE]) << std::endl;
   std::cout << "Num refinement iterations: " << m_opts[METIS_OPTION_NITER] << std::endl;
-  std::cout << "Metis RN seed: (" << m_opts[METIS_OPTION_SEED] - 10007 << " + 10007)" <<std::endl;
+  std::cout << "Metis RN seed: (" << get_seed() << " + 10007)" <<std::endl;
   std::cout << "Minconn: " << m_opts[METIS_OPTION_MINCONN] << std::endl;
   std::cout << "Ufactor: " << m_opts[METIS_OPTION_UFACTOR] << std::endl;
 }

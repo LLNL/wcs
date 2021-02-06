@@ -27,14 +27,19 @@ namespace wcs {
 /** \addtogroup wcs_partition
  *  @{ */
 
-struct Metis_Params {
+class Metis_Params {
+ public:
   idx_t m_nvwghts; ///< Number of vertex weights (constraints)
   idx_t m_nparts; ///< Number of partitions
   /// Lower-bound on the vertext weight (needs to be non-zero positive interger)
   idx_t m_vwgt_min;
   idx_t m_vwgt_max; ///< Upper-bound on the vertex weight
   double m_ratio_w2s; ///< ratio of vertex weight to vertex size
-  std::shared_ptr<const wcs::Network> m_rnet; ///< Reaction network
+  std::shared_ptr<wcs::Network> m_rnet; ///< Reaction network
+  bool m_verbose; ///< Show extra info about partitioning
+  /** Name of partition result file. `-` followed by the partition index will
+   *  be added to the file name */
+  std::string m_outfile;
 
   std::array<idx_t, METIS_NOPTIONS> m_opts; ///< Metis options
 
@@ -45,7 +50,7 @@ struct Metis_Params {
   Metis_Params& operator=(Metis_Params&& other) = default;
 
   /// Set essential parameters. i.e., # partitions, and the graph to partition
-  bool set(idx_t np, std::shared_ptr<const wcs::Network> rnet);
+  bool set(idx_t np, std::shared_ptr<wcs::Network> rnet);
   /// Set options for Metis partitioner
   bool set_options(mobjtype_et objective, mctype_et coarsening, idx_t niter,
                    idx_t seed, bool minconn, idx_t ufactor, uint8_t dbglvl);
@@ -68,10 +73,14 @@ struct Metis_Params {
    * the vertex. In our reaction network problem, it is set as the weight of
    * the vertex divided by the ratio given here. If zero is given (which is
    * the default), then the vertex size is not used in partitioning.
-   */ 
+   */
   void set_ratio_of_vertex_weight_to_size(double r);
-  
+
+  idx_t get_seed() const;
   void print() const;
+
+ private:
+  void set_seed(idx_t seed);
 };
 
 /**@}*/

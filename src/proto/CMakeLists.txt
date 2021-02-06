@@ -59,6 +59,7 @@ if (WCS_HAS_PROTOBUF)
 
   # Add the header files for this directory
   set_full_path(THIS_DIR_HEADERS
+    utils.hpp
     )
 
   # Add the source files for this directory

@@ -35,68 +35,68 @@ static const struct option longopts[] = {
 };
 
 SSA_Params::SSA_Params()
-: seed(0u), max_iter(10u),
-  max_time(wcs::max_sim_time),
-  method(1),
-  tracing(false),
-  sampling(false),
-  iter_interval(0u),
-  time_interval(0.0),
-  frag_size(0),
-  is_frag_size_set(false),
-  is_iter_set(false),
-  is_time_set(false)
+: m_seed(0u), m_max_iter(10u),
+  m_max_time(wcs::max_sim_time),
+  m_method(1),
+  m_tracing(false),
+  m_sampling(false),
+  m_iter_interval(0u),
+  m_time_interval(0.0),
+  m_frag_size(0),
+  m_is_frag_size_set(false),
+  m_is_iter_set(false),
+  m_is_time_set(false)
 {}
 
 void SSA_Params::getopt(int& argc, char** &argv)
 {
   int c;
-  is_iter_set = false;
-  is_time_set = false;
+  m_is_iter_set = false;
+  m_is_time_set = false;
 
   while ((c = getopt_long(argc, argv, OPTIONS, longopts, NULL)) != -1) {
     switch (c) {
       case 'd': /* --diag */
-        tracing = true;
-        sampling = false;
+        m_tracing = true;
+        m_sampling = false;
         break;
       case 'f': /* --frag_sz */
-        frag_size = static_cast<unsigned>(atoi(optarg));
-        is_frag_size_set = true;
+        m_frag_size = static_cast<unsigned>(atoi(optarg));
+        m_is_frag_size_set = true;
         break;
       case 'g': /* --graphviz */
-        gvizfile = std::string(optarg);
+        m_gvizfile = std::string(optarg);
         break;
       case 'h': /* --help */
         print_usage(argv[0], 0);
         break;
       case 'i': /* --iter */
-        max_iter = static_cast<wcs::sim_iter_t>(atoi(optarg));
-        is_iter_set = true;
+        m_max_iter = static_cast<wcs::sim_iter_t>(atoi(optarg));
+        m_is_iter_set = true;
         break;
       case 'o': /* --outfile */
-        outfile = std::string(optarg);
+        m_outfile = std::string(optarg);
         break;
       case 's': /* --seed */
-        seed = static_cast<unsigned>(atoi(optarg));
+        m_seed = static_cast<unsigned>(atoi(optarg));
         break;
       case 't': /* --time */
-        max_time = static_cast<wcs::sim_time_t>(std::stod(optarg));
-        is_time_set = true;
+        m_max_time = static_cast<wcs::sim_time_t>(std::stod(optarg));
+        m_is_time_set = true;
         break;
       case 'm': /* --method */
-        method = static_cast<int>(atoi(optarg));
+        m_method = static_cast<int>(atoi(optarg));
         break;
       case 'r': /* --record */
-        sampling = true;
-        tracing = false;
+        m_sampling = true;
+        m_tracing = false;
         {
           if (optarg[0] == 'i') {
-            iter_interval = static_cast<wcs::sim_iter_t>(atoi(&optarg[1]));
+            m_iter_interval = static_cast<wcs::sim_iter_t>(atoi(&optarg[1]));
           } else if (optarg[0] == 't') {
-            time_interval = static_cast<wcs::sim_time_t>(atof(&optarg[1]));
+            m_time_interval = static_cast<wcs::sim_time_t>(atof(&optarg[1]));
           } else {
-            sampling = false;
+            m_sampling = false;
             std::cerr << "Unknown sampling interval: " << std::string(optarg)
                       << std::endl;
           }
@@ -112,13 +112,13 @@ void SSA_Params::getopt(int& argc, char** &argv)
     print_usage (argv[0], 1);
   }
 
-  infile = argv[optind];
+  m_infile = argv[optind];
 
-  if (!is_iter_set && is_time_set) {
-    max_iter = std::numeric_limits<decltype(max_iter)>::max();
+  if (!m_is_iter_set && m_is_time_set) {
+    m_max_iter = std::numeric_limits<decltype(m_max_iter)>::max();
   }
-  if ((sampling || tracing) && !is_frag_size_set) {
-    frag_size = wcs::default_frag_size;
+  if ((m_sampling || m_tracing) && !m_is_frag_size_set) {
+    m_frag_size = wcs::default_frag_size;
   }
 }
 

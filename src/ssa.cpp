@@ -35,31 +35,31 @@ int main(int argc, char** argv)
 
   std::shared_ptr<wcs::Network> rnet_ptr = std::make_shared<wcs::Network>();
   wcs::Network& rnet = *rnet_ptr;
-  rnet.load(cfg.infile);
+  rnet.load(cfg.m_infile);
   rnet.init();
   const wcs::Network::graph_t& g = rnet.graph();
 
-  if (!cfg.gvizfile.empty() &&
-      !wcs::write_graphviz(cfg.gvizfile, g))
+  if (!cfg.m_gvizfile.empty() &&
+      !wcs::write_graphviz(cfg.m_gvizfile, g))
   {
-    std::cerr << "Failed to write " << cfg.gvizfile << std::endl;
+    std::cerr << "Failed to write " << cfg.m_gvizfile << std::endl;
     rc = EXIT_FAILURE;
   }
 
   wcs::Sim_Method* ssa = nullptr;
 
   try {
-    if (cfg.method == 0) {
+    if (cfg.m_method == 0) {
       ssa = new wcs::SSA_Direct(rnet_ptr);
       std::cerr << "Direct SSA method." << std::endl;
-    } else if (cfg.method == 1) {
+    } else if (cfg.m_method == 1) {
       std::cerr << "Next Reaction SSA method." << std::endl;
       ssa = new wcs::SSA_NRM(rnet_ptr);
-    } else if (cfg.method == 2) {
+    } else if (cfg.m_method == 2) {
       std::cerr << "Sorted optimized direct SSA method." << std::endl;
       ssa = new wcs::SSA_SOD(rnet_ptr);
     } else {
-      std::cerr << "Unknown SSA method (" << cfg.method << ')' << std::endl;
+      std::cerr << "Unknown SSA method (" << cfg.m_method << ')' << std::endl;
       return EXIT_FAILURE;
     }
   } catch (const std::exception& e) {
@@ -67,21 +67,23 @@ int main(int argc, char** argv)
     return EXIT_FAILURE;
   }
 
-  if (cfg.tracing) {
-    ssa->set_tracing<wcs::TraceSSA>(cfg.outfile, cfg.frag_size);
+  if (cfg.m_tracing) {
+    ssa->set_tracing<wcs::TraceSSA>(cfg.m_outfile, cfg.m_frag_size);
     std::cerr << "Enable tracing" << std::endl;
-  } else if (cfg.sampling) {
-    if (cfg.iter_interval > 0u) {
-      ssa->set_sampling<wcs::SamplesSSA>(cfg.iter_interval, cfg.outfile, cfg.frag_size);
-      std::cerr << "Enable sampling at " << cfg.iter_interval
+  } else if (cfg.m_sampling) {
+    if (cfg.m_iter_interval > 0u) {
+      ssa->set_sampling<wcs::SamplesSSA>(cfg.m_iter_interval,
+                                         cfg.m_outfile, cfg.m_frag_size);
+      std::cerr << "Enable sampling at " << cfg.m_iter_interval
                 << " steps interval" << std::endl;
     } else {
-      ssa->set_sampling<wcs::SamplesSSA>(cfg.time_interval, cfg.outfile, cfg.frag_size);
-      std::cerr << "Enable sampling at " << cfg.time_interval
+      ssa->set_sampling<wcs::SamplesSSA>(cfg.m_time_interval,
+                                         cfg.m_outfile, cfg.m_frag_size);
+      std::cerr << "Enable sampling at " << cfg.m_time_interval
                 << " secs interval" << std::endl;
     }
   }
-  ssa->init(cfg.max_iter, cfg.max_time, cfg.seed);
+  ssa->init(cfg.m_max_iter, cfg.m_max_time, cfg.m_seed);
 
  #ifdef WCS_HAS_VTUNE
   __itt_resume();
@@ -98,7 +100,7 @@ int main(int argc, char** argv)
   __itt_pause();
  #endif // WCS_HAS_VTUNE
 
-  if (cfg.tracing || cfg.sampling) {
+  if (cfg.m_tracing || cfg.m_sampling) {
     ssa->finalize_recording();
   } else {
     std::cout << "Species   : " << rnet.show_species_labels("") << std::endl;

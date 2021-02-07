@@ -29,23 +29,23 @@ struct SSA_Params {
   void getopt(int& argc, char** &argv);
   void print_usage(const std::string exec, int code);
 
-  unsigned seed;
-  wcs::sim_iter_t max_iter;
-  wcs::sim_time_t max_time;
-  int method;
-  bool tracing;
-  bool sampling;
-  wcs::sim_iter_t iter_interval;
-  wcs::sim_time_t time_interval;
-  unsigned frag_size;
-  bool is_frag_size_set;
+  unsigned m_seed;
+  wcs::sim_iter_t m_max_iter;
+  wcs::sim_time_t m_max_time;
+  int m_method;
+  bool m_tracing;
+  bool m_sampling;
+  wcs::sim_iter_t m_iter_interval;
+  wcs::sim_time_t m_time_interval;
+  unsigned m_frag_size;
+  bool m_is_frag_size_set;
 
-  std::string infile;
-  std::string outfile;
-  std::string gvizfile;
+  std::string m_infile;
+  std::string m_outfile;
+  std::string m_gvizfile;
 
-  bool is_iter_set;
-  bool is_time_set;
+  bool m_is_iter_set;
+  bool m_is_time_set;
 };
 
 /**@}*/

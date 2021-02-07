@@ -110,7 +110,7 @@ int main(int argc, char** argv)
   rnet.init();
 
   mp.m_rnet = rnet_ptr;
-  sp.infile = cmd.m_input_model;
+  sp.m_infile = cmd.m_input_model;
 
   std::vector<idx_t> parts; ///< Partition assignment result
   idx_t objval; /// Total comm volume or edge-cut of the solution

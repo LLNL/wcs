@@ -39,39 +39,39 @@ static void set_SSA_options(const wcs_proto::WCS_Params::Simulation_Params& cfg,
 {
   using sim_params = wcs_proto::WCS_Params::Simulation_Params;
 
-  sp.seed = cfg.seed();
+  sp.m_seed = cfg.seed();
 
-  sp.max_iter = cfg.max_iter();
-  sp.max_time = cfg.max_time();
+  sp.m_max_iter = cfg.max_iter();
+  sp.m_max_time = cfg.max_time();
 
-  sp.is_iter_set = (sp.max_iter > 0u);
-  sp.is_time_set = (sp.max_time > 0.0);
+  sp.m_is_iter_set = (sp.m_max_iter > 0u);
+  sp.m_is_time_set = (sp.m_max_time > 0.0);
 
-  sp.method = static_cast<int>(cfg.method());
+  sp.m_method = static_cast<int>(cfg.method());
 
-  sp.tracing = (cfg.trajectory() == sim_params::Tracing);
-  sp.sampling = (cfg.trajectory() == sim_params::Sampling);
+  sp.m_tracing = (cfg.trajectory() == sim_params::Tracing);
+  sp.m_sampling = (cfg.trajectory() == sim_params::Sampling);
 
   if (cfg.Sampling_Interval_case() == sim_params::kSamplingIntervalIter)
-    sp.iter_interval = cfg.sampling_interval_iter();
+    sp.m_iter_interval = cfg.sampling_interval_iter();
   else if (cfg.Sampling_Interval_case() == sim_params::kSamplingIntervalTime)
-    sp.time_interval = cfg.sampling_interval_time();
+    sp.m_time_interval = cfg.sampling_interval_time();
 
-  sp.frag_size = cfg.frag_size();
-  sp.is_frag_size_set = (cfg.frag_size() != 0u);
+  sp.m_frag_size = cfg.frag_size();
+  sp.m_is_frag_size_set = (cfg.frag_size() != 0u);
 
-  //sp.infile = model_file;
-  sp.outfile = cfg.outfile();
-  sp.gvizfile = cfg.gvizfile();
+  //sp.m_infile = model_file;
+  sp.m_outfile = cfg.outfile();
+  sp.m_gvizfile = cfg.gvizfile();
 
-  if (!sp.is_time_set) {
-    sp.max_time = wcs::max_sim_time;
+  if (!sp.m_is_time_set) {
+    sp.m_max_time = wcs::max_sim_time;
   }
-  if (!sp.is_iter_set && sp.is_time_set) {
-    sp.max_iter = std::numeric_limits<decltype(sp.max_iter)>::max();
+  if (!sp.m_is_iter_set && sp.m_is_time_set) {
+    sp.m_max_iter = std::numeric_limits<decltype(sp.m_max_iter)>::max();
   }
-  if ((sp.sampling || sp.tracing) && !sp.is_frag_size_set) {
-    sp.frag_size = wcs::default_frag_size;
+  if ((sp.m_sampling || sp.m_tracing) && !sp.m_is_frag_size_set) {
+    sp.m_frag_size = wcs::default_frag_size;
   }
 }
 

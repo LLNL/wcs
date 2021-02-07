@@ -8,22 +8,16 @@
  *                                                                            *
  ******************************************************************************/
 
-#ifndef WCS_SSA_CFG_HPP
-#define WCS_SSA_CFG_HPP
-
-#if defined(WCS_HAS_CONFIG)
-#include "wcs_config.hpp"
-#else
-#error "no config"
-#endif
-
 #include <getopt.h>
 #include <limits>
 #include <string>
 #include <iostream>
 #include <cstdlib>
 #include "reaction_network/network.hpp"
+#include "params/ssa_params.hpp"
 
+
+namespace wcs {
 
 #define OPTIONS "df:g:hi:o:s:t:m:r:"
 static const struct option longopts[] = {
@@ -40,43 +34,25 @@ static const struct option longopts[] = {
     { 0, 0, 0, 0 },
 };
 
-struct Config {
-  Config()
-  : seed(0u), max_iter(10u),
-    max_time(wcs::max_sim_time),
-    method(1),
-    tracing(false),
-    sampling(false),
-    iter_interval(0u),
-    time_interval(0.0),
-    frag_size(0),
-    is_frag_size_set(false)
-  {}
+SSA_Params::SSA_Params()
+: seed(0u), max_iter(10u),
+  max_time(wcs::max_sim_time),
+  method(1),
+  tracing(false),
+  sampling(false),
+  iter_interval(0u),
+  time_interval(0.0),
+  frag_size(0),
+  is_frag_size_set(false),
+  is_iter_set(false),
+  is_time_set(false)
+{}
 
-  void getopt(int& argc, char** &argv);
-  void print_usage(const std::string exec, int code);
-
-  unsigned seed;
-  wcs::sim_iter_t max_iter;
-  wcs::sim_time_t max_time;
-  int method;
-  bool tracing;
-  bool sampling;
-  wcs::sim_iter_t iter_interval;
-  wcs::sim_time_t time_interval;
-  unsigned frag_size;
-  bool is_frag_size_set;
-
-  std::string infile;
-  std::string outfile;
-  std::string gvizfile;
-};
-
-void Config::getopt(int& argc, char** &argv)
+void SSA_Params::getopt(int& argc, char** &argv)
 {
   int c;
-  bool is_iter_set = false;
-  bool is_time_set = false;
+  is_iter_set = false;
+  is_time_set = false;
 
   while ((c = getopt_long(argc, argv, OPTIONS, longopts, NULL)) != -1) {
     switch (c) {
@@ -146,7 +122,7 @@ void Config::getopt(int& argc, char** &argv)
   }
 }
 
-void Config::print_usage(const std::string exec, int code)
+void SSA_Params::print_usage(const std::string exec, int code)
 {
   std::cerr <<
     "Usage: " << exec << " <filename>.graphml|xml\n"
@@ -198,4 +174,4 @@ void Config::print_usage(const std::string exec, int code)
   exit(code);
 }
 
-#endif // WCS_SSA_CFG_HPP
+} // end of namespace wcs

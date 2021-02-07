@@ -10,7 +10,7 @@
 
 #include <string>
 #include <iostream>
-#include "ssa-cfg.hpp"
+#include "params/ssa_params.hpp"
 #include "utils/write_graphviz.hpp"
 #include "utils/timer.hpp"
 #include "reaction_network/network.hpp"
@@ -30,7 +30,7 @@ int main(int argc, char** argv)
   __itt_pause();
  #endif // WCS_HAS_VTUNE
   int rc = EXIT_SUCCESS;
-  Config cfg;
+  wcs::SSA_Params cfg;
   cfg.getopt(argc, argv);
 
   std::shared_ptr<wcs::Network> rnet_ptr = std::make_shared<wcs::Network>();

@@ -60,17 +60,20 @@ if (WCS_HAS_PROTOBUF)
   # Add the header files for this directory
   set_full_path(THIS_DIR_HEADERS
     utils.hpp
+    wcs_params.hpp
     )
 
   # Add the source files for this directory
   set_full_path(THIS_DIR_SOURCES
+    utils.cpp
+    wcs_params.cpp
     )
 
   # Add the subdirectories
-  #add_subdirectory(factories)
-
+  #add_subdirectory(subdir)
 endif (WCS_HAS_PROTOBUF)
 
+
 # Propagate the files up the tree
-#set(WCS_HEADERS "${WCS_HEADERS}" "${THIS_DIR_HEADERS}" PARENT_SCOPE)
-#set(WCS_SOURCES "${WCS_SOURCES}" "${THIS_DIR_SOURCES}" PARENT_SCOPE)
+set(WCS_HEADERS "${WCS_HEADERS}" "${THIS_DIR_HEADERS}" PARENT_SCOPE)
+set(WCS_SOURCES "${WCS_SOURCES}" "${THIS_DIR_SOURCES}" PARENT_SCOPE)

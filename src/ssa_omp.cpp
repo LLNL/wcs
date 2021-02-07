@@ -24,30 +24,14 @@
 #include <iostream>
 #include <vector>
 #include <functional>
-#include <google/protobuf/text_format.h>
-#include <google/protobuf/io/zero_copy_stream_impl.h>
-#include "proto/wcs_params.pb.h"
-#include "proto/utils.hpp"
 #include "utils/file.hpp"
 #include "utils/write_graphviz.hpp"
-#include "wcs_params.hpp"
+#include "params/wcs_params.hpp"
+#include "params/ssa_params.hpp"
+#include "proto/wcs_params.hpp"
 #include "partition/metis_partition.hpp"
 #include "partition/partition_info.hpp"
 #include "sim_methods/ssa_nrm.hpp"
-
-void set_metis_options(const wcs_proto::WCS_Params::Partition_Params& cfg,
-                       wcs::Metis_Params& mp)
-{
-  mp.m_nparts = cfg.n_parts();
-  mobjtype_et objective = (cfg.cut_obj()? METIS_OBJTYPE_CUT : METIS_OBJTYPE_VOL);
-  mctype_et coarsening = (cfg.rm_coarse()? METIS_CTYPE_RM : METIS_CTYPE_SHEM);
-  mp.set_options(objective, coarsening, cfg.n_iters(), cfg.seed(), cfg.minconn(),
-                 cfg.ufactor(), cfg.dbglvl());
-  mp.limit_max_vertex_weight(cfg.ub_vwgt());
-  mp.set_ratio_of_vertex_weight_to_size(cfg.vratio());
-  mp.m_verbose = cfg.verbose();
-  mp.m_outfile = cfg.outfile();
-}
 
 /// Partition the given reaction network using Metis
 bool initial_partition(const wcs::Metis_Params& mp,
@@ -104,26 +88,17 @@ int main(int argc, char** argv)
 
   cmd.show();
 
+  wcs::SSA_Params sp;
   wcs::Metis_Params mp;
 
   if (!cmd.m_all_setup.empty()) {
-    wcs_proto::WCS_Params wcs_all_setup;
-    wcs::read_prototext(cmd.m_all_setup, false, wcs_all_setup);
-    set_metis_options(wcs_all_setup.part_setup(), mp);
+    wcs::read_proto_params(cmd.m_all_setup, sp, mp);
   } else {
     if (!cmd.m_sim_setup.empty()) {
-      wcs_proto::WCS_Params::Simulation_Params wcs_sim_setup;
-      wcs::read_prototext(cmd.m_sim_setup, false, wcs_sim_setup);
+      wcs::read_proto_params(cmd.m_sim_setup, sp);
     }
     if (!cmd.m_part_setup.empty()) {
-      wcs_proto::WCS_Params::Partition_Params wcs_part_setup;
-      wcs::read_prototext(cmd.m_part_setup, false, wcs_part_setup);
-      set_metis_options(wcs_part_setup, mp);
-
-    }
-    if (!cmd.m_des_setup.empty()) {
-      wcs_proto::WCS_Params::DES_Params wcs_des_setup;
-      wcs::read_prototext(cmd.m_des_setup, false, wcs_des_setup);
+      wcs::read_proto_params(cmd.m_part_setup, mp);
     }
   }
   google::protobuf::ShutdownProtobufLibrary();
@@ -135,7 +110,7 @@ int main(int argc, char** argv)
   rnet.init();
 
   mp.m_rnet = rnet_ptr;
-  mp.m_infile = cmd.m_input_model;
+  sp.infile = cmd.m_input_model;
 
   std::vector<idx_t> parts; ///< Partition assignment result
   idx_t objval; /// Total comm volume or edge-cut of the solution
@@ -151,3 +126,105 @@ int main(int argc, char** argv)
 #else  // defined(WCS_HAS_METIS)
 #error This code requires METIS
 #endif // defined(WCS_HAS_METIS)
+
+#if 0
+void wcs_init(SSA_)
+{
+  wcs::SSA_Params& cfg = gState.m_cfg;
+
+  std::shared_ptr<wcs::Network> rnet_ptr = std::make_shared<wcs::Network>();
+  wcs::Network& rnet = *rnet_ptr;
+  rnet.load(cfg.infile);
+  rnet.init();
+  const wcs::Network::graph_t& g = rnet.graph();
+
+  if (!cfg.gvizfile.empty() &&
+      !wcs::write_graphviz(cfg.gvizfile, g))
+  {
+    WCS_THROW("Failed to write " + cfg.gvizfile);
+    return;
+  }
+
+  std::unique_ptr<wcs::SSA_NRM> ssa;
+
+  try {
+    if (cfg.method == 1) {
+      std::cerr << "Next Reaction SSA method." << std::endl;
+      ssa = std::make_unique<wcs::SSA_NRM>(rnet_ptr);
+    } else {
+      WCS_THROW("Unsupported SSA method (" + std::to_string(cfg.method) + ')');
+      return;
+    }
+  } catch (const std::exception& e) {
+    WCS_THROW("Fail to setup SSA method.");
+    return;
+  }
+
+  if (cfg.tracing) {
+    ssa->set_tracing<wcs::TraceSSA>(cfg.outfile, cfg.frag_size);
+    std::cerr << "Enable tracing" << std::endl;
+  } else if (cfg.sampling) {
+    if (cfg.iter_interval > 0u) {
+      ssa->set_sampling<wcs::SamplesSSA>(cfg.iter_interval,
+                                         cfg.outfile,
+                                         cfg.frag_size);
+      std::cerr << "Enable sampling at " << cfg.iter_interval
+                << " steps interval" << std::endl;
+    } else {
+      ssa->set_sampling<wcs::SamplesSSA>(cfg.time_interval,
+                                         cfg.outfile,
+                                         cfg.frag_size);
+      std::cerr << "Enable sampling at " << cfg.time_interval
+                << " secs interval" << std::endl;
+    }
+  }
+  ssa->init(cfg.max_iter, cfg.max_time, cfg.seed);
+
+  const size_t lp_idx = gState.m_LP_states.size();
+  ssa->m_lp_idx = lp_idx;
+  s->m_lp_idx = lp_idx;
+  gState.m_LP_states.emplace_back(std::move(ssa), rnet_ptr);
+  gState.m_LP_states[lp_idx].m_t_start = wcs::get_time();
+}
+
+
+void wcs_prerun(WCS_State *s, tw_lp *lp)
+{
+  const WCS_LP_State& lp_state = gState.m_LP_states.at(s->m_lp_idx);
+
+  wcs::Sim_Method::revent_t reaction_1st;
+
+  if (lp_state.m_ssa_ptr->schedule(reaction_1st) == wcs::Sim_Method::Success)
+  {
+    tw_event* next_evt = tw_event_new(lp->gid, reaction_1st.first, lp);
+    auto* next_msg = reinterpret_cast<WCS_Message*>(tw_event_data(next_evt));
+    next_msg->reaction = lp_state.m_net_ptr->reaction_d2i(reaction_1st.second);
+    tw_event_send(next_evt);
+  }
+}
+
+
+void wcs_event(WCS_State *s, tw_bf *bf, WCS_Message *msg, tw_lp *lp)
+{
+  memset(static_cast<void*>(bf), 0, sizeof(tw_bf));
+  const WCS_LP_State& lp_state = gState.m_LP_states.at(s->m_lp_idx);
+
+  wcs::Sim_Method::revent_t firing
+    = std::make_pair(tw_now(lp), lp_state.m_net_ptr->reaction_i2d(msg->reaction));
+
+  if (lp_state.m_ssa_ptr->forward(firing))
+  {
+    WCS_BF_(bf, WCS_BF_FWD) = 1u;
+    wcs::SSA_NRM::priority_t new_firing;
+    if (lp_state.m_ssa_ptr->schedule(new_firing) == wcs::Sim_Method::Success)
+    {
+      WCS_BF_(bf, WCS_BF_SCHED) = 1u;
+      new_firing.first -= tw_now(lp);
+      tw_event* next_evt = tw_event_new(lp->gid, new_firing.first, lp);
+      auto* next_msg = reinterpret_cast<WCS_Message*>(tw_event_data(next_evt));
+      next_msg->reaction = lp_state.m_net_ptr->reaction_d2i(new_firing.second);
+      tw_event_send(next_evt);
+    }
+  }
+}
+#endif

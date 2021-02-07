@@ -514,6 +514,12 @@ target_include_directories(ssa-bin PUBLIC
   $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}>
   $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/src>
   $<INSTALL_INTERFACE:${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_INCLUDEDIR}>)
+target_link_libraries(ssa-bin PRIVATE wcs ${LIB_FILESYSTEM})
+set_target_properties(ssa-bin PROPERTIES OUTPUT_NAME ssa)
+set_target_properties(ssa-bin PROPERTIES CMAKE_INSTALL_RPATH
+                      "${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}")
+list(APPEND WCS_EXEC_TARGETS ssa-bin)
+
 
 # add executable ssa_omp
 if (WCS_HAS_METIS)
@@ -532,13 +538,10 @@ if (WCS_HAS_METIS)
                         -L${Boost_LIBRARY_DIRS} boost_program_options)
 
   set_target_properties(ssa_omp-bin PROPERTIES OUTPUT_NAME ssa_omp)
+  set_target_properties(ssa_omp-bin PROPERTIES CMAKE_INSTALL_RPATH
+                        "${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}")
+  list(APPEND WCS_EXEC_TARGETS ssa_omp-bin)
 endif (WCS_HAS_METIS)
-
-target_link_libraries(ssa-bin PRIVATE wcs ${LIB_FILESYSTEM})
-set_target_properties(ssa-bin PROPERTIES OUTPUT_NAME ssa)
-set_target_properties(ssa-bin PROPERTIES CMAKE_INSTALL_RPATH
-                      "${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}")
-list(APPEND WCS_EXEC_TARGETS ssa-bin)
 
 # add executable graphml2dot
 add_executable( graphml2dot-bin src/utils/graphml2dot.cpp )
@@ -685,6 +688,7 @@ write_basic_package_version_file(
 # This is for the build tree
 set(INCLUDE_INSTALL_DIRS
   "${CMAKE_SOURCE_DIR}/src"
+  "${CMAKE_SOURCE_DIR}/src/params"
   "${CMAKE_SOURCE_DIR}/src/partition"
   "${CMAKE_SOURCE_DIR}/src/proto"
   "${CMAKE_SOURCE_DIR}/src/reaction_network"
@@ -740,6 +744,10 @@ install(DIRECTORY cmake/modules
 
 # Install header files
 install(
+  DIRECTORY "${PROJECT_SOURCE_DIR}/src/params"
+  DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
+  FILES_MATCHING PATTERN "*.h" PATTERN "*.hpp")
+install(
   DIRECTORY "${PROJECT_SOURCE_DIR}/src/partition"
   DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
   FILES_MATCHING PATTERN "*.h" PATTERN "*.hpp")
@@ -764,9 +772,7 @@ install(
         "${PROJECT_SOURCE_DIR}/src/wcs_types.hpp"
         "${PROJECT_SOURCE_DIR}/src/bgl.hpp"
         "${PROJECT_SOURCE_DIR}/src/des.hpp"
-        "${PROJECT_SOURCE_DIR}/src/ssa-cfg.hpp"
         "${PROJECT_SOURCE_DIR}/src/wcs-ross-bf.hpp"
-        "${PROJECT_SOURCE_DIR}/src/wcs_params.hpp"
   DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}")
 
 if (WCS_HAS_EXPRTK)

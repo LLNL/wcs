@@ -117,6 +117,12 @@ public:
  #endif // ENABLE_SPECIES_UPDATE_TRACKING
   bool undo_reaction(const Sim_Method::v_desc_t& rd_undo) const;
 
+  sim_iter_t get_max_iter() const;
+  sim_time_t get_max_time() const;
+
+  sim_iter_t get_sim_iter() const;
+  sim_time_t get_sim_time() const;
+
 protected:
 
   /** The pointer to the reaction network being monitored.

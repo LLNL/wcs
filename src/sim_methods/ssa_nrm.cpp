@@ -130,7 +130,7 @@ void SSA_NRM::build_heap()
   }
 }
 
-SSA_NRM::priority_t SSA_NRM::choose_reaction()
+SSA_NRM::priority_t SSA_NRM::choose_reaction() const
 {
  #if 0
   // Enable this block if this condition is not checked in build_heap()
@@ -146,6 +146,11 @@ SSA_NRM::priority_t SSA_NRM::choose_reaction()
   // Instead of removing it and reinserting after the update,
   // leave it in the heap so as to update in place.
   return m_heap.front();
+}
+
+bool SSA_NRM::is_empty() const
+{
+  return m_heap.empty();
 }
 
 sim_time_t SSA_NRM::get_reaction_time()
@@ -214,6 +219,52 @@ wcs::sim_time_t SSA_NRM::adjust_reaction_time(const v_desc_t& vd,
   }
   return rt;
 }
+
+#if defined(_OPENMP) && defined(WCS_OMP_RUN_PARTITION)
+/**
+ * This works similarly as the other version of update_reactions().
+ * The only difference is that this is for updating local reactions
+ * affected by firing a non-local reaction in some other partition.
+ */
+void SSA_NRM::update_reactions(const sim_time_t t_fired,
+       const Sim_Method::affected_reactions_t& affected,
+       SSA_NRM::reaction_times_t& affected_rtimes)
+{
+ #if defined(_OPENMP) && defined(WCS_OMP_RUN_PARTITION)
+  const auto pid = m_net_ptr->get_partition_id();
+ #endif // defined(_OPENMP) && defined(WCS_OMP_RUN_PARTITION)
+
+  lambdas_for_indexed_heap
+
+ #if defined(_OPENMP) && defined(WCS_OMP_REACTION_UPDATES)
+  const std::vector<v_desc_t> r_affected(affected.begin(), affected.end());
+  #pragma omp parallel for
+  for (size_t i = 0ul; i < r_affected.size(); i++)
+  {
+    const v_desc_t& r = r_affected[i];
+    if (m_net_ptr->graph()[r].get_partition() != pid) continue;
+
+    const auto t = m_heap[indexer(r)].first; // reaction time
+
+    const auto dt = adjust_reaction_time(r, t - t_fired);
+    #pragma omp critical
+    {
+      iheap::update(m_heap.begin(), m_heap.end(), indexer,
+                    r, t_fired + dt, less_priority);
+    }
+  }
+ #else // defined(_OPENMP)
+  for (const auto& r: affected) {
+    if (m_net_ptr->graph()[r].get_partition() != pid) continue;
+    const auto t = m_heap[indexer(r)].first; // reaction time
+
+    const auto dt = adjust_reaction_time(r, t - t_fired);
+    iheap::update(m_heap.begin(), m_heap.end(), indexer,
+                  r, t_fired + dt, less_priority);
+  }
+ #endif // defined(_OPENMP)
+}
+#endif // defined(_OPENMP) && defined(WCS_OMP_RUN_PARTITION)
 
 /**
  * Recompute the reaction rates of those affected which are linked with
@@ -385,6 +436,19 @@ Sim_Method::result_t SSA_NRM::schedule(revent_t& evt)
   return Success;
 }
 
+#if defined(_OPENMP) && defined(WCS_OMP_RUN_PARTITION)
+// With WCS_OMP_RUN_PARTITION enabled, we do not use SSA_NRM::forward()
+// but an external function.
+bool SSA_NRM::advance_time_and_iter(const sim_time_t t_new)
+{
+  if (BOOST_UNLIKELY((m_sim_iter >= m_max_iter) || (t_new > m_max_time))) {
+    return false; // do not continue simulation
+  }
+  ++ m_sim_iter;
+  m_sim_time = t_new;
+  return true;
+}
+#endif // defined(_OPENMP) && defined(WCS_OMP_RUN_PARTITION)
 
 bool SSA_NRM::forward(const revent_t firing)
 {

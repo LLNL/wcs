@@ -705,6 +705,45 @@ void Network::set_partition(const map_idx2desc_t& idx2vd,
   }
 }
 
+void Network::set_partition(const std::vector<partition_id_t>& parts,
+                            const partition_id_t my_pid)
+{
+  if (get_num_vertices() != parts.size()) {
+    std::string errmsg =
+      "Inconsistent sizes between the number of verticesand the number of partitions!";
+    WCS_THROW(errmsg);
+    return;
+  }
+  m_pid = my_pid;
+
+  m_my_reactions.clear();
+  m_my_reactions.reserve(m_reactions.size());
+  m_my_species.clear();
+  m_my_species.reserve(m_species.size());
+
+  size_t i = 0u;
+
+  v_iter_t vi, vi_end;
+
+  for (boost::tie(vi, vi_end) = boost::vertices(m_graph); vi != vi_end; ++vi) {
+    auto& v = m_graph[*vi]; // vertex (property) of the reaction
+    const partition_id_t pid = parts[i++];
+    v.set_partition(pid);
+
+    if (pid == my_pid) {
+      const auto vt = static_cast<v_prop_t::vertex_type>(v.get_typeid());
+
+      if (vt == v_prop_t::_species_) {
+        m_my_species.emplace_back(*vi);
+      } else if (vt == v_prop_t::_reaction_) {
+        m_my_reactions.emplace_back(*vi);
+      }
+    }
+    // TODO: else if it is not connected to any local vertex
+    // deallocate the proporty specific to the vertex type
+  }
+}
+
 const Network::reaction_list_t& Network::my_reaction_list() const
 {
   return m_my_reactions;

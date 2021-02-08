@@ -134,6 +134,10 @@ bool Sim_Method::fire_reaction(Sim_State_Change& digest)
 
   reactions_affected.clear();
 
+ #if defined(_OPENMP) && defined(WCS_OMP_RUN_PARTITION)
+  const auto pid = m_net_ptr->get_partition_id();
+ #endif // defined(_OPENMP) && defined(WCS_OMP_RUN_PARTITION)
+
   // ========================= reactant species ================================
  #if defined(_OPENMP) && defined(WCS_OMP_REACTION_REACTANTS) // ----------------
   using e_desc_t = wcs::Network::e_desc_t;
@@ -185,6 +189,9 @@ bool Sim_Method::fire_reaction(Sim_State_Change& digest)
     {
       const auto rd_affected = boost::target(vi_affected, g);
       if (rd_affected == rd_firing) continue;
+     #if defined(_OPENMP) && defined(WCS_OMP_RUN_PARTITION)
+      if (m_net_ptr->graph()[rd_affected].get_partition() != pid) continue;
+     #endif // defined(_OPENMP) && defined(WCS_OMP_RUN_PARTITION)
       #pragma omp critical
       {
         reactions_affected.insert(rd_affected);
@@ -230,6 +237,9 @@ bool Sim_Method::fire_reaction(Sim_State_Change& digest)
     {
       const auto rd_affected = boost::target(vi_affected, g);
       if (rd_affected == rd_firing) continue;
+     #if defined(_OPENMP) && defined(WCS_OMP_RUN_PARTITION)
+      if (m_net_ptr->graph()[rd_affected].get_partition() != pid) continue;
+     #endif // defined(_OPENMP) && defined(WCS_OMP_RUN_PARTITION)
       reactions_affected.insert(rd_affected);
     }
   }
@@ -282,6 +292,9 @@ bool Sim_Method::fire_reaction(Sim_State_Change& digest)
     {
       const auto rd_affected = boost::target(vi_affected, g);
       if (rd_affected == rd_firing) continue;
+     #if defined(_OPENMP) && defined(WCS_OMP_RUN_PARTITION)
+      if (m_net_ptr->graph()[rd_affected].get_partition() != pid) continue;
+     #endif // defined(_OPENMP) && defined(WCS_OMP_RUN_PARTITION)
       #pragma omp critical
       {
         reactions_affected.insert(rd_affected);
@@ -324,6 +337,9 @@ bool Sim_Method::fire_reaction(Sim_State_Change& digest)
     {
       const auto rd_affected = boost::target(vi_affected, g);
       if (rd_affected == rd_firing) continue;
+     #if defined(_OPENMP) && defined(WCS_OMP_RUN_PARTITION)
+      if (m_net_ptr->graph()[rd_affected].get_partition() != pid) continue;
+     #endif // defined(_OPENMP) && defined(WCS_OMP_RUN_PARTITION)
       reactions_affected.insert(rd_affected);
     }
   }
@@ -435,5 +451,26 @@ bool Sim_Method::undo_reaction(const Sim_Method::v_desc_t& rd_undo) const
 
   return true;
 }
+
+sim_iter_t Sim_Method::get_max_iter() const
+{
+  return m_max_iter;
+}
+
+sim_time_t Sim_Method::get_max_time() const
+{
+  return m_max_time;
+}
+
+sim_iter_t Sim_Method::get_sim_iter() const
+{
+  return m_sim_iter;
+}
+
+sim_time_t Sim_Method::get_sim_time() const
+{
+  return m_sim_time;
+}
+
 /**@}*/
 } // end of namespace wcs

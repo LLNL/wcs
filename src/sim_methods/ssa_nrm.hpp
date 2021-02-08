@@ -73,16 +73,29 @@ public:
 
   rng_t& rgen();
 
-  priority_t choose_reaction();
-   
+  /// Returns the earliest reaction
+  priority_t choose_reaction() const;
+
+  /// Check if priority the queue is empty
+  bool is_empty() const;
+
+ #if defined(_OPENMP) && defined(WCS_OMP_RUN_PARTITION)
+  /// Used in parallel mode with partitioned network
+  bool advance_time_and_iter(const sim_time_t t_new);
+  void update_reactions(const sim_time_t t_fired,
+                        const Sim_Method::affected_reactions_t& affected,
+                        reaction_times_t& affected_rtimes);
+ #endif // defined(_OPENMP) && defined(WCS_OMP_RUN_PARTITION)
+
+  void update_reactions(const priority_t& fired,
+                        const Sim_Method::affected_reactions_t& affected,
+                        reaction_times_t& affected_rtimes);
+
 protected:
   void build_heap();
   sim_time_t get_reaction_time();
   wcs::sim_time_t recompute_reaction_time(const v_desc_t& vd);
   wcs::sim_time_t adjust_reaction_time(const v_desc_t& vd, wcs::sim_time_t rt);
-  void update_reactions(const priority_t& fired,
-                        const Sim_Method::affected_reactions_t& affected,
-                        reaction_times_t& affected_rtimes);
   void revert_reaction_updates(const reaction_times_t& affected);
 
   void save_rgen_state(Sim_State_Change& digest) const;

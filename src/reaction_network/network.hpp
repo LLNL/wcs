@@ -154,6 +154,9 @@ class Network {
   void set_partition(const map_idx2desc_t& idx2vd,
                      const std::vector<partition_id_t>& parts,
                      const partition_id_t my_pid);
+
+  void set_partition(const std::vector<partition_id_t>& parts,
+                     const partition_id_t my_pid);
   /**
    * Allow read-only access to the list of reactions that belong to this
    * partition.

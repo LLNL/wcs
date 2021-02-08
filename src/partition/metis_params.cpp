@@ -31,7 +31,7 @@ Metis_Params::Metis_Params()
 
   m_opts[METIS_OPTION_NITER] = 10; // Number of refinement iterations
   m_opts[METIS_OPTION_NCUTS] = 1; // Number of different partitionings to compute
-  m_opts[METIS_OPTION_SEED] = 7177 + 10007;
+  m_opts[METIS_OPTION_SEED] = 7177;
   m_opts[METIS_OPTION_MINCONN] = 0; // Minimize the maximum degree of subdomain graph
   m_opts[METIS_OPTION_UFACTOR] = 300; // Maximum allowed load imbalance
   m_opts[METIS_OPTION_NUMBERING] = 0; // C-style numbering that starts from 0
@@ -131,9 +131,8 @@ bool Metis_Params::set_options(mobjtype_et objective, mctype_et coarsening,
   m_opts[METIS_OPTION_CTYPE] = static_cast<idx_t>(coarsening);
   // Number of refinement iterations
   m_opts[METIS_OPTION_NITER] = static_cast<idx_t>(niter);
-  // By passing a different value to Metis, we use a different seed for
-  // network initialization later
-  set_seed(seed);
+  // Set seed for the randomization RNG
+  m_opts[METIS_OPTION_SEED] = seed;
   // Minimize the maximum degree of subdomain graph
   m_opts[METIS_OPTION_MINCONN] = static_cast<idx_t>(minconn);
   // Maximum allowed load imbalance
@@ -147,12 +146,7 @@ bool Metis_Params::set_options(mobjtype_et objective, mctype_et coarsening,
 
 idx_t Metis_Params::get_seed() const
 {
-  return (m_opts[METIS_OPTION_SEED] - 10007);
-}
-
-void Metis_Params::set_seed(idx_t seed)
-{
-  m_opts[METIS_OPTION_SEED] = seed + 10007;
+  return (m_opts[METIS_OPTION_SEED]);
 }
 
 void Metis_Params::print() const
@@ -170,18 +164,19 @@ void Metis_Params::print() const
 
   using std::operator<<;
 
-  std::cout << "Num vertex weights (LB constraints): " << m_nvwghts << std::endl;
-  std::cout << "Num partitions: " << m_nparts << std::endl;
-  std::cout << "Vertex weight lower-bound: " << m_vwgt_min << std::endl;
-  std::cout << "Vertex weight upper-bound: " << m_vwgt_max << std::endl;
-  std::cout << "Ratio of vertex weight to size: " << m_ratio_w2s << std::endl;
+  std::cout << "------ Metis params set ------" << std::endl;
+  std::cout << " - Num vertex weights (LB constraints): " << m_nvwghts << std::endl;
+  std::cout << " - Num partitions: " << m_nparts << std::endl;
+  std::cout << " - Vertex weight lower-bound: " << m_vwgt_min << std::endl;
+  std::cout << " - Vertex weight upper-bound: " << m_vwgt_max << std::endl;
+  std::cout << " - Ratio of vertex weight to size: " << m_ratio_w2s << std::endl;
 
-  std::cout << "Objective: " << objective_str.at(m_opts[METIS_OPTION_OBJTYPE]) << std::endl;
-  std::cout << "Coarsening: " << coarsening_str.at(m_opts[METIS_OPTION_CTYPE]) << std::endl;
-  std::cout << "Num refinement iterations: " << m_opts[METIS_OPTION_NITER] << std::endl;
-  std::cout << "Metis RN seed: (" << get_seed() << " + 10007)" <<std::endl;
-  std::cout << "Minconn: " << m_opts[METIS_OPTION_MINCONN] << std::endl;
-  std::cout << "Ufactor: " << m_opts[METIS_OPTION_UFACTOR] << std::endl;
+  std::cout << " - Objective: " << objective_str.at(m_opts[METIS_OPTION_OBJTYPE]) << std::endl;
+  std::cout << " - Coarsening: " << coarsening_str.at(m_opts[METIS_OPTION_CTYPE]) << std::endl;
+  std::cout << " - Num refinement iterations: " << m_opts[METIS_OPTION_NITER] << std::endl;
+  std::cout << " - Metis RN seed: " << get_seed() << std::endl;
+  std::cout << " - Minconn: " << m_opts[METIS_OPTION_MINCONN] << std::endl;
+  std::cout << " - Ufactor: " << m_opts[METIS_OPTION_UFACTOR] << std::endl;
 }
 
 /**@}*/

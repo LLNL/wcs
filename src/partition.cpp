@@ -326,7 +326,8 @@ bool initial_partition(const Config& cfg,
         = wcs::append_to_stem(mp.m_outfile, "-" + std::to_string(i));
 
       wcs::SSA_NRM nrm(rnet_ptr);
-      nrm.init(1, 0.0, cfg.seed);
+      // Initialize network using a different seed from that is used for Metis
+      nrm.init(1, 0.0, cfg.seed+ 1357);
       const auto r = nrm.choose_reaction();
       const auto rname = ((rnet_ptr->graph())[r.second]).get_label();
       std::cout << "First reaction from partition " << i << " is "

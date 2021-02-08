@@ -28,6 +28,7 @@ struct SSA_Params {
   SSA_Params();
   void getopt(int& argc, char** &argv);
   void print_usage(const std::string exec, int code);
+  void print() const;
 
   unsigned m_seed;
   wcs::sim_iter_t m_max_iter;

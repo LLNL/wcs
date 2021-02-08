@@ -124,6 +124,11 @@ int main(int argc, char** argv)
       wcs::read_proto_params(cmd.m_part_setup, mp);
     }
   }
+
+  partition_idx_t parts; ///< Partition assignment result
+  ok = setup_partition(cmd.m_input_model, mp, parts);
+  if (!ok) return EXIT_FAILURE;
+
   google::protobuf::ShutdownProtobufLibrary();
   sp.m_infile = cmd.m_input_model;
   if (sp.m_method == 1) {
@@ -132,10 +137,6 @@ int main(int argc, char** argv)
     WCS_THROW("Ony NRM is supported");
     return EXIT_FAILURE;
   }
-
-  partition_idx_t parts; ///< Partition assignment result
-  ok = setup_partition(cmd.m_input_model, mp, parts);
-  if (!ok) return EXIT_FAILURE;
 
  // ......................... SIMULATION BEGINS ................................
  #if defined(_OPENMP) && defined(WCS_OMP_RUN_PARTITION)

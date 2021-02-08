@@ -31,14 +31,15 @@ namespace wcs {
  *  @{ */
 
 void read_proto_params(const std::string& filename,
-                       wcs::SSA_Params& sp);
+                       wcs::SSA_Params& sp, bool verbose = false);
 
 void read_proto_params(const std::string& filename,
-                       wcs::Metis_Params mp);
+                       wcs::Metis_Params mp, bool verbose = false);
 
 void read_proto_params(const std::string& filename,
                        wcs::SSA_Params& sp, 
-                       wcs::Metis_Params mp);
+                       wcs::Metis_Params& mp,
+                       bool verbose = false);
 /**@}*/
 } // end of namespace wcs
 #endif //  __WCS_PROTO_WCS_PARAMS_HPP__

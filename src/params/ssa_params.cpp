@@ -174,4 +174,30 @@ void SSA_Params::print_usage(const std::string exec, int code)
   exit(code);
 }
 
+void SSA_Params::print() const
+{
+  static const char* method_name[4] = {"DM", "NRM", "SOD", "Unknown"};
+  using std::to_string;
+  using std::string;
+  string msg;
+  msg = "------ SSA params ------\n";
+  msg += " - seed: " + to_string(m_seed) + "\n";
+  msg += " - max_iter: " + to_string(m_max_iter) + "\n";
+  msg += " - max_time: " + to_string(m_max_time) + "\n";
+  msg += " - method: " + string{method_name[m_method]} + "\n";
+  msg += " - tracing: " + string{m_tracing? "true" : "false"} + "\n";
+  msg += " - sampling: " + string{m_sampling? "true" : "false"} + "\n";
+  msg += " - iter_interval: " + to_string(m_iter_interval) + "\n";
+  msg += " - time_interval: " + to_string(m_time_interval) + "\n";
+  msg += " - frag_size: " + to_string(m_frag_size) + "\n";
+  msg += " - is_frag_size_set: " + string{m_is_frag_size_set? "true" : "false"} + "\n";
+  msg += " - infile: " + m_infile + "\n";
+  msg += " - outfile: " + m_outfile + "\n";
+  msg += " - gvizfile: " + m_gvizfile + "\n";
+  msg += " - is_iter_set: " + string{m_is_iter_set? "true" : "false"} + "\n";
+  msg += " - is_time_set: " + string{m_is_time_set? "true" : "false"} + "\n";
+
+  std::cout << msg << std::endl;
+}
+
 } // end of namespace wcs

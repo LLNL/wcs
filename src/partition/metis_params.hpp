@@ -78,9 +78,6 @@ class Metis_Params {
 
   idx_t get_seed() const;
   void print() const;
-
- private:
-  void set_seed(idx_t seed);
 };
 
 /**@}*/

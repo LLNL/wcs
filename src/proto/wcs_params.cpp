@@ -20,6 +20,7 @@
 
 namespace wcs {
 
+#if defined(WCS_HAS_METIS)
 static void set_metis_options(const wcs_proto::WCS_Params::Partition_Params& cfg,
                        wcs::Metis_Params& mp, bool verbose = false)
 {
@@ -37,6 +38,7 @@ static void set_metis_options(const wcs_proto::WCS_Params::Partition_Params& cfg
     mp.print();
   }
 }
+#endif // defined(WCS_HAS_METIS)
 
 static void set_SSA_options(const wcs_proto::WCS_Params::Simulation_Params& cfg,
                      wcs::SSA_Params& sp, bool verbose = false)
@@ -99,6 +101,7 @@ void read_proto_params(const std::string& filename,
   set_SSA_options(wcs_sim_setup, sp, verbose);
 }
 
+#if defined(WCS_HAS_METIS)
 void read_proto_params(const std::string& filename,
                        wcs::Metis_Params mp, bool verbose)
 {
@@ -133,5 +136,6 @@ void read_proto_params(const std::string& filename,
   set_SSA_options(wcs_all_setup.sim_setup(), sp, verbose);
   set_metis_options(wcs_all_setup.part_setup(), mp, verbose);
 }
+#endif // defined(WCS_HAS_METIS)
 
 } // end of namespace wcs

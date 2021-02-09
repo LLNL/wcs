@@ -360,6 +360,9 @@ void SSA_NRM::init(const sim_iter_t max_iter,
   m_sim_iter = static_cast<sim_iter_t>(0u);
 
   { // initialize the random number generator
+   #if defined(_OPENMP)
+    m_rgen.set_num_threads(m_num_threads);
+   #endif // defined(_OPENMP)
     if (rng_seed == 0u) {
       m_rgen.set_seed();
     } else {

@@ -14,6 +14,7 @@
 #include <functional>  // std::hash
 #include <limits>      // std::numeric_limits
 #include "utils/exception.hpp"
+#include "utils/omp_diagnostics.hpp"
 
 #if defined(WCS_HAS_OPENMP) && !defined(_OPENMP)
 #error OpenMP is not enabled.
@@ -27,6 +28,9 @@ template <template <typename> typename D, typename V>
 inline RNGen<D, V>::RNGen()
 : m_sseq_used(false)
 {
+ #if defined(_OPENMP)
+  m_num_threads = omp_get_max_threads();
+ #endif // defined(_OPENMP)
 }
 
 template <template <typename> typename D, typename V>
@@ -55,11 +59,21 @@ template <template <typename> typename D, typename V>
 inline void RNGen<D, V>::param(const RNGen<D, V>::param_type& p)
 {
  #if defined(_OPENMP)
-  m_gen.resize(omp_get_max_threads());
+  m_gen.resize(m_num_threads);
   assert (m_gen.size() <=
           static_cast<size_t>(std::numeric_limits<n_threads_t>::max()));
+
+  #if OMP_DEBUG
+  std::vector<wcs::my_omp_affinity> omp_aff(m_gen.size());
+  #endif // OMP_DEBUG
+
+  omp_set_dynamic(0);
+
   #pragma omp parallel num_threads(m_gen.size())
   {
+   #if OMP_DEBUG
+    omp_aff[omp_get_thread_num()].get();
+   #endif // OMP_DEBUG
     const auto tid = omp_get_thread_num();
     m_gen[tid] = std::make_unique<generator_type>();
     if (m_sseq_used) {
@@ -76,6 +90,13 @@ inline void RNGen<D, V>::param(const RNGen<D, V>::param_type& p)
       m_gen[tid]->seed(seed);
     }
   }
+
+  #if OMP_DEBUG
+  for (const auto& oaff: omp_aff) {
+    oaff.print();
+  }
+  #endif // OMP_DEBUG
+
  #else
   if (m_sseq_used) {
     std::seed_seq sseq(m_sseq_param.begin(), m_sseq_param.end());
@@ -186,7 +207,7 @@ inline S& RNGen<D, V>::save_bits(S& os) const
   const auto num_gens = static_cast<n_threads_t>(m_gen.size());
 
   os << bits(m_seed) << bits(m_sseq_used) << bits(m_sseq_param)
-     << bits(num_gens);
+     << bits(m_num_threads) << bits(num_gens);
 
   for (const auto& g: m_gen) {
     if (!!g) os << bits(*g);
@@ -208,7 +229,7 @@ inline S& RNGen<D, V>::load_bits(S& is)
  #if defined(_OPENMP)
   n_threads_t num_gens = 0u;
   is >> bits(m_seed) >> bits(m_sseq_used) >> bits(m_sseq_param)
-     >> bits(num_gens);
+     >> bits(m_num_threads) >> bits(num_gens);
 
   m_gen.resize(num_gens);
 
@@ -235,7 +256,7 @@ inline size_t RNGen<D, V>::byte_size() const
   return (sizeof(m_seed) + sizeof(m_sseq_used) +
           m_sseq_param.size() * sizeof(seed_seq_param_t::value_type) +
           sizeof(n_threads_t) + sizeof(*(m_gen[0])) * m_gen.size() +
-          sizeof(m_distribution));
+          sizeof(m_num_threads) + sizeof(m_distribution));
  #else
   return (sizeof(m_seed) + sizeof(m_sseq_used) +
           m_sseq_param.size() * sizeof(seed_seq_param_t::value_type) +

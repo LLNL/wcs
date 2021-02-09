@@ -27,6 +27,7 @@
 #include "utils/file.hpp"
 #include "utils/timer.hpp"
 #include "utils/write_graphviz.hpp"
+#include "utils/omp_diagnostics.hpp"
 #include "params/wcs_params.hpp"
 #include "params/ssa_params.hpp"
 #include "proto/wcs_params.hpp"
@@ -39,7 +40,30 @@ struct WCS_Shared_State {
   wcs::sim_time_t m_max_time;
   wcs::sim_iter_t m_max_iter;
   int m_nparts;
+  int m_num_inner_threads;
+
+  void set_num_partitions(int np);
 };
+
+void WCS_Shared_State::set_num_partitions(int np)
+{
+  m_nparts = np;
+  if (m_nparts <= 0) {
+    m_nparts = 1;
+    WCS_THROW("Invalid number of partitions: " + std::to_string(np));
+  }
+ #if defined(_OPENMP)
+  m_num_inner_threads = omp_get_max_threads() / m_nparts;
+  if (m_num_inner_threads <= 0) {
+    std::string msg = "Number of partitions (" + std::to_string(m_nparts);
+    msg += ") must be less than or equal to the number of available threads (";
+    msg += std::to_string(omp_get_max_threads());
+    WCS_THROW(msg);
+  }
+ #else
+  m_num_inner_threads = 1;
+ #endif // defined(_OPENMP)
+}
 
 WCS_Shared_State shared_state;
 
@@ -151,7 +175,6 @@ int main(int argc, char** argv)
   wcs_run();
   std::cout << "Wall clock time to run simulation: "
             << wcs::get_time() - t_start << " (sec)" << std::endl;
-
  #ifdef WCS_HAS_VTUNE
   __itt_task_end(vtune_domain_sim);
   __itt_pause();
@@ -179,11 +202,25 @@ int main(int argc, char** argv)
 //-----------------------------------------------------------------------------
 void wcs_init(const wcs::SSA_Params& cfg, const partition_idx_t& parts)
 {
+  omp_set_dynamic(0);
+  omp_set_nested(1);
+  omp_set_schedule(omp_sched_dynamic, 0);
+
   shared_state.m_max_time = cfg.m_max_time;
   shared_state.m_max_iter = cfg.m_max_iter;
 
-  #pragma omp parallel num_threads(shared_state.m_nparts)
+ #if OMP_DEBUG
+  std::vector<wcs::my_omp_affinity> omp_aff(shared_state.m_nparts);
+ #endif // OMP_DEBUG
+
+  omp_set_num_threads(shared_state.m_nparts);
+
+  #pragma omp parallel //num_threads(shared_state.m_nparts)
   {
+   #if OMP_DEBUG
+    omp_aff[omp_get_thread_num()].get();
+   #endif // OMP_DEBUG
+
     auto& ssa_ptr = lp_state.m_ssa_ptr;
     auto& net_ptr = lp_state.m_net_ptr;
 
@@ -196,28 +233,43 @@ void wcs_init(const wcs::SSA_Params& cfg, const partition_idx_t& parts)
 
     ssa_ptr = std::make_unique<wcs::SSA_NRM>(net_ptr);
     wcs::SSA_NRM& ssa = *ssa_ptr;
+    ssa.set_num_threads(shared_state.m_num_inner_threads);
 
     if (cfg.m_tracing) {
       ssa.set_tracing<wcs::TraceSSA>(cfg.m_outfile, cfg.m_frag_size);
-      std::cerr << "Enable tracing" << std::endl;
     } else if (cfg.m_sampling) {
       if (cfg.m_iter_interval > 0u) {
         ssa.set_sampling<wcs::SamplesSSA>(cfg.m_iter_interval,
                                           cfg.m_outfile,
                                           cfg.m_frag_size);
-        std::cerr << "Enable sampling at " << cfg.m_iter_interval
-                  << " steps interval" << std::endl;
       } else {
         ssa.set_sampling<wcs::SamplesSSA>(cfg.m_time_interval,
                                           cfg.m_outfile,
                                           cfg.m_frag_size);
-        std::cerr << "Enable sampling at " << cfg.m_time_interval
-                  << " secs interval" << std::endl;
       }
     }
     ssa.init(cfg.m_max_iter, cfg.m_max_time, cfg.m_seed);
+    ssa.m_lp_idx = omp_get_thread_num();
 
     lp_state.m_t_start = wcs::get_time();
+  }
+
+ #if OMP_DEBUG
+  for (const auto& oaff: omp_aff) {
+    oaff.print();
+  }
+ #endif // OMP_DEBUG
+
+  if (cfg.m_tracing) {
+      std::cerr << "Enable tracing" << std::endl;
+  } else if (cfg.m_sampling) {
+    if (cfg.m_iter_interval > 0u) {
+      std::cerr << "Enable sampling at " << cfg.m_iter_interval
+                << " steps interval" << std::endl;
+    } else {
+      std::cerr << "Enable sampling at " << cfg.m_time_interval
+                << " secs interval" << std::endl;
+    }
   }
 }
 
@@ -402,7 +454,7 @@ bool setup_partition(const std::string& input_model,
     pinfo.report();
   }
 
-  shared_state.m_nparts = mp.m_nparts;
+  shared_state.set_num_partitions(mp.m_nparts);
   return true;
 }
 

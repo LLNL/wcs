@@ -94,6 +94,16 @@ class RNGen {
   template<typename S> S& load_bits(S &is);
   size_t byte_size() const;
 
+ #if defined(_OPENMP)
+  /**
+   * Set the number of omp threads to use. By default it is set to the value
+   * returned by omp_get_max_threads(). If it has to be different, call this
+   * function before calling `param()`.
+   */ 
+  void set_num_threads(int n) { m_num_threads = n; }
+  int get_num_threads() const { return m_num_threads; }
+ #endif // defined(_OPENMP)
+
  protected:
   using n_threads_t = uint8_t; ///< Type for number of openmp threads
   /**
@@ -111,6 +121,10 @@ class RNGen {
   generator_type m_gen;
 #endif
   distribution_t m_distribution;
+
+ #if defined(_OPENMP)
+  int m_num_threads;
+ #endif // defined(_OPENMP)
 };
 
 /**@}*/

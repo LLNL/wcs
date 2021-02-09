@@ -37,6 +37,9 @@ Sim_Method::Sim_Method(const std::shared_ptr<wcs::Network>& net_ptr) try
   if constexpr (!is_bidirectional) {
     WCS_THROW("Cannot get species population without in-edges.");
   }
+ #if defined(_OPENMP)
+  m_num_threads = omp_get_max_threads();
+ #endif // defined(_OPENMP)
 }
 catch (const std::exception& e) {
   WCS_THROW("Invalid pointer to the reaction network.");
@@ -148,7 +151,7 @@ bool Sim_Method::fire_reaction(Sim_State_Change& digest)
   const std::vector<e_desc_t> inedges(iei, iei_end);
   const size_t nie = inedges.size();
 
-  #pragma omp parallel for schedule(dynamic)
+  #pragma omp parallel for //schedule(dynamic)
   for (size_t i = 0u; i < nie; ++i)
   {
     const auto& ei_in = inedges[i];
@@ -253,7 +256,7 @@ bool Sim_Method::fire_reaction(Sim_State_Change& digest)
   const std::vector<e_desc_t> outedges(oei, oei_end);
   const size_t noe = outedges.size();
 
-  #pragma omp parallel for schedule(dynamic)
+  #pragma omp parallel for //schedule(dynamic)
   for (size_t i = 0u; i < noe; ++i)
   {
     const auto& ei_out = outedges[i];

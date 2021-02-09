@@ -205,6 +205,7 @@ void wcs_init(const wcs::SSA_Params& cfg, const partition_idx_t& parts)
   omp_set_dynamic(0);
   omp_set_nested(1);
   omp_set_schedule(omp_sched_dynamic, 0);
+  omp_set_num_threads(shared_state.m_nparts);
 
   shared_state.m_max_time = cfg.m_max_time;
   shared_state.m_max_iter = cfg.m_max_iter;
@@ -213,9 +214,7 @@ void wcs_init(const wcs::SSA_Params& cfg, const partition_idx_t& parts)
   std::vector<wcs::my_omp_affinity> omp_aff(shared_state.m_nparts);
  #endif // OMP_DEBUG
 
-  omp_set_num_threads(shared_state.m_nparts);
-
-  #pragma omp parallel //num_threads(shared_state.m_nparts)
+  #pragma omp parallel num_threads(shared_state.m_nparts)
   {
    #if OMP_DEBUG
     omp_aff[omp_get_thread_num()].get();

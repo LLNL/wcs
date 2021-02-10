@@ -94,7 +94,7 @@ class RNGen {
   template<typename S> S& load_bits(S &is);
   size_t byte_size() const;
 
- #if defined(_OPENMP)
+ #if WCS_THREAD_PRIVATE_RNG
   /**
    * Set the number of omp threads to use. By default it is set to the value
    * returned by omp_get_max_threads(). If it has to be different, call this
@@ -102,7 +102,7 @@ class RNGen {
    */ 
   void set_num_threads(int n) { m_num_threads = n; }
   int get_num_threads() const { return m_num_threads; }
- #endif // defined(_OPENMP)
+ #endif // WCS_THREAD_PRIVATE_RNG
 
  protected:
   using n_threads_t = uint8_t; ///< Type for number of openmp threads
@@ -115,16 +115,16 @@ class RNGen {
   bool m_sseq_used;
   /// seed_seq input
   seed_seq_param_t m_sseq_param;
-#if defined(_OPENMP)
+#if WCS_THREAD_PRIVATE_RNG
   std::vector< std::unique_ptr<generator_type> > m_gen;
 #else
   generator_type m_gen;
-#endif
+#endif // WCS_THREAD_PRIVATE_RNG
   distribution_t m_distribution;
 
- #if defined(_OPENMP)
+ #if WCS_THREAD_PRIVATE_RNG
   int m_num_threads;
- #endif // defined(_OPENMP)
+ #endif // WCS_THREAD_PRIVATE_RNG
 };
 
 /**@}*/

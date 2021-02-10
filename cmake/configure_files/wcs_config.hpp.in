@@ -45,6 +45,9 @@
 #cmakedefine WCS_OMP_REACTION_REACTANTS
 #cmakedefine WCS_OMP_REACTION_PRODUCTS
 #cmakedefine WCS_OMP_RUN_PARTITION
+#if defined(WCS_OMP_REACTION_UPDATES)
+  #define WCS_THREAD_PRIVATE_RNG 1
+#endif
 #endif
 
 #ifdef WCS_HAS_NUMA

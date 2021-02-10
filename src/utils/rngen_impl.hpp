@@ -28,9 +28,9 @@ template <template <typename> typename D, typename V>
 inline RNGen<D, V>::RNGen()
 : m_sseq_used(false)
 {
- #if defined(_OPENMP)
+ #if WCS_THREAD_PRIVATE_RNG
   m_num_threads = omp_get_max_threads();
- #endif // defined(_OPENMP)
+ #endif // WCS_THREAD_PRIVATE_RNG
 }
 
 template <template <typename> typename D, typename V>
@@ -58,7 +58,7 @@ inline void RNGen<D, V>::use_seed_seq(const wcs::seed_seq_param_t& p)
 template <template <typename> typename D, typename V>
 inline void RNGen<D, V>::param(const RNGen<D, V>::param_type& p)
 {
- #if defined(_OPENMP)
+ #if WCS_THREAD_PRIVATE_RNG
   m_gen.resize(m_num_threads);
   assert (m_gen.size() <=
           static_cast<size_t>(std::numeric_limits<n_threads_t>::max()));
@@ -97,14 +97,14 @@ inline void RNGen<D, V>::param(const RNGen<D, V>::param_type& p)
   }
   #endif // OMP_DEBUG
 
- #else
+ #else // WCS_THREAD_PRIVATE_RNG
   if (m_sseq_used) {
     std::seed_seq sseq(m_sseq_param.begin(), m_sseq_param.end());
     m_gen.seed(sseq);
   } else {
     m_gen.seed(m_seed);
   }
- #endif // defined(_OPENMP)
+ #endif // WCS_THREAD_PRIVATE_RNG
   m_distribution.param(p);
   m_distribution.reset();
 }
@@ -118,11 +118,11 @@ inline typename RNGen<D, V>::param_type RNGen<D, V>::param() const
 template <template <typename> typename D, typename V>
 inline typename RNGen<D, V>::result_type RNGen<D, V>::operator()()
 {
- #if defined(_OPENMP)
+ #if WCS_THREAD_PRIVATE_RNG
   return m_distribution(*(m_gen[omp_get_thread_num()]));
  #else
   return m_distribution(m_gen);
- #endif // defined(_OPENMP)
+ #endif // WCS_THREAD_PRIVATE_RNG
 }
 
 template <template <typename> typename D, typename V>
@@ -159,21 +159,21 @@ constexpr unsigned RNGen<D, V>::get_state_size()
 template <template <typename> typename D, typename V>
 inline typename RNGen<D, V>::generator_type& RNGen<D, V>::engine()
 {
- #if defined(_OPENMP)
+ #if WCS_THREAD_PRIVATE_RNG
   return *(m_gen[omp_get_thread_num()]);
  #else
   return m_gen;
- #endif // defined(_OPENMP)
+ #endif // WCS_THREAD_PRIVATE_RNG
 }
 
 template <template <typename> typename D, typename V>
 inline const typename RNGen<D, V>::generator_type& RNGen<D, V>::engine() const
 {
- #if defined(_OPENMP)
+ #if WCS_THREAD_PRIVATE_RNG
   return *(m_gen[omp_get_thread_num()]);
  #else
   return m_gen;
- #endif // defined(_OPENMP)
+ #endif // WCS_THREAD_PRIVATE_RNG
 }
 
 template <template <typename> typename D, typename V>
@@ -203,7 +203,7 @@ template <typename S>
 inline S& RNGen<D, V>::save_bits(S& os) const
 {
   assert (check_bits_compatibility(os));
- #if defined(_OPENMP)
+ #if WCS_THREAD_PRIVATE_RNG
   const auto num_gens = static_cast<n_threads_t>(m_gen.size());
 
   os << bits(m_seed) << bits(m_sseq_used) << bits(m_sseq_param)
@@ -217,7 +217,7 @@ inline S& RNGen<D, V>::save_bits(S& os) const
  #else
   os << bits(m_seed) << bits(m_sseq_used) << bits(m_sseq_param) << bits(m_gen)
      << bits(m_distribution);
- #endif // defined(_OPENMP)
+ #endif // WCS_THREAD_PRIVATE_RNG
   return os;
 }
 
@@ -226,7 +226,7 @@ template <typename S>
 inline S& RNGen<D, V>::load_bits(S& is)
 {
   assert (check_bits_compatibility(is));
- #if defined(_OPENMP)
+ #if WCS_THREAD_PRIVATE_RNG
   n_threads_t num_gens = 0u;
   is >> bits(m_seed) >> bits(m_sseq_used) >> bits(m_sseq_param)
      >> bits(m_num_threads) >> bits(num_gens);
@@ -242,7 +242,7 @@ inline S& RNGen<D, V>::load_bits(S& is)
  #else
   is >> bits(m_seed) >> bits(m_sseq_used) >> bits(m_sseq_param) >> bits(m_gen)
      >> bits(m_distribution);
- #endif // defined(_OPENMP)
+ #endif // WCS_THREAD_PRIVATE_RNG
   return is;
 }
 
@@ -251,7 +251,7 @@ inline size_t RNGen<D, V>::byte_size() const
 {
   // It is also assumed that the generator_type is a POD structure
   assert (std::is_pod<generator_type>::value);
- #if defined(_OPENMP)
+ #if WCS_THREAD_PRIVATE_RNG
   assert (m_gen.size() > 0u);
   return (sizeof(m_seed) + sizeof(m_sseq_used) +
           m_sseq_param.size() * sizeof(seed_seq_param_t::value_type) +
@@ -261,7 +261,7 @@ inline size_t RNGen<D, V>::byte_size() const
   return (sizeof(m_seed) + sizeof(m_sseq_used) +
           m_sseq_param.size() * sizeof(seed_seq_param_t::value_type) +
           sizeof(m_gen) + sizeof(m_distribution));
- #endif // defined(_OPENMP)
+ #endif // WCS_THREAD_PRIVATE_RNG
 }
 
 /**@}*/

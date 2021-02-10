@@ -35,6 +35,11 @@
 #include "partition/partition_info.hpp"
 #include "sim_methods/ssa_nrm.hpp"
 
+#ifdef WCS_HAS_VTUNE
+__itt_domain* vtune_domain_sim = __itt_domain_create("Simulate");
+__itt_string_handle* vtune_handle_sim = __itt_string_handle_create("simulate");
+#endif // WCS_HAS_VTUNE
+
 /// Shared state
 struct WCS_Shared_State {
   wcs::sim_time_t m_max_time;
@@ -91,6 +96,7 @@ WCS_LP_State::WCS_LP_State(std::unique_ptr<wcs::SSA_NRM>&& ssa_ptr,
 : m_ssa_ptr(std::move(ssa_ptr)), m_net_ptr(net_ptr), m_t_start(0.0)
 {}
 
+#if defined(_OPENMP)
 namespace {
 /// Thread-local variable, file-visible only.
 #ifdef __ICC
@@ -104,6 +110,7 @@ namespace {
   WCS_LP_State lp_state;
 #endif
 }
+#endif // defined(_OPENMP)
 
 /// Type to exchange a reaction betwen different subdomains on different LPs
 using nrm_evt_t = std::pair<wcs::sim_time_t, wcs::v_idx_t>;
@@ -202,8 +209,13 @@ int main(int argc, char** argv)
 //-----------------------------------------------------------------------------
 void wcs_init(const wcs::SSA_Params& cfg, const partition_idx_t& parts)
 {
+#if defined(WCS_OMP_REACTION_UPDATES) || \
+    defined(WCS_OMP_REACTION_REACTANTS) || \
+    defined(WCS_OMP_REACTION_PRODUCTS)
+  //omp_set_nested(1);
+  omp_set_max_active_levels(2);
+#endif
   omp_set_dynamic(0);
-  omp_set_nested(1);
   omp_set_schedule(omp_sched_dynamic, 0);
   omp_set_num_threads(shared_state.m_nparts);
 

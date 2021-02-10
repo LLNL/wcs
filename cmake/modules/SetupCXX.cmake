@@ -107,7 +107,8 @@ if (CMAKE_CXX_COMPILER_ID MATCHES "Intel")
   if (GCC_PATH)
     set(GCC_INTEROP "-gcc-name=${GCC_PATH}")
   endif (GCC_PATH)
-  wcs_check_and_append_flag(CMAKE_CXX_FLAGS -diag-disable=2196 -wd1011 -wd1875 ${GCC_INTEROP})
+  # -openmp_profile
+  wcs_check_and_append_flag(CMAKE_CXX_FLAGS -diag-disable=2196 -wd1011 -wd1875 -diag-disable=11074 -diag-disable=11076  ${GCC_INTEROP})
 
 endif ()
 

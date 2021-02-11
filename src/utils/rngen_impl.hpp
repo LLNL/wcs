@@ -126,6 +126,16 @@ inline typename RNGen<D, V>::result_type RNGen<D, V>::operator()()
 }
 
 template <template <typename> typename D, typename V>
+inline typename RNGen<D, V>::result_type RNGen<D, V>::pull()
+{
+ #if WCS_THREAD_PRIVATE_RNG
+  return m_distribution(*(m_gen[0]));
+ #else
+  return m_distribution(m_gen);
+ #endif // WCS_THREAD_PRIVATE_RNG
+}
+
+template <template <typename> typename D, typename V>
 inline const typename RNGen<D, V>::distribution_t& RNGen<D, V>::distribution() const
 {
   return m_distribution;
@@ -156,25 +166,31 @@ constexpr unsigned RNGen<D, V>::get_state_size()
   return 1u;
 }
 
+#if WCS_THREAD_PRIVATE_RNG
+template <template <typename> typename D, typename V>
+inline typename RNGen<D, V>::generator_list_t& RNGen<D, V>::engine()
+{
+  return m_gen;
+}
+
+template <template <typename> typename D, typename V>
+inline const typename RNGen<D, V>::generator_list_t& RNGen<D, V>::engine() const
+{
+  return m_gen;
+}
+#else // WCS_THREAD_PRIVATE_RNG
 template <template <typename> typename D, typename V>
 inline typename RNGen<D, V>::generator_type& RNGen<D, V>::engine()
 {
- #if WCS_THREAD_PRIVATE_RNG
-  return *(m_gen[omp_get_thread_num()]);
- #else
   return m_gen;
- #endif // WCS_THREAD_PRIVATE_RNG
 }
 
 template <template <typename> typename D, typename V>
 inline const typename RNGen<D, V>::generator_type& RNGen<D, V>::engine() const
 {
- #if WCS_THREAD_PRIVATE_RNG
-  return *(m_gen[omp_get_thread_num()]);
- #else
   return m_gen;
- #endif // WCS_THREAD_PRIVATE_RNG
 }
+#endif // WCS_THREAD_PRIVATE_RNG
 
 template <template <typename> typename D, typename V>
 template <typename S>
@@ -261,6 +277,56 @@ inline size_t RNGen<D, V>::byte_size() const
   return (sizeof(m_seed) + sizeof(m_sseq_used) +
           m_sseq_param.size() * sizeof(seed_seq_param_t::value_type) +
           sizeof(m_gen) + sizeof(m_distribution));
+ #endif // WCS_THREAD_PRIVATE_RNG
+}
+
+template <template <typename> typename D, typename V>
+template <typename S>
+inline S& RNGen<D, V>::save_engine_bits(S& os) const
+{
+  assert (check_bits_compatibility(os));
+ #if WCS_THREAD_PRIVATE_RNG
+  const auto num_gens = static_cast<n_threads_t>(m_gen.size());
+
+  os << bits(num_gens);
+
+  for (const auto& g: m_gen) {
+    if (!!g) os << bits(*g);
+  }
+ #else
+  os << bits(m_gen);
+ #endif // WCS_THREAD_PRIVATE_RNG
+  return os;
+}
+
+template <template <typename> typename D, typename V>
+template <typename S>
+inline S& RNGen<D, V>::load_engine_bits(S& is)
+{
+  assert (check_bits_compatibility(is));
+ #if WCS_THREAD_PRIVATE_RNG
+  n_threads_t num_gens = 0u;
+  is >> bits(num_gens);
+
+  m_gen.resize(num_gens);
+
+  for (auto& g: m_gen) {
+     g = std::make_unique<generator_type>();
+     is >> bits(*g);
+  }
+ #else
+  is >> bits(m_gen);
+ #endif // WCS_THREAD_PRIVATE_RNG
+  return is;
+}
+
+template <template <typename> typename D, typename V>
+inline size_t RNGen<D, V>::engine_byte_size() const
+{
+ #if WCS_THREAD_PRIVATE_RNG
+  return sizeof(*(m_gen[0])) * m_gen.size();
+ #else
+  return sizeof(m_gen);
  #endif // WCS_THREAD_PRIVATE_RNG
 }
 

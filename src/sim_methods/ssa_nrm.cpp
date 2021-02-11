@@ -103,7 +103,7 @@ void SSA_NRM::build_heap()
       m_heap.emplace_back(priority_t(wcs::Network::get_etime_ulimit(), vd));
     } else {
       const auto rate = m_net_ptr->get_reaction_rate(vd); // reaction rate
-      const auto rn = unsigned_max/m_rgen(); // inverse of a uniform RN U(0,1)
+      const auto rn = unsigned_max/m_rgen.pull(); // inverse of a uniform RN U(0,1)
       const auto t = log(rn)/rate;
       m_heap.emplace_back(priority_t(t, vd));
     }
@@ -175,7 +175,7 @@ wcs::sim_time_t SSA_NRM::recompute_reaction_time(const v_desc_t& vd)
   // Update the rate of the reaction fired
   const auto new_rate = m_net_ptr->set_reaction_rate(vd);
 
-  const auto rn = unsigned_max/m_rgen();
+  const auto rn = unsigned_max/m_rgen.pull();
   rt = (new_rate <= static_cast<reaction_rate_t>(0))?
         wcs::Network::get_etime_ulimit() :
         log(rn)/new_rate;
@@ -225,6 +225,8 @@ wcs::sim_time_t SSA_NRM::adjust_reaction_time(const v_desc_t& vd,
  * This works similarly as the other version of update_reactions().
  * The only difference is that this is for updating local reactions
  * affected by firing a non-local reaction in some other partition.
+ * On the other hand, the original version (the other version) of
+ * this function is called when the reaction fired is local.
  */
 void SSA_NRM::update_reactions(const sim_time_t t_fired,
        const Sim_Method::affected_reactions_t& affected,
@@ -282,6 +284,7 @@ void SSA_NRM::update_reactions(
   affected_rtimes.clear();
  #endif // defined(WCS_HAS_ROSS)
 
+  // Note that this not inside of the inner loop
   const auto dt_fired = recompute_reaction_time(r_fired);
 
   lambdas_for_indexed_heap
@@ -395,7 +398,7 @@ void SSA_NRM::init(const sim_iter_t max_iter,
 void SSA_NRM::save_rgen_state(Sim_State_Change& digest) const
 {
   digest.m_rng_state.clear();
-  digest.m_rng_state.reserve(sizeof(m_rgen.engine()));
+  digest.m_rng_state.reserve(m_rgen.engine_byte_size());
   wcs::ostreamvec<char> ostrmbuf(digest.m_rng_state);
   std::ostream os(&ostrmbuf);
 
@@ -403,7 +406,7 @@ void SSA_NRM::save_rgen_state(Sim_State_Change& digest) const
   cereal::BinaryOutputArchive oarchive(os);
   oarchive(m_rgen.engine());
  #else
-  os << bits(m_rgen_evt.engine());
+  m_rgen.save_engine_bits(os);
  #endif // defined(WCS_HAS_CEREAL)
 }
 
@@ -417,7 +420,7 @@ void SSA_NRM::load_rgen_state(const Sim_State_Change& digest)
   cereal::BinaryInputArchive iarchive(is);
   iarchive(m_rgen.engine());
  #else
-  is >> bits(m_rgen.engine());
+  m_rgen.load_engine_bits(is);
  #endif // defined(WCS_HAS_CEREAL)
 }
 

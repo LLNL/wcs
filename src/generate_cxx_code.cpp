@@ -32,7 +32,7 @@ LIBSBML_CPP_NAMESPACE_USE
 
 int main(int argc, char** argv)
 {
-  if ((argc < 2) && (argc > 4))  {
+  if ((argc < 2) || (argc > 4))  {
     std::cout << "Usage: " << argv[0]
               << " model_filename [gen_library(0|1)]"
               << " [compilation_error_log(0|1)]" << std::endl;

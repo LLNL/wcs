@@ -43,8 +43,8 @@ wcs_params.protobin: $(PROTOC) wcs_params.prototext
 test: wcs_proto_test wcs_params.protobin
 	./wcs_proto_test wcs_params.prototext > readtext.txt
 	./wcs_proto_test wcs_params.protobin 1 > readbin.txt
-	@diff readtext.txt wcs_params.prototext
-	@diff readbin.txt wcs_params.prototext
+	@egrep -v '^[[:blank:]]*#' wcs_params.prototext | diff readtext.txt -
+	@egrep -v '^[[:blank:]]*#' wcs_params.prototext | diff readbin.txt -
 	
 clean:
 	@rm -f *.o wcs_proto_test

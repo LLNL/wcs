@@ -1,7 +1,6 @@
 # Exports the following variables
-#
-#   WCS_HAS_VTUNE
-#   VTUNE_INCLUDE_DIR
+#   VTune_FOUND
+#   VTUNE_INCLUDE_PATH
 #   VTUNE_STATIC_LIB
 #
 

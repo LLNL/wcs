@@ -25,7 +25,7 @@
 #include <google/protobuf/text_format.h>
 #include <google/protobuf/io/zero_copy_stream_impl.h>
 #include "proto/wcs_params.pb.h"
-#include "wcs_params.hpp"
+#include "params/wcs_params.hpp"
 
 namespace wcs {
 

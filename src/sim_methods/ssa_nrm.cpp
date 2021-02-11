@@ -103,7 +103,7 @@ void SSA_NRM::build_heap()
       m_heap.emplace_back(priority_t(wcs::Network::get_etime_ulimit(), vd));
     } else {
       const auto rate = m_net_ptr->get_reaction_rate(vd); // reaction rate
-      const auto rn = unsigned_max/m_rgen(); // inverse of a uniform RN U(0,1)
+      const auto rn = unsigned_max/m_rgen.pull(); // inverse of a uniform RN U(0,1)
       const auto t = log(rn)/rate;
       m_heap.emplace_back(priority_t(t, vd));
     }
@@ -130,7 +130,7 @@ void SSA_NRM::build_heap()
   }
 }
 
-SSA_NRM::priority_t SSA_NRM::choose_reaction()
+SSA_NRM::priority_t SSA_NRM::choose_reaction() const
 {
  #if 0
   // Enable this block if this condition is not checked in build_heap()
@@ -146,6 +146,11 @@ SSA_NRM::priority_t SSA_NRM::choose_reaction()
   // Instead of removing it and reinserting after the update,
   // leave it in the heap so as to update in place.
   return m_heap.front();
+}
+
+bool SSA_NRM::is_empty() const
+{
+  return m_heap.empty();
 }
 
 sim_time_t SSA_NRM::get_reaction_time()
@@ -170,7 +175,7 @@ wcs::sim_time_t SSA_NRM::recompute_reaction_time(const v_desc_t& vd)
   // Update the rate of the reaction fired
   const auto new_rate = m_net_ptr->set_reaction_rate(vd);
 
-  const auto rn = unsigned_max/m_rgen();
+  const auto rn = unsigned_max/m_rgen.pull();
   rt = (new_rate <= static_cast<reaction_rate_t>(0))?
         wcs::Network::get_etime_ulimit() :
         log(rn)/new_rate;
@@ -215,6 +220,56 @@ wcs::sim_time_t SSA_NRM::adjust_reaction_time(const v_desc_t& vd,
   return rt;
 }
 
+#if defined(_OPENMP) && defined(WCS_OMP_RUN_PARTITION)
+/**
+ * This works similarly as the other version of update_reactions().
+ * The only difference is that this is for updating local reactions
+ * affected by firing a non-local reaction in some other partition.
+ * On the other hand, the original version (the other version) of
+ * this function is called when the reaction fired is local.
+ */
+void SSA_NRM::update_reactions(const sim_time_t t_fired,
+       const Sim_Method::affected_reactions_t& affected,
+       SSA_NRM::reaction_times_t& affected_rtimes)
+{
+ #if defined(_OPENMP) && defined(WCS_OMP_RUN_PARTITION)
+  //const auto pid = m_net_ptr->get_partition_id();
+ #endif // defined(_OPENMP) && defined(WCS_OMP_RUN_PARTITION)
+
+  lambdas_for_indexed_heap
+
+ #if defined(_OPENMP) && defined(WCS_OMP_REACTION_UPDATES)
+  const std::vector<v_desc_t> r_affected(affected.begin(), affected.end());
+  #pragma omp parallel for
+  for (size_t i = 0ul; i < r_affected.size(); i++)
+  {
+    const v_desc_t& r = r_affected[i];
+    // This check is redundant as it is already done by fire_reaction
+    // if (m_net_ptr->graph()[r].get_partition() != pid) continue;
+
+    const auto t = m_heap[indexer(r)].first; // reaction time
+
+    const auto dt = adjust_reaction_time(r, t - t_fired);
+    #pragma omp critical
+    {
+      iheap::update(m_heap.begin(), m_heap.end(), indexer,
+                    r, t_fired + dt, less_priority);
+    }
+  }
+ #else // defined(_OPENMP)
+  for (const auto& r: affected) {
+    // This check is redundant as it is already done by fire_reaction
+    // if (m_net_ptr->graph()[r].get_partition() != pid) continue;
+    const auto t = m_heap[indexer(r)].first; // reaction time
+
+    const auto dt = adjust_reaction_time(r, t - t_fired);
+    iheap::update(m_heap.begin(), m_heap.end(), indexer,
+                  r, t_fired + dt, less_priority);
+  }
+ #endif // defined(_OPENMP)
+}
+#endif // defined(_OPENMP) && defined(WCS_OMP_RUN_PARTITION)
+
 /**
  * Recompute the reaction rates of those affected which are linked with
  * updating species. Also, recompute the reaction time of those affected
@@ -227,8 +282,11 @@ void SSA_NRM::update_reactions(
 {
   const auto& t_fired = fired.first;
   const auto& r_fired = fired.second;
+ #if defined(WCS_HAS_ROSS)
   affected_rtimes.clear();
+ #endif // defined(WCS_HAS_ROSS)
 
+  // Note that this not inside of the inner loop
   const auto dt_fired = recompute_reaction_time(r_fired);
 
   lambdas_for_indexed_heap
@@ -236,18 +294,47 @@ void SSA_NRM::update_reactions(
   iheap::update(m_heap.begin(), m_heap.end(), indexer,
                 r_fired, t_fired + dt_fired, less_priority);
 
+ #if defined(WCS_HAS_ROSS)
   affected_rtimes.emplace_back(std::make_pair(r_fired, t_fired));
+ #endif // defined(WCS_HAS_ROSS)
 
-  for (auto& r: affected) {
+ #if defined(_OPENMP) && defined(WCS_OMP_REACTION_UPDATES)
+  const std::vector<v_desc_t> r_affected(affected.begin(), affected.end());
+  #pragma omp parallel for
+  for (size_t i = 0ul; i < r_affected.size(); i++)
+  {
+    const v_desc_t& r = r_affected[i];
+    const auto t = m_heap[indexer(r)].first; // reaction time
+
+    const auto dt = adjust_reaction_time(r, t - t_fired);
+    #pragma omp critical
+    {
+      iheap::update(m_heap.begin(), m_heap.end(), indexer,
+                    r, t_fired + dt, less_priority);
+    }
+
+    // Record the reaction time before update
+    #if defined(WCS_HAS_ROSS)
+    #pragma omp critical
+    {
+      affected_rtimes.push_back(std::make_pair(r, t));
+    }
+    #endif // defined(WCS_HAS_ROSS)
+  }
+ #else // defined(_OPENMP)
+  for (const auto& r: affected) {
     const auto t = m_heap[indexer(r)].first; // reaction time
 
     const auto dt = adjust_reaction_time(r, t - t_fired);
     iheap::update(m_heap.begin(), m_heap.end(), indexer,
                   r, t_fired + dt, less_priority);
 
+   #if defined(WCS_HAS_ROSS)
     // Record the reaction time before update
     affected_rtimes.push_back(std::make_pair(r, t));
+   #endif // defined(WCS_HAS_ROSS)
   }
+ #endif // defined(_OPENMP)
 }
 
 void SSA_NRM::revert_reaction_updates(
@@ -278,6 +365,9 @@ void SSA_NRM::init(const sim_iter_t max_iter,
   m_sim_iter = static_cast<sim_iter_t>(0u);
 
   { // initialize the random number generator
+   #if WCS_THREAD_PRIVATE_RNG
+    m_rgen.set_num_threads(m_num_threads);
+   #endif // WCS_THREAD_PRIVATE_RNG
     if (rng_seed == 0u) {
       m_rgen.set_seed();
     } else {
@@ -310,7 +400,7 @@ void SSA_NRM::init(const sim_iter_t max_iter,
 void SSA_NRM::save_rgen_state(Sim_State_Change& digest) const
 {
   digest.m_rng_state.clear();
-  digest.m_rng_state.reserve(sizeof(m_rgen.engine()));
+  digest.m_rng_state.reserve(m_rgen.engine_byte_size());
   wcs::ostreamvec<char> ostrmbuf(digest.m_rng_state);
   std::ostream os(&ostrmbuf);
 
@@ -318,7 +408,7 @@ void SSA_NRM::save_rgen_state(Sim_State_Change& digest) const
   cereal::BinaryOutputArchive oarchive(os);
   oarchive(m_rgen.engine());
  #else
-  os << bits(m_rgen_evt.engine());
+  m_rgen.save_engine_bits(os);
  #endif // defined(WCS_HAS_CEREAL)
 }
 
@@ -332,7 +422,7 @@ void SSA_NRM::load_rgen_state(const Sim_State_Change& digest)
   cereal::BinaryInputArchive iarchive(is);
   iarchive(m_rgen.engine());
  #else
-  is >> bits(m_rgen.engine());
+  m_rgen.load_engine_bits(is);
  #endif // defined(WCS_HAS_CEREAL)
 }
 
@@ -354,6 +444,19 @@ Sim_Method::result_t SSA_NRM::schedule(revent_t& evt)
   return Success;
 }
 
+#if defined(_OPENMP) && defined(WCS_OMP_RUN_PARTITION)
+// With WCS_OMP_RUN_PARTITION enabled, we do not use SSA_NRM::forward()
+// but an external function.
+bool SSA_NRM::advance_time_and_iter(const sim_time_t t_new)
+{
+  if (BOOST_UNLIKELY((m_sim_iter >= m_max_iter) || (t_new > m_max_time))) {
+    return false; // do not continue simulation
+  }
+  ++ m_sim_iter;
+  m_sim_time = t_new;
+  return true;
+}
+#endif // defined(_OPENMP) && defined(WCS_OMP_RUN_PARTITION)
 
 bool SSA_NRM::forward(const revent_t firing)
 {

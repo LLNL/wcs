@@ -6,6 +6,7 @@ set_full_path(THIS_DIR_HEADERS
   generate_cxx_code.hpp
   graph_factory.hpp
   input_filetype.hpp
+  omp_diagnostics.hpp
   print_vertices.hpp
   rngen.hpp
   rngen_impl.hpp
@@ -34,6 +35,7 @@ set_full_path(THIS_DIR_SOURCES
   generate_cxx_code.cpp
   graph_factory.cpp
   input_filetype.cpp
+  omp_diagnostics.cpp
   print_vertices.cpp
   samples_ssa.cpp
   sbml_utils.cpp

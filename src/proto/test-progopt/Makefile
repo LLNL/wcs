@@ -40,8 +40,8 @@ wcs_params.pb.o: wcs_params.pb.cc
 wcs_proto_progopt_test: wcs_proto_progopt_test.cpp wcs_params.pb.o wcs_params.o
 	$(CXX) $(CXXFLAGS) $(LDFLAGS) -o wcs_proto_progopt_test wcs_proto_progopt_test.cpp wcs_params.pb.o wcs_params.o
 
-wcs_params.o: ../../wcs_params.cpp ../../wcs_params.hpp
-	$(CXX) $(CXXFLAGS) -c ../../wcs_params.cpp
+wcs_params.o: ../../params/wcs_params.cpp ../../params/wcs_params.hpp
+	$(CXX) $(CXXFLAGS) -c ../../params/wcs_params.cpp
 
 test: wcs_proto_progopt_test
 	@echo ----------------------------------------------------

@@ -96,5 +96,20 @@ std::string get_libname_from_model(const std::string& model_filename)
   return dir + stem + ".so";
 }
 
+/** Create a default output filename in case that no name is given.
+ *  File name is the same as the model name except that the extension is `.out`
+ *  and the file is going be under current working directory.
+ */
+std::string get_default_outname_from_model(const std::string& model_filename)
+{
+  std::string dir, stem, ext;
+  extract_file_component(model_filename, dir, stem, ext);
+
+  if (ext == ".out") {
+    WCS_THROW("Model filename should not have the extension '.out'");
+  }
+  return stem + ".out";
+}
+
 /**@}*/
 } // end of namespace wcs

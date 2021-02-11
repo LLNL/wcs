@@ -157,6 +157,25 @@
  further be refined by custom algorithm. To link with Metis, use the cmake
  options `-DWCS_WITH_METIS=ON` and `-DMETIS_ROOT=<path-to-metis-install>`.
 
+## Taking advanage of OpenMP:
+ Build WCS with the cmake option `-DWCS_WITH_OPENMP:BOOL=ON`.
+ Then, for accelerating execution performance, use the OpenMP environment
+ variables to control the parallelism and the processor affinity, such as
+ `OMP_NUM_THREADS`, `OMP_PROC_BIND`, and `OMP_PLACES`.
+ Currently, only the next reaction method is parallelized using OpenMP.
+ There are multiple regions where OpenMP parallelization is applied.
+ Use the cmake option `-DWCS_OMP_MODE=[1-5]` to enable parallelization of a
+ particular combination of regions. The mode 1, 2, and 3 enables fine-grained
+ parallelizaion. Mode 1 helps when there exists a large number of
+ interdependent reactions. In other words, firing a reaction leads to
+ updating a large number of reactions dependent on the species updated by
+ the reaction fired. Mode 2 is similar to mode 1 and helps additional cases
+ with a large number of reactants per reactions. Mode 3 further includes
+ additional cases of a large number of products per reaction.
+ The mode 4, and 5 implements the parallelization using graph partitioning.
+ These two modes are likely to be suitable for a broader range of problems,
+ especially when the size of network is not small. Metis is required for these.
+
 ## Unit testing:
  + [**Catch2**](https://github.com/catchorg/Catch2)
  We rely on Catch2 for unit testing. To enable testing for development, set

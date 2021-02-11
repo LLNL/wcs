@@ -1304,7 +1304,6 @@ generate_cxx_code::generate_cxx_code(const std::string& libpath,
   if (m_lib_filename.empty()) {
     m_regen = true;
     m_lib_filename = std::string(wcs_default_gen_name) + ".so";
-    std::cerr << "Generating " + m_lib_filename << std::endl;
   }
 
   std::string dir;
@@ -1316,8 +1315,16 @@ generate_cxx_code::generate_cxx_code(const std::string& libpath,
   if (ext != ".so") {
     m_regen = true;
     m_lib_filename = dir + stem + ".so";
-    std::cerr << "Generating " + m_lib_filename << std::endl;
   }
+ #if defined(_OPENMP)
+  #pragma omp master
+  {
+    std::cerr << std::string(m_regen? "Generate" : "Reuse")
+              + " the machine code for reaction rate formula ("
+              + m_lib_filename + ")" << std::endl;
+  }
+  #pragma omp barrier
+ #endif // defined(_OPENMP)
 }
 
 //https://stackoverflow.com/questions/8243743/is-there-a-null-stdostream-implementation-in-c-or-libraries
@@ -1345,35 +1352,43 @@ void generate_cxx_code::open_ostream()
  #endif
 
   if (m_regen) {
-    std::string dir;
-    std::string stem;
-    std::string ext;
+   #if defined(_OPENMP)
+    m_regen = false; // default for non-master
+    m_os_ptr = std::make_unique<nullstream>(); // default for non-master
+    #pragma omp master
+   #endif // defined(_OPENMP)
+    { // only the master executes this block in case of parallel execution
+      m_regen = true; // only master opens/closes a stream
+      std::string dir;
+      std::string stem;
+      std::string ext;
 
-    extract_file_component(m_lib_filename, dir, stem, ext);
-    std::string src_name = "/tmp/" + stem + "_XXXXXX.cc";
+      extract_file_component(m_lib_filename, dir, stem, ext);
+      std::string src_name = "/tmp/" + stem + "_XXXXXX.cc";
 
-   #if defined(PATH_MAX)
-    char tmp_filename[PATH_MAX];
-    strncpy(tmp_filename,src_name.c_str(), PATH_MAX);
-   #else
-    char tmp_filename[4096];
-    strncpy(tmp_filename,src_name.c_str(), 4096);
-   #endif
+     #if defined(PATH_MAX)
+      char tmp_filename[PATH_MAX];
+      strncpy(tmp_filename,src_name.c_str(), PATH_MAX);
+     #else
+      char tmp_filename[4096];
+      strncpy(tmp_filename,src_name.c_str(), 4096);
+     #endif
 
-    int fd = mkostemps(tmp_filename, 3, O_CREAT | O_RDWR | O_EXCL);
+      int fd = mkostemps(tmp_filename, 3, O_CREAT | O_RDWR | O_EXCL);
 
-    if (fd < 1) {
-      WCS_THROW("\n Creation of temp file failed with error " + strerror(errno));
-    }
+      if (fd < 1) {
+        WCS_THROW("\n Creation of temp file failed with error " + strerror(errno));
+      }
 
-    std::stringstream ss;
-    ss << tmp_filename;
-    m_src_filename = ss.str();
-    close(fd);
+      std::stringstream ss;
+      ss << tmp_filename;
+      m_src_filename = ss.str();
+      close(fd);
 
-    m_os_ptr = std::make_unique<std::ofstream>(m_src_filename);
-    if (!m_os_ptr || !(*m_os_ptr)) {
-      WCS_THROW("\n Failed to open a source file " + m_src_filename);
+      m_os_ptr = std::make_unique<std::ofstream>(m_src_filename);
+      if (!m_os_ptr || !(*m_os_ptr)) {
+        WCS_THROW("\n Failed to open a source file " + m_src_filename);
+      }
     }
   } else {
     m_os_ptr = std::make_unique<nullstream>();
@@ -1645,65 +1660,73 @@ std::string generate_cxx_code::compile_code()
     return "";
   }
 
-  extract_file_component(m_src_filename, dir, stem, ext);
+  int ret = EXIT_SUCCESS;
 
-  //std::string lib_filename1 = dir + stem + ".o";
-  //std::string lib_filename2 = dir + stem + ".so";
+ #if defined(_OPENMP)
+  #pragma omp master
+ #endif // defined(_OPENMP)
+  { // Only the master executes this block in case of parallel execution
+    // This block updates no state of the current object. It only generates
+    // file I/O.
+    extract_file_component(m_src_filename, dir, stem, ext);
 
-  const std::string obj_filename = stem + ".o";
-  //m_lib_filename = stem + ".so";
+    const std::string obj_filename = stem + ".o";
 
-  const std::string suppress_warnings = " -Wno-unused ";
-  const std::string compilation_log = (m_save_log? " 2> wcs_compile_log.txt" : "");
+    const std::string suppress_warnings = " -Wno-unused ";
+    const std::string compilation_log = (m_save_log? " 2> wcs_compile_log.txt" : "");
 
-  std::string cmd1
-    = std::string(CMAKE_CXX_COMPILER) + " " + CMAKE_CXX_FLAGS + suppress_warnings
-    + " -std=c++17 -g -fPIC " + WCS_INCLUDE_DIR + CMAKE_CXX_SHARED_LIBRARY_FLAGS
-    + " -c " + m_src_filename + compilation_log;
+    std::string cmd1
+      = std::string(CMAKE_CXX_COMPILER) + " " + CMAKE_CXX_FLAGS + suppress_warnings
+      + " -std=c++17 -g -fPIC " + WCS_INCLUDE_DIR + CMAKE_CXX_SHARED_LIBRARY_FLAGS
+      + " -c " + m_src_filename + compilation_log;
 
-  std::string cmd2
-    = std::string(CMAKE_CXX_COMPILER) + " " + CMAKE_CXX_FLAGS
-    + " -std=c++17 -g -fPIC " + CMAKE_CXX_SHARED_LIBRARY_FLAGS
-    + " -shared -Wl,--export-dynamic " + obj_filename + " -o " + m_lib_filename;
+    std::string cmd2
+      = std::string(CMAKE_CXX_COMPILER) + " " + CMAKE_CXX_FLAGS
+      + " -std=c++17 -g -fPIC " + CMAKE_CXX_SHARED_LIBRARY_FLAGS
+      + " -shared -Wl,--export-dynamic " + obj_filename + " -o " + m_lib_filename;
 
-  std::string cmd3 = "rm -f " + obj_filename
-                   + (m_cleanup? " " + m_src_filename : "");
+    std::string cmd3 = "rm -f " + obj_filename
+                     + (m_cleanup? " " + m_src_filename : "");
 
-  int ret = 0;
+    ret = system(cmd1.c_str());
+    if (!WIFEXITED(ret)) {
+      std::string msg = "The command `" + cmd1 + "` has failed.";
+      std::cerr << msg << std::endl;
+      ret = EXIT_FAILURE;
+    } else if (WEXITSTATUS(ret) != 0) {
+      std::string msg = "The compilation of " + m_src_filename
+                      + " has failed. The command used is\n" + cmd1;
+      if (m_save_log) msg += " See wcs_compile_log.txt for further details.";
+      std::cerr << msg << std::endl;
+      ret = EXIT_FAILURE;
+    }
 
-  ret = system(cmd1.c_str());
-  if (!WIFEXITED(ret)) {
-    std::string msg = "The command `" + cmd1 + "` has failed.";
-    std::cerr << msg << std::endl;
-    return "";
-  } else if (WEXITSTATUS(ret) != 0) {
-    std::string msg = "The compilation of " + m_src_filename
-                    + " has failed. The command used is\n" + cmd1;
-    if (m_save_log) msg += " See wcs_compile_log.txt for further details.";
-    std::cerr << msg << std::endl;
-    return "";
+    ret = system(cmd2.c_str());
+    if (!WIFEXITED(ret)) {
+      std::string msg = "The command `" + cmd2 + "` has failed.";
+      std::cerr << msg << std::endl;
+      ret = EXIT_FAILURE;
+    } else if (WEXITSTATUS(ret) != 0) {
+      std::string msg = "Failed to create " + m_lib_filename + ".";
+                      + " The command used is\n" + cmd2;
+      std::cerr << msg << std::endl;
+      ret = EXIT_FAILURE;
+    }
+
+    ret = system(cmd3.c_str());
+    if (!WIFEXITED(ret)) {
+      std::string msg = "The command `" + cmd3 + "` has failed.";
+      std::cerr << msg << std::endl;
+      ret = EXIT_FAILURE;
+    }
   }
-
-  ret = system(cmd2.c_str());
-  if (!WIFEXITED(ret)) {
-    std::string msg = "The command `" + cmd2 + "` has failed.";
-    std::cerr << msg << std::endl;
-    return "";
-  } else if (WEXITSTATUS(ret) != 0) {
-    std::string msg = "Failed to create " + m_lib_filename + ".";
-                    + " The command used is\n" + cmd2;
-    std::cerr << msg << std::endl;
-    return "";
-  }
-
-  ret = system(cmd3.c_str());
-  if (!WIFEXITED(ret)) {
-    std::string msg = "The command `" + cmd3 + "` has failed.";
-    std::cerr << msg << std::endl;
-    return "";
-  }
-
   m_regen = false;
+
+ #if defined(_OPENMP)
+  #pragma omp barrier
+ #endif // defined(_OPENMP)
+
+  if (ret == EXIT_FAILURE) return "";
 
   return m_lib_filename;
 }

@@ -96,7 +96,7 @@ WCS_LP_State::WCS_LP_State(std::unique_ptr<wcs::SSA_NRM>&& ssa_ptr,
 : m_ssa_ptr(std::move(ssa_ptr)), m_net_ptr(net_ptr), m_t_start(0.0)
 {}
 
-#if defined(_OPENMP)
+#if defined(_OPENMP) && defined(WCS_OMP_RUN_PARTITION)
 namespace {
 /// Thread-local variable, file-visible only.
 #ifdef __ICC
@@ -110,7 +110,7 @@ namespace {
   WCS_LP_State lp_state;
 #endif
 }
-#endif // defined(_OPENMP)
+#endif // defined(_OPENMP) && defined(WCS_OMP_RUN_PARTITION)
 
 /// Type to exchange a reaction betwen different subdomains on different LPs
 using nrm_evt_t = std::pair<wcs::sim_time_t, wcs::v_idx_t>;
@@ -119,14 +119,10 @@ using nrm_evt_t = std::pair<wcs::sim_time_t, wcs::v_idx_t>;
 using partition_idx_t = std::vector<idx_t>;
 
 /// Partition the given reaction network using Metis
-bool initial_partition(const wcs::Metis_Params& mp,
-                       partition_idx_t& parts,
-                       idx_t& objval,
-                       bool write_subgraph = false);
-
 bool setup_partition(const std::string& input_model,
                      const wcs::Metis_Params& mp_in,
-                     partition_idx_t& parts);
+                     partition_idx_t& parts,
+                     const bool write_subgraph = false);
 
 void wcs_init(const wcs::SSA_Params& cfg, const partition_idx_t& parts);
 
@@ -162,16 +158,16 @@ int main(int argc, char** argv)
 
   google::protobuf::ShutdownProtobufLibrary();
   sp.m_infile = cmd.m_input_model;
-  if (sp.m_method == 1) {
-    std::cerr << "Next Reaction SSA method." << std::endl;
-  } else {
+  if (sp.m_method != 1) {
     WCS_THROW("Ony NRM is supported");
     return EXIT_FAILURE;
   }
 
  // ......................... SIMULATION BEGINS ................................
  #if defined(_OPENMP) && defined(WCS_OMP_RUN_PARTITION)
-   wcs_init(sp, parts);
+  wcs_init(sp, parts);
+
+  std::cout << "Initialization complete. Simulation begins ..." << std::endl;
 
  #ifdef WCS_HAS_VTUNE
   __itt_resume();
@@ -194,10 +190,18 @@ int main(int argc, char** argv)
       ssa.finalize_recording();
     } else {
       const auto& net = *(lp_state.m_net_ptr);
-      std::cout << "Species   : " << net.show_species_labels("") << std::endl;
-      std::cout << "FinalState: " << net.show_species_counts() << std::endl;
+      std::string ofile = sp.get_outfile();
+      if (ofile.empty()) {
+        ofile = wcs::get_default_outname_from_model(cmd.m_input_model);
+      }
+      std::ofstream ofs(ofile);
+      ofs << "Species   : " << net.show_species_labels("") << std::endl;
+      ofs << "FinalState: " << net.show_species_counts() << std::endl;
     }
   }
+ #elif defined(_OPENMP)
+  std::cout << "This mode of parallelization does not require network "
+            << "partitioning. Use `ssa` instead." << std::endl;
  #endif // defined(_OPENMP) && defined(WCS_OMP_RUN_PARTITION)
 
   return EXIT_SUCCESS;
@@ -216,7 +220,7 @@ void wcs_init(const wcs::SSA_Params& cfg, const partition_idx_t& parts)
   omp_set_max_active_levels(2);
 #endif
   omp_set_dynamic(0);
-  omp_set_schedule(omp_sched_dynamic, 0);
+  omp_set_schedule(omp_sched_static, 0);
   omp_set_num_threads(shared_state.m_nparts);
 
   shared_state.m_max_time = cfg.m_max_time;
@@ -238,7 +242,7 @@ void wcs_init(const wcs::SSA_Params& cfg, const partition_idx_t& parts)
     net_ptr = std::make_shared<wcs::Network>();
     wcs::Network& net = *net_ptr;
 
-    net.load(cfg.m_infile);
+    net.load(cfg.m_infile, true);
     net.init();
     net.set_partition(parts, omp_get_thread_num());
 
@@ -246,17 +250,20 @@ void wcs_init(const wcs::SSA_Params& cfg, const partition_idx_t& parts)
     wcs::SSA_NRM& ssa = *ssa_ptr;
     ssa.set_num_threads(shared_state.m_num_inner_threads);
 
-    if (cfg.m_tracing) {
-      ssa.set_tracing<wcs::TraceSSA>(cfg.m_outfile, cfg.m_frag_size);
-    } else if (cfg.m_sampling) {
-      if (cfg.m_iter_interval > 0u) {
-        ssa.set_sampling<wcs::SamplesSSA>(cfg.m_iter_interval,
-                                          cfg.m_outfile,
-                                          cfg.m_frag_size);
-      } else {
-        ssa.set_sampling<wcs::SamplesSSA>(cfg.m_time_interval,
-                                          cfg.m_outfile,
-                                          cfg.m_frag_size);
+    #pragma omp master
+    {
+      if (cfg.m_tracing) {
+        ssa.set_tracing<wcs::TraceSSA>(cfg.get_outfile(), cfg.m_frag_size);
+      } else if (cfg.m_sampling) {
+        if (cfg.m_iter_interval > 0u) {
+          ssa.set_sampling<wcs::SamplesSSA>(cfg.m_iter_interval,
+                                            cfg.get_outfile(),
+                                            cfg.m_frag_size);
+        } else {
+          ssa.set_sampling<wcs::SamplesSSA>(cfg.m_time_interval,
+                                            cfg.get_outfile(),
+                                            cfg.m_frag_size);
+        }
       }
     }
     ssa.init(cfg.m_max_iter, cfg.m_max_time, cfg.m_seed);
@@ -378,7 +385,6 @@ std::pair<wcs::sim_iter_t, wcs::sim_time_t> wcs_run()
   if (schedule(next_reaction) != wcs::Sim_Method::Success) {
     WCS_THROW("Not able to schedule any reaction event!");
   }
-
   while (BOOST_LIKELY(forward(next_reaction))) {
     if (BOOST_UNLIKELY(schedule(next_reaction) != wcs::Sim_Method::Success)) {
       break;
@@ -399,48 +405,10 @@ std::pair<wcs::sim_iter_t, wcs::sim_time_t> wcs_run()
 //-----------------------------------------------------------------------------
 
 
-bool initial_partition(const wcs::Metis_Params& mp,
-                       partition_idx_t& parts,
-                       idx_t& objval,
-                       bool write_subgraph)
-{
-  wcs::Metis_Partition partitioner(mp);
-  partitioner.prepare();
-  //const auto& map_idx2vd = partitioner.get_map_from_idx_to_desc();
-  if (mp.m_verbose) {
-    partitioner.print_params();
-    partitioner.print_metis_graph(std::cout);
-    partitioner.print_adjacency(std::cout);
-  }
-
-  bool ret = partitioner.run(parts, objval);
-  if (!ret) return false;
-
-  const auto& map_idx2desc = partitioner.get_map_from_idx_to_desc();
-
-  for (wcs::partition_id_t i = 0; i < mp.m_nparts; ++i) {
-    mp.m_rnet->set_partition(map_idx2desc, parts, i);
-
-    if (mp.m_verbose && !(mp.m_rnet->my_reaction_list()).empty()) {
-      if (write_subgraph) {
-        const auto gpart_name
-          = wcs::append_to_stem(mp.m_outfile, "-" + std::to_string(i));
-        if (!wcs::write_graphviz(gpart_name, mp.m_rnet->graph(), i)) {
-          std::cerr << "Failed to write " << gpart_name << std::endl;
-          continue;
-        }
-      }
-      std::cout << "(" + std::to_string((mp.m_rnet->my_reaction_list()).size())
-        + " reactions, " + std::to_string((mp.m_rnet->my_species_list()).size())
-        + " species)" << std::endl;
-    }
-  }
-  return true;
-}
-
 bool setup_partition(const std::string& input_model,
                      const wcs::Metis_Params& mp_in,
-                     partition_idx_t& parts)
+                     partition_idx_t& parts,
+                     const bool write_subgraph)
 {
   std::shared_ptr<wcs::Network> rnet_ptr = std::make_shared<wcs::Network>();
   wcs::Network& rnet = *rnet_ptr;
@@ -455,17 +423,45 @@ bool setup_partition(const std::string& input_model,
   wcs::Metis_Params mp = mp_in;
   mp.m_rnet = rnet_ptr;
 
+  wcs::Metis_Partition partitioner(mp);
+  partitioner.prepare();
+
+  //const auto& map_idx2vd = partitioner.get_map_from_idx_to_desc();
+  if (mp.m_verbose) {
+    partitioner.print_params();
+    partitioner.print_metis_graph(std::cout);
+    partitioner.print_adjacency(std::cout);
+  }
+
   idx_t objval; /// Total comm volume or edge-cut of the solution
-  bool ok = initial_partition(mp, parts, objval);
-  if (!ok) return false;
+  bool ret = partitioner.run(parts, objval);
+  if (!ret) return false;
+  shared_state.set_num_partitions(mp.m_nparts);
 
   if (mp.m_verbose) {
+    const auto& map_idx2desc = partitioner.get_map_from_idx_to_desc();
+
+    for (wcs::partition_id_t i = 0; i < mp.m_nparts; ++i) {
+      mp.m_rnet->set_partition(map_idx2desc, parts, i);
+
+      if (mp.m_verbose && !(mp.m_rnet->my_reaction_list()).empty()) {
+        if (write_subgraph) {
+          const auto gpart_name
+            = wcs::append_to_stem(mp.m_outfile, "-" + std::to_string(i));
+          if (!wcs::write_graphviz(gpart_name, mp.m_rnet->graph(), i)) {
+            std::cerr << "Failed to write " << gpart_name << std::endl;
+            continue;
+          }
+        }
+        std::cout << "(" + std::to_string((mp.m_rnet->my_reaction_list()).size())
+          + " reactions, " + std::to_string((mp.m_rnet->my_species_list()).size())
+          + " species)" << std::endl;
+      }
+    }
     wcs::Partition_Info pinfo(rnet_ptr);
     pinfo.scan(mp.m_verbose);
     pinfo.report();
   }
-
-  shared_state.set_num_partitions(mp.m_nparts);
   return true;
 }
 

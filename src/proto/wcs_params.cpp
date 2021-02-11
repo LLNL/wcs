@@ -67,7 +67,7 @@ static void set_SSA_options(const wcs_proto::WCS_Params::Simulation_Params& cfg,
   sp.m_is_frag_size_set = (cfg.frag_size() != 0u);
 
   //sp.m_infile = model_file;
-  sp.m_outfile = cfg.outfile();
+  sp.set_outfile(cfg.outfile());
   sp.m_gvizfile = cfg.gvizfile();
 
   if (!sp.m_is_time_set) {

@@ -13,6 +13,7 @@
 #include <string>
 #include <iostream>
 #include <cstdlib>
+#include "utils/file.hpp"
 #include "reaction_network/network.hpp"
 #include "params/ssa_params.hpp"
 
@@ -113,6 +114,7 @@ void SSA_Params::getopt(int& argc, char** &argv)
   }
 
   m_infile = argv[optind];
+  set_outfile(m_outfile);
 
   if (!m_is_iter_set && m_is_time_set) {
     m_max_iter = std::numeric_limits<decltype(m_max_iter)>::max();
@@ -198,6 +200,23 @@ void SSA_Params::print() const
   msg += " - is_time_set: " + string{m_is_time_set? "true" : "false"} + "\n";
 
   std::cout << msg << std::endl;
+}
+
+void SSA_Params::set_outfile(const std::string& ofname)
+{
+  m_outfile = ofname;
+  if (m_outfile.empty()) {
+    if (!m_infile.empty()) {
+      m_outfile = wcs::get_default_outname_from_model(m_infile);
+    } else {
+      m_outfile = "ssa.out";
+    }
+  }
+}
+
+std::string SSA_Params::get_outfile() const
+{
+  return m_outfile;
 }
 
 } // end of namespace wcs

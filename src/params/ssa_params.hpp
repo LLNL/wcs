@@ -24,11 +24,14 @@ namespace wcs {
 /** \addtogroup wcs_params
  *  @{ */
 
-struct SSA_Params {
+class SSA_Params {
+ public:
   SSA_Params();
   void getopt(int& argc, char** &argv);
   void print_usage(const std::string exec, int code);
   void print() const;
+  void set_outfile(const std::string& ofname);
+  std::string get_outfile() const;
 
   unsigned m_seed;
   wcs::sim_iter_t m_max_iter;
@@ -42,11 +45,13 @@ struct SSA_Params {
   bool m_is_frag_size_set;
 
   std::string m_infile;
-  std::string m_outfile;
   std::string m_gvizfile;
 
   bool m_is_iter_set;
   bool m_is_time_set;
+
+ private:
+  std::string m_outfile;
 };
 
 /**@}*/

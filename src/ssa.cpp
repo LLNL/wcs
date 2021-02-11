@@ -11,7 +11,6 @@
 #include <string>
 #include <iostream>
 #include "params/ssa_params.hpp"
-#include "utils/file.hpp"
 #include "utils/write_graphviz.hpp"
 #include "utils/timer.hpp"
 #include "reaction_network/network.hpp"
@@ -69,17 +68,17 @@ int main(int argc, char** argv)
   }
 
   if (cfg.m_tracing) {
-    ssa->set_tracing<wcs::TraceSSA>(cfg.m_outfile, cfg.m_frag_size);
+    ssa->set_tracing<wcs::TraceSSA>(cfg.get_outfile(), cfg.m_frag_size);
     std::cerr << "Enable tracing" << std::endl;
   } else if (cfg.m_sampling) {
     if (cfg.m_iter_interval > 0u) {
       ssa->set_sampling<wcs::SamplesSSA>(cfg.m_iter_interval,
-                                         cfg.m_outfile, cfg.m_frag_size);
+                                         cfg.get_outfile(), cfg.m_frag_size);
       std::cerr << "Enable sampling at " << cfg.m_iter_interval
                 << " steps interval" << std::endl;
     } else {
       ssa->set_sampling<wcs::SamplesSSA>(cfg.m_time_interval,
-                                         cfg.m_outfile, cfg.m_frag_size);
+                                         cfg.get_outfile(), cfg.m_frag_size);
       std::cerr << "Enable sampling at " << cfg.m_time_interval
                 << " secs interval" << std::endl;
     }
@@ -104,10 +103,7 @@ int main(int argc, char** argv)
   if (cfg.m_tracing || cfg.m_sampling) {
     ssa->finalize_recording();
   } else {
-    std::string ofile = cfg.outfile;
-    if (ofile.empty()) {
-      ofile = wcs::get_default_outname_from_model(cfg.infile);
-    }
+    std::string ofile = cfg.get_outfile();
     std::ofstream ofs(ofile);
     ofs << "Species   : " << rnet.show_species_labels("") << std::endl;
     ofs << "FinalState: " << rnet.show_species_counts() << std::endl;

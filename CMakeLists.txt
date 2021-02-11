@@ -539,26 +539,26 @@ set_target_properties(ssa-bin PROPERTIES CMAKE_INSTALL_RPATH
 list(APPEND WCS_EXEC_TARGETS ssa-bin)
 
 
-# add executable ssa_omp
+# add executable ssa_partition
 if (WCS_HAS_METIS)
-  add_executable( ssa_omp-bin src/ssa_omp.cpp)
-  target_include_directories(ssa_omp-bin PUBLIC
+  add_executable( ssa_partition-bin src/ssa_partition.cpp)
+  target_include_directories(ssa_partition-bin PUBLIC
     $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}>
     $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/src>
     $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/src>
     $<INSTALL_INTERFACE:${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_INCLUDEDIR}>)
 
-  target_include_directories(ssa_omp-bin
+  target_include_directories(ssa_partition-bin
       PRIVATE $<TARGET_PROPERTY:wcs,INTERFACE_INCLUDE_DIRECTORIES>
       ${Protobuf_DIR}/include ${Boost_INCLUDE_DIRS})
 
-  target_link_libraries(ssa_omp-bin wcs ${LIB_FILESYSTEM}
+  target_link_libraries(ssa_partition-bin wcs ${LIB_FILESYSTEM}
                         -L${Boost_LIBRARY_DIRS} boost_program_options)
 
-  set_target_properties(ssa_omp-bin PROPERTIES OUTPUT_NAME ssa_omp)
-  set_target_properties(ssa_omp-bin PROPERTIES CMAKE_INSTALL_RPATH
+  set_target_properties(ssa_partition-bin PROPERTIES OUTPUT_NAME ssa_partition)
+  set_target_properties(ssa_partition-bin PROPERTIES CMAKE_INSTALL_RPATH
                         "${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}")
-  list(APPEND WCS_EXEC_TARGETS ssa_omp-bin)
+  list(APPEND WCS_EXEC_TARGETS ssa_partition-bin)
 endif (WCS_HAS_METIS)
 
 # add executable graphml2dot

@@ -30,6 +30,16 @@ endif ()
 string(TOUPPER "${PROJECT_NAME}" UPPER_PROJECT_NAME)
 string(TOLOWER "${PROJECT_NAME}" LOWER_PROJECT_NAME)
 
+
+################################################################
+# Suppress warning
+# "Manually-specified variables were not used by the project"
+################################################################
+
+set(ignoreUnused ${WCS_OMP_MODE}${WCS_WITH_VTUN}${VTUNE_DIR})
+set(ignoreUnused ${WCS_WITH_HPCTOOLKIT}${HPCTOOLKIT_DIR})
+set(ignoreUnused ${WCS_WITH_ROSS}${ROSS_ROOT}${ROSS_DIR})
+
 ################################################################
 # Version setup
 ################################################################
@@ -341,10 +351,6 @@ if (WCS_WITH_ROSS)
     endif()
   endif (ROSS_FOUND)
 endif (WCS_WITH_ROSS)
-
-set(ignoreUnused ${WCS_OMP_MODE}${WCS_WITH_VTUN}${VTUNE_DIR})
-set(ignoreUnused ${WCS_WITH_HPCTOOLKIT}${HPCTOOLKIT_DIR})
-set(ignoreUnused ${WCS_WITH_ROSS}${ROSS_ROOT}${ROSS_DIR})
 
 if (OpenMP_CXX_FOUND)
   message(STATUS "WCS_OMP_MODE value (${WCS_OMP_MODE})")

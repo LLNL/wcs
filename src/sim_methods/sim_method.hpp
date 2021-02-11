@@ -102,8 +102,20 @@ public:
    * Record as many states as the given number of iterations from the beginning
    * of the digest list */
   virtual void record_first_n(const sim_iter_t num) = 0;
-  size_t m_lp_idx;
  #endif // defined(WCS_HAS_ROSS)
+
+ #if defined(WCS_HAS_ROSS) || (defined(_OPENMP) && defined(WCS_OMP_RUN_PARTITION))
+  size_t m_lp_idx;
+ #endif // defined(WCS_HAS_ROSS) || (defined(_OPENMP) && defined(WCS_OMP_RUN_PARTITION))
+ #if defined(_OPENMP)
+  /**
+   * Set the number of omp threads to use. By default it is set to the value
+   * returned by omp_get_max_threads(). If it has to be different, call this
+   * function before calling `init()`.
+   */
+  void set_num_threads(int n) { m_num_threads = n; }
+  int get_num_threads() const { return m_num_threads; }
+ #endif // defined(_OPENMP)
 
   /// Finalize the internal trajectory recorder
   void finalize_recording();
@@ -112,8 +124,16 @@ public:
 
   bool fire_reaction(Sim_State_Change& digest);
 
+ #ifdef ENABLE_SPECIES_UPDATE_TRACKING
   void undo_species_updates(const cnt_updates_t& updates) const;
+ #endif // ENABLE_SPECIES_UPDATE_TRACKING
   bool undo_reaction(const Sim_Method::v_desc_t& rd_undo) const;
+
+  sim_iter_t get_max_iter() const;
+  sim_time_t get_max_time() const;
+
+  sim_iter_t get_sim_iter() const;
+  sim_time_t get_sim_time() const;
 
 protected:
 
@@ -132,6 +152,10 @@ protected:
   bool m_recording; ///< Whether to enable tracing or sampling
 
   std::unique_ptr<Trajectory> m_trajectory; ///< Trajectory recorder
+
+ #if defined(_OPENMP)
+  int m_num_threads;
+ #endif // defined(_OPENMP)
 };
 
 

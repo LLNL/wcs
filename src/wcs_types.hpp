@@ -14,6 +14,7 @@
 #include <utility> // std::move
 #include <memory>  // std::unique_ptr
 #include <limits>  // std::numeric_limits
+#include <cstdint> // uint64_t
 
 #if defined(WCS_HAS_CONFIG)
 #include "wcs_config.hpp"
@@ -29,8 +30,13 @@ namespace wcs {
 /** \addtogroup wcs_global
  *  @{ */
 
+#if WCS_64BIT_CNT
+using species_cnt_t = uint64_t;
+using species_cnt_diff_t = int64_t;
+#else
 using species_cnt_t = unsigned int;
 using species_cnt_diff_t = int;
+#endif
 using reaction_rate_t = double;
 using sim_time_t = double;
 using sim_iter_t = unsigned;
@@ -47,7 +53,7 @@ using idx_t = v_idx_t;
 #endif // defined(WCS_HAS_METIS)
 
 constexpr sim_time_t max_sim_time
-  = std::numeric_limits<sim_time_t>::max() - 1;
+  = std::numeric_limits<sim_time_t>::max()*0.9;
 
 constexpr partition_id_t unassigned_partition
   = std::numeric_limits<partition_id_t>::max();

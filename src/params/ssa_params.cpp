@@ -8,22 +8,17 @@
  *                                                                            *
  ******************************************************************************/
 
-#ifndef WCS_SSA_CFG_HPP
-#define WCS_SSA_CFG_HPP
-
-#if defined(WCS_HAS_CONFIG)
-#include "wcs_config.hpp"
-#else
-#error "no config"
-#endif
-
 #include <getopt.h>
 #include <limits>
 #include <string>
 #include <iostream>
 #include <cstdlib>
+#include "utils/file.hpp"
 #include "reaction_network/network.hpp"
+#include "params/ssa_params.hpp"
 
+
+namespace wcs {
 
 #define OPTIONS "df:g:hi:o:s:t:m:r:"
 static const struct option longopts[] = {
@@ -40,87 +35,69 @@ static const struct option longopts[] = {
     { 0, 0, 0, 0 },
 };
 
-struct Config {
-  Config()
-  : seed(0u), max_iter(10u),
-    max_time(wcs::max_sim_time),
-    method(1),
-    tracing(false),
-    sampling(false),
-    iter_interval(0u),
-    time_interval(0.0),
-    frag_size(0),
-    is_frag_size_set(false)
-  {}
+SSA_Params::SSA_Params()
+: m_seed(0u), m_max_iter(10u),
+  m_max_time(wcs::max_sim_time),
+  m_method(1),
+  m_tracing(false),
+  m_sampling(false),
+  m_iter_interval(0u),
+  m_time_interval(0.0),
+  m_frag_size(0),
+  m_is_frag_size_set(false),
+  m_is_iter_set(false),
+  m_is_time_set(false)
+{}
 
-  void getopt(int& argc, char** &argv);
-  void print_usage(const std::string exec, int code);
-
-  unsigned seed;
-  wcs::sim_iter_t max_iter;
-  wcs::sim_time_t max_time;
-  int method;
-  bool tracing;
-  bool sampling;
-  wcs::sim_iter_t iter_interval;
-  wcs::sim_time_t time_interval;
-  unsigned frag_size;
-  bool is_frag_size_set;
-
-  std::string infile;
-  std::string outfile;
-  std::string gvizfile;
-};
-
-void Config::getopt(int& argc, char** &argv)
+void SSA_Params::getopt(int& argc, char** &argv)
 {
   int c;
-  bool is_iter_set = false;
-  bool is_time_set = false;
+  m_is_iter_set = false;
+  m_is_time_set = false;
 
   while ((c = getopt_long(argc, argv, OPTIONS, longopts, NULL)) != -1) {
     switch (c) {
       case 'd': /* --diag */
-        tracing = true;
-        sampling = false;
+        m_tracing = true;
+        m_sampling = false;
         break;
       case 'f': /* --frag_sz */
-        frag_size = static_cast<unsigned>(atoi(optarg));
-        is_frag_size_set = true;
+        m_frag_size = static_cast<unsigned>(atoi(optarg));
+        m_is_frag_size_set = true;
         break;
       case 'g': /* --graphviz */
-        gvizfile = std::string(optarg);
+        m_gvizfile = std::string(optarg);
         break;
       case 'h': /* --help */
         print_usage(argv[0], 0);
         break;
       case 'i': /* --iter */
-        max_iter = static_cast<wcs::sim_iter_t>(atoi(optarg));
-        is_iter_set = true;
+        m_max_iter = static_cast<wcs::sim_iter_t>(atoi(optarg));
+        m_is_iter_set = true;
         break;
       case 'o': /* --outfile */
-        outfile = std::string(optarg);
+        m_outfile = std::string(optarg);
         break;
       case 's': /* --seed */
-        seed = static_cast<unsigned>(atoi(optarg));
+        m_seed = static_cast<unsigned>(atoi(optarg));
         break;
       case 't': /* --time */
-        max_time = static_cast<wcs::sim_time_t>(std::stod(optarg));
-        is_time_set = true;
+        m_max_time = static_cast<wcs::sim_time_t>(std::stod(optarg));
+        m_is_time_set = true;
         break;
       case 'm': /* --method */
-        method = static_cast<int>(atoi(optarg));
+        m_method = static_cast<int>(atoi(optarg));
         break;
       case 'r': /* --record */
-        sampling = true;
-        tracing = false;
+        m_sampling = true;
+        m_tracing = false;
         {
           if (optarg[0] == 'i') {
-            iter_interval = static_cast<wcs::sim_iter_t>(atoi(&optarg[1]));
+            m_iter_interval = static_cast<wcs::sim_iter_t>(atoi(&optarg[1]));
           } else if (optarg[0] == 't') {
-            time_interval = static_cast<wcs::sim_time_t>(atof(&optarg[1]));
+            m_time_interval = static_cast<wcs::sim_time_t>(atof(&optarg[1]));
           } else {
-            sampling = false;
+            m_sampling = false;
             std::cerr << "Unknown sampling interval: " << std::string(optarg)
                       << std::endl;
           }
@@ -136,17 +113,18 @@ void Config::getopt(int& argc, char** &argv)
     print_usage (argv[0], 1);
   }
 
-  infile = argv[optind];
+  m_infile = argv[optind];
+  set_outfile(m_outfile);
 
-  if (!is_iter_set && is_time_set) {
-    max_iter = std::numeric_limits<decltype(max_iter)>::max();
+  if (!m_is_iter_set && m_is_time_set) {
+    m_max_iter = std::numeric_limits<decltype(m_max_iter)>::max();
   }
-  if ((sampling || tracing) && !is_frag_size_set) {
-    frag_size = wcs::default_frag_size;
+  if ((m_sampling || m_tracing) && !m_is_frag_size_set) {
+    m_frag_size = wcs::default_frag_size;
   }
 }
 
-void Config::print_usage(const std::string exec, int code)
+void SSA_Params::print_usage(const std::string exec, int code)
 {
   std::cerr <<
     "Usage: " << exec << " <filename>.graphml|xml\n"
@@ -198,4 +176,47 @@ void Config::print_usage(const std::string exec, int code)
   exit(code);
 }
 
-#endif // WCS_SSA_CFG_HPP
+void SSA_Params::print() const
+{
+  static const char* method_name[4] = {"DM", "NRM", "SOD", "Unknown"};
+  using std::to_string;
+  using std::string;
+  string msg;
+  msg = "------ SSA params ------\n";
+  msg += " - seed: " + to_string(m_seed) + "\n";
+  msg += " - max_iter: " + to_string(m_max_iter) + "\n";
+  msg += " - max_time: " + to_string(m_max_time) + "\n";
+  msg += " - method: " + string{method_name[m_method]} + "\n";
+  msg += " - tracing: " + string{m_tracing? "true" : "false"} + "\n";
+  msg += " - sampling: " + string{m_sampling? "true" : "false"} + "\n";
+  msg += " - iter_interval: " + to_string(m_iter_interval) + "\n";
+  msg += " - time_interval: " + to_string(m_time_interval) + "\n";
+  msg += " - frag_size: " + to_string(m_frag_size) + "\n";
+  msg += " - is_frag_size_set: " + string{m_is_frag_size_set? "true" : "false"} + "\n";
+  msg += " - infile: " + m_infile + "\n";
+  msg += " - outfile: " + m_outfile + "\n";
+  msg += " - gvizfile: " + m_gvizfile + "\n";
+  msg += " - is_iter_set: " + string{m_is_iter_set? "true" : "false"} + "\n";
+  msg += " - is_time_set: " + string{m_is_time_set? "true" : "false"} + "\n";
+
+  std::cout << msg << std::endl;
+}
+
+void SSA_Params::set_outfile(const std::string& ofname)
+{
+  m_outfile = ofname;
+  if (m_outfile.empty()) {
+    if (!m_infile.empty()) {
+      m_outfile = wcs::get_default_outname_from_model(m_infile);
+    } else {
+      m_outfile = "ssa.out";
+    }
+  }
+}
+
+std::string SSA_Params::get_outfile() const
+{
+  return m_outfile;
+}
+
+} // end of namespace wcs

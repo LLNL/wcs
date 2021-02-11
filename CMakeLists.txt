@@ -30,6 +30,16 @@ endif ()
 string(TOUPPER "${PROJECT_NAME}" UPPER_PROJECT_NAME)
 string(TOLOWER "${PROJECT_NAME}" LOWER_PROJECT_NAME)
 
+
+################################################################
+# Suppress warning
+# "Manually-specified variables were not used by the project"
+################################################################
+
+set(ignoreUnused ${WCS_OMP_MODE}${WCS_WITH_VTUN}${VTUNE_DIR})
+set(ignoreUnused ${WCS_WITH_HPCTOOLKIT}${HPCTOOLKIT_DIR})
+set(ignoreUnused ${WCS_WITH_ROSS}${ROSS_ROOT}${ROSS_DIR})
+
 ################################################################
 # Version setup
 ################################################################
@@ -98,10 +108,12 @@ endif ()
 # Options
 ################################################################
 
+option(WCS_64BIT_CNT "Enable 64-bit species counter. The default is 32-bit." OFF)
+
 # Sundials may become requirement later
 option(WCS_WITH_SUNDIALS "Enable SUNDIALS library" OFF)
 
-option(WCS_WITH_SBML "Enable SBML library" OFF)
+option(WCS_WITH_SBML "Enable SBML library" ON)
 
 option(WCS_WITH_EXPRTK "Include ExprTk" OFF)
 
@@ -115,6 +127,8 @@ option(WCS_WITH_HPCTOOLKIT
   "Dynamically link the HPCToolkit profiling library" OFF)
 
 option(WCS_WITH_ROSS "Use ROSS" OFF)
+
+option(WCS_WITH_OPENMP "Enable OpenMP" OFF)
 
 option(WCS_WITH_METIS "Enable METIS library" OFF)
 
@@ -143,24 +157,9 @@ endif ()
 #set(WCS_VERTEX_LIST_TYPE "::boost::listS"
 #  CACHE STRING "The BGL vertex list type to use in WCS")
 
+######################### For clang ###############################
 #set(WCS_OUT_EDGE_LIST_TYPE "::boost::vecS"
 #  CACHE STRING "The BGL out edge list type to use in WCS")
-
-################################################################
-# Initialize build
-################################################################
-
-set(CMAKE_SKIP_BUILD_RPATH  FALSE)
-set(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)
-set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
-set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}")
-
-# the RPATH to be used when installing, but only if it's not a system directory
-list(FIND CMAKE_PLATFORM_IMPLICIT_LINK_DIRECTORIES
-     "${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}" isSystemDir)
-if("${isSystemDir}" STREQUAL "-1")
-    set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}")
-endif("${isSystemDir}" STREQUAL "-1")
 
 #  Setup specific to using clang on Livermore Computing (LC) platforms
 #
@@ -200,6 +199,22 @@ if (USE_GCC_LIBCXX)
     set_property(CACHE GCC_TOOLCHAIN_VER PROPERTY STRINGS
                  "4.9.3" "6.1.0" "7.1.0" "7.3.0" "8.1.0")
 endif ()
+
+################################################################
+# Initialize build
+################################################################
+
+set(CMAKE_SKIP_BUILD_RPATH  FALSE)
+set(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)
+set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
+set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}")
+
+# the RPATH to be used when installing, but only if it's not a system directory
+list(FIND CMAKE_PLATFORM_IMPLICIT_LINK_DIRECTORIES
+     "${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}" isSystemDir)
+if("${isSystemDir}" STREQUAL "-1")
+    set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}")
+endif("${isSystemDir}" STREQUAL "-1")
 
 # Get installation directories -- these get used in various places;
 # best to just make them available
@@ -339,6 +354,35 @@ if (WCS_WITH_ROSS)
   endif (ROSS_FOUND)
 endif (WCS_WITH_ROSS)
 
+if (OpenMP_CXX_FOUND)
+  message(STATUS "WCS_OMP_MODE value (${WCS_OMP_MODE})")
+  set(WCS_HAS_OPENMP TRUE)
+  if(NOT WCS_OMP_MODE)
+    set(WCS_OMP_REACTION_UPDATES ON)
+  elseif(WCS_OMP_MODE MATCHES 1)
+    set(WCS_OMP_REACTION_UPDATES ON)
+  elseif(WCS_OMP_MODE MATCHES 2)
+    set(WCS_OMP_REACTION_UPDATES ON)
+    set(WCS_OMP_REACTION_REACTANTS ON)
+  elseif(WCS_OMP_MODE MATCHES 3)
+    set(WCS_OMP_REACTION_UPDATES ON)
+    set(WCS_OMP_REACTION_REACTANTS ON)
+    set(WCS_OMP_REACTION_PRODUCTS ON)
+  elseif(WCS_OMP_MODE MATCHES 4)
+    set(WCS_OMP_REACTION_UPDATES ON)
+    set(WCS_OMP_RUN_PARTITION ON)
+  elseif(WCS_OMP_MODE MATCHES 5)
+    set(WCS_OMP_RUN_PARTITION ON)
+  elseif()
+    message(STATUS "Unknown WCS_OMP_MODE (${WCS_OMP_MODE})")
+  endif()
+
+  find_package(NUMA MODULE)
+  if (NUMA_FOUND)
+    set(WCS_HAS_NUMA TRUE)
+  endif (NUMA_FOUND)
+endif (OpenMP_CXX_FOUND)
+
 if (WCS_WITH_METIS)
   set(WCS_HAS_METIS FALSE)
   find_package(Metis MODULE)
@@ -378,10 +422,17 @@ add_library(wcs ${WCS_SOURCES} ${WCS_HEADERS})
 if (WCS_HAS_PROTOBUF)
   add_dependencies(wcs protobuf::libprotobuf)
   add_dependencies(wcs protobuf::protoc)
+  if (WCS_HAS_OPENMP)
+    add_dependencies(wcs OpenMP::OpenMP_CXX)
+    if (WCS_HAS_NUMA)
+      add_dependencies(wcs NUMA::numa)
+    endif (WCS_HAS_NUMA)
+  endif (WCS_HAS_OPENMP)
 endif (WCS_HAS_PROTOBUF)
 
 target_include_directories(wcs PUBLIC
   $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}>
+  $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/src>
   $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/src>
   $<INSTALL_INTERFACE:${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_INCLUDEDIR}>)
 target_include_directories(wcs SYSTEM PUBLIC ${Boost_INCLUDE_DIRS})
@@ -441,8 +492,15 @@ if (WCS_WITH_UNIT_TESTING)
 endif (WCS_WITH_UNIT_TESTING)
 
 if (WCS_HAS_PROTOBUF)
-  target_link_libraries(wcs PUBLIC protobuf::libprotobuf)
+  target_link_libraries(wcs PUBLIC wcs_proto protobuf::libprotobuf)
 endif (WCS_HAS_PROTOBUF)
+
+if (WCS_HAS_OPENMP)
+  target_link_libraries(wcs PUBLIC OpenMP::OpenMP_CXX)
+  if (WCS_HAS_NUMA)
+    target_link_libraries(wcs PUBLIC NUMA::numa)
+  endif (WCS_HAS_NUMA)
+endif (WCS_HAS_OPENMP)
 
 ################################################################
 # Add executables
@@ -476,12 +534,34 @@ target_include_directories(ssa-bin PUBLIC
   $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}>
   $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/src>
   $<INSTALL_INTERFACE:${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_INCLUDEDIR}>)
-
 target_link_libraries(ssa-bin PRIVATE wcs ${LIB_FILESYSTEM})
 set_target_properties(ssa-bin PROPERTIES OUTPUT_NAME ssa)
 set_target_properties(ssa-bin PROPERTIES CMAKE_INSTALL_RPATH
                       "${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}")
 list(APPEND WCS_EXEC_TARGETS ssa-bin)
+
+
+# add executable ssa_partition
+if (WCS_HAS_METIS)
+  add_executable( ssa_partition-bin src/ssa_partition.cpp)
+  target_include_directories(ssa_partition-bin PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}>
+    $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/src>
+    $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/src>
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_INCLUDEDIR}>)
+
+  target_include_directories(ssa_partition-bin
+      PRIVATE $<TARGET_PROPERTY:wcs,INTERFACE_INCLUDE_DIRECTORIES>
+      ${Protobuf_DIR}/include ${Boost_INCLUDE_DIRS})
+
+  target_link_libraries(ssa_partition-bin wcs ${LIB_FILESYSTEM}
+                        -L${Boost_LIBRARY_DIRS} boost_program_options)
+
+  set_target_properties(ssa_partition-bin PROPERTIES OUTPUT_NAME ssa_partition)
+  set_target_properties(ssa_partition-bin PROPERTIES CMAKE_INSTALL_RPATH
+                        "${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}")
+  list(APPEND WCS_EXEC_TARGETS ssa_partition-bin)
+endif (WCS_HAS_METIS)
 
 # add executable graphml2dot
 add_executable( graphml2dot-bin src/utils/graphml2dot.cpp )
@@ -628,6 +708,7 @@ write_basic_package_version_file(
 # This is for the build tree
 set(INCLUDE_INSTALL_DIRS
   "${CMAKE_SOURCE_DIR}/src"
+  "${CMAKE_SOURCE_DIR}/src/params"
   "${CMAKE_SOURCE_DIR}/src/partition"
   "${CMAKE_SOURCE_DIR}/src/proto"
   "${CMAKE_SOURCE_DIR}/src/reaction_network"
@@ -683,6 +764,10 @@ install(DIRECTORY cmake/modules
 
 # Install header files
 install(
+  DIRECTORY "${PROJECT_SOURCE_DIR}/src/params"
+  DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
+  FILES_MATCHING PATTERN "*.h" PATTERN "*.hpp")
+install(
   DIRECTORY "${PROJECT_SOURCE_DIR}/src/partition"
   DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
   FILES_MATCHING PATTERN "*.h" PATTERN "*.hpp")
@@ -707,9 +792,7 @@ install(
         "${PROJECT_SOURCE_DIR}/src/wcs_types.hpp"
         "${PROJECT_SOURCE_DIR}/src/bgl.hpp"
         "${PROJECT_SOURCE_DIR}/src/des.hpp"
-        "${PROJECT_SOURCE_DIR}/src/ssa-cfg.hpp"
         "${PROJECT_SOURCE_DIR}/src/wcs-ross-bf.hpp"
-        "${PROJECT_SOURCE_DIR}/src/wcs_params.hpp"
   DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}")
 
 if (WCS_HAS_EXPRTK)
@@ -786,6 +869,7 @@ string(APPEND _str "\n")
 #Print the true/false guys
 append_str_tf(_str
   WCS_GNU_LINUX
+  WCS_64BIT_CNT
   WCS_HAS_SUNDIALS
   WCS_HAS_SBML
   WCS_HAS_EXPRTK
@@ -795,6 +879,8 @@ append_str_tf(_str
   WCS_HAS_HPCTOOLKIT
   WCS_HAS_DOXYGEN
   WCS_HAS_ROSS
+  WCS_HAS_OPENMP
+  WCS_HAS_NUMA
   WCS_HAS_METIS
   WCS_HAS_PROTOBUF)
 string(APPEND _str

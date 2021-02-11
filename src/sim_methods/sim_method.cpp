@@ -37,6 +37,9 @@ Sim_Method::Sim_Method(const std::shared_ptr<wcs::Network>& net_ptr) try
   if constexpr (!is_bidirectional) {
     WCS_THROW("Cannot get species population without in-edges.");
   }
+ #if defined(_OPENMP)
+  m_num_threads = omp_get_max_threads();
+ #endif // defined(_OPENMP)
 }
 catch (const std::exception& e) {
   WCS_THROW("Invalid pointer to the reaction network.");
@@ -125,13 +128,80 @@ bool Sim_Method::fire_reaction(Sim_State_Change& digest)
   const wcs::Network::graph_t& g = m_net_ptr->graph();
   // The vertex descriptor of the reaction to undo
   const auto& rd_firing = digest.m_reaction_fired;
+ #ifdef ENABLE_SPECIES_UPDATE_TRACKING
+  // can be used for undo_species_updates()
   auto& updating_species = digest.m_species_updated;
+  updating_species.clear();
+ #endif // ENABLE_SPECIES_UPDATE_TRACKING
   auto& reactions_affected = digest.m_reactions_affected;
 
-  updating_species.clear();
   reactions_affected.clear();
 
-  // reactant species
+ #if defined(_OPENMP) && defined(WCS_OMP_RUN_PARTITION)
+  const auto pid = m_net_ptr->get_partition_id();
+ #endif // defined(_OPENMP) && defined(WCS_OMP_RUN_PARTITION)
+
+  // ========================= reactant species ================================
+ #if defined(_OPENMP) && defined(WCS_OMP_REACTION_REACTANTS) // ----------------
+  using e_desc_t = wcs::Network::e_desc_t;
+  using ie_iter_t = boost::graph_traits<Network::graph_t>::in_edge_iterator;
+  ie_iter_t iei, iei_end;
+
+  boost::tie(iei, iei_end) = boost::in_edges(rd_firing, g);
+  const std::vector<e_desc_t> inedges(iei, iei_end);
+  const size_t nie = inedges.size();
+
+  #pragma omp parallel for //schedule(dynamic)
+  for (size_t i = 0u; i < nie; ++i)
+  {
+    const auto& ei_in = inedges[i];
+    const auto vd_updating = boost::source(ei_in, g);
+    const auto& sv_updating = g[vd_updating];
+    if constexpr (wcs::Vertex::_num_vertex_types_  > 3) {
+      // in case that there are other type of vertices than species or reaction
+      if (sv_updating.get_type() != wcs::Vertex::_species_) continue;
+    }
+
+    auto& sp_updating = sv_updating.property<s_prop_t>();
+    const auto stoichio = g[ei_in].get_stoichiometry_ratio();
+    if (stoichio == static_cast<stoic_t>(0)) {
+      continue;
+    }
+  #ifdef NDEBUG
+    sp_updating.dec_count(stoichio);
+  #else
+    // This really should not happen because whether the reaction is feasible is
+    // checked before computing reaction time or propensity.
+    if (!sp_updating.dec_count(stoichio)) { // State update
+      std::string err = "Not enough reactants of " + sv_updating.get_label()
+                      + "[" + std::to_string(sp_updating.get_count())
+                      + "] for reaction " + g[rd_firing].get_label();
+      WCS_THROW(err);
+      //return false; // TODO: graceful termination
+    }
+  #endif
+  #ifdef ENABLE_SPECIES_UPDATE_TRACKING
+    #pragma omp critical
+    {
+      updating_species.emplace_back(std::make_pair(vd_updating, -stoichio));
+    }
+  #endif // ENABLE_SPECIES_UPDATE_TRACKING
+
+    for (const auto vi_affected :
+         boost::make_iterator_range(boost::out_edges(vd_updating, g)))
+    {
+      const auto rd_affected = boost::target(vi_affected, g);
+      if (rd_affected == rd_firing) continue;
+     #if defined(_OPENMP) && defined(WCS_OMP_RUN_PARTITION)
+      if (m_net_ptr->graph()[rd_affected].get_partition() != pid) continue;
+     #endif // defined(_OPENMP) && defined(WCS_OMP_RUN_PARTITION)
+      #pragma omp critical
+      {
+        reactions_affected.insert(rd_affected);
+      }
+    }
+  }
+ #else // defined(_OPENMP) && defined(WCS_OMP_REACTION_REACTANTS) // -----------
   for (const auto ei_in :
        boost::make_iterator_range(boost::in_edges(rd_firing, g)))
   {
@@ -161,18 +231,80 @@ bool Sim_Method::fire_reaction(Sim_State_Change& digest)
       return false;
     }
   #endif
+  #ifdef ENABLE_SPECIES_UPDATE_TRACKING
     updating_species.emplace_back(std::make_pair(vd_updating, -stoichio));
+  #endif // ENABLE_SPECIES_UPDATE_TRACKING
 
     for (const auto vi_affected :
          boost::make_iterator_range(boost::out_edges(vd_updating, g)))
     {
       const auto rd_affected = boost::target(vi_affected, g);
       if (rd_affected == rd_firing) continue;
+     #if defined(_OPENMP) && defined(WCS_OMP_RUN_PARTITION)
+      if (m_net_ptr->graph()[rd_affected].get_partition() != pid) continue;
+     #endif // defined(_OPENMP) && defined(WCS_OMP_RUN_PARTITION)
       reactions_affected.insert(rd_affected);
     }
   }
+ #endif // defined(_OPENMP) && defined(WCS_OMP_REACTION_REACTANTS) // ----------
 
-  // product species
+  // ========================== product species ================================
+ #if defined(_OPENMP) && defined(WCS_OMP_REACTION_PRODUCTS) // -----------------
+  using oe_iter_t = boost::graph_traits<Network::graph_t>::out_edge_iterator;
+  oe_iter_t oei, oei_end;
+  boost::tie(oei, oei_end) = boost::out_edges(rd_firing, g);
+  const std::vector<e_desc_t> outedges(oei, oei_end);
+  const size_t noe = outedges.size();
+
+  #pragma omp parallel for //schedule(dynamic)
+  for (size_t i = 0u; i < noe; ++i)
+  {
+    const auto& ei_out = outedges[i];
+    const auto vd_updating = boost::target(ei_out, g);
+    const auto& sv_updating = g[vd_updating];
+    if constexpr (wcs::Vertex::_num_vertex_types_  > 3) {
+      // in case that there are other type of vertices than species or reaction
+      if (sv_updating.get_type() != wcs::Vertex::_species_) continue;
+    }
+
+    auto& sp_updating = sv_updating.property<s_prop_t>();
+    const auto stoichio = g[ei_out].get_stoichiometry_ratio();
+    if (stoichio == static_cast<stoic_t>(0)) {
+      continue;
+    }
+  #ifdef NDEBUG
+    sp_updating.inc_count(stoichio);
+  #else
+    if (!sp_updating.inc_count(stoichio)) { // State update
+      std::string err = "Can not produce more of " + sv_updating.get_label()
+                      + "[" + std::to_string(sp_updating.get_count())
+                      + "] by reaction " + g[rd_firing].get_label();
+      WCS_THROW(err);
+      //return false; // TODO: graceful termination
+    }
+  #endif
+  #ifdef ENABLE_SPECIES_UPDATE_TRACKING
+    #pragma omp critical
+    {
+      updating_species.emplace_back(std::make_pair(vd_updating, stoichio));
+    }
+  #endif // ENABLE_SPECIES_UPDATE_TRACKING
+
+    for (const auto vi_affected :
+         boost::make_iterator_range(boost::out_edges(vd_updating, g)))
+    {
+      const auto rd_affected = boost::target(vi_affected, g);
+      if (rd_affected == rd_firing) continue;
+     #if defined(_OPENMP) && defined(WCS_OMP_RUN_PARTITION)
+      if (m_net_ptr->graph()[rd_affected].get_partition() != pid) continue;
+     #endif // defined(_OPENMP) && defined(WCS_OMP_RUN_PARTITION)
+      #pragma omp critical
+      {
+        reactions_affected.insert(rd_affected);
+      }
+    }
+  }
+ #else // defined(_OPENMP) && defined(WCS_OMP_REACTION_PRODUCTS) // ------------
   for (const auto ei_out :
        boost::make_iterator_range(boost::out_edges(rd_firing, g)))
   {
@@ -194,26 +326,35 @@ bool Sim_Method::fire_reaction(Sim_State_Change& digest)
     if (!sp_updating.inc_count(stoichio)) { // State update
       std::string err = "Can not produce more of " + sv_updating.get_label()
                       + "[" + std::to_string(sp_updating.get_count())
-                      + "] by reaction " + g[rd_firing].get_label();
+                      + "] by reaction " + g[rd_firing].get_label()
+                      + ". To enable 64-bit counter, rebuild using the cmake "
+                      + "option '-DWCS_64BIT_CNT=ON'.";
       WCS_THROW(err);
       return false;
     }
   #endif
+  #ifdef ENABLE_SPECIES_UPDATE_TRACKING
     updating_species.emplace_back(std::make_pair(vd_updating, stoichio));
+  #endif // ENABLE_SPECIES_UPDATE_TRACKING
 
     for (const auto vi_affected :
          boost::make_iterator_range(boost::out_edges(vd_updating, g)))
     {
       const auto rd_affected = boost::target(vi_affected, g);
       if (rd_affected == rd_firing) continue;
+     #if defined(_OPENMP) && defined(WCS_OMP_RUN_PARTITION)
+      if (m_net_ptr->graph()[rd_affected].get_partition() != pid) continue;
+     #endif // defined(_OPENMP) && defined(WCS_OMP_RUN_PARTITION)
       reactions_affected.insert(rd_affected);
     }
   }
+ #endif // defined(_OPENMP) && defined(WCS_OMP_REACTION_PRODUCTS) // -----------
 
   return true;
 }
 
 
+#ifdef ENABLE_SPECIES_UPDATE_TRACKING
 /**
  * Undo the species updates applied during incomplete reaction processing.
  * This relies on the list of updates made to species, and revert them.
@@ -237,6 +378,7 @@ void Sim_Method::undo_species_updates(const cnt_updates_t& updates) const
     }
   }
 }
+#endif // ENABLE_SPECIES_UPDATE_TRACKING
 
 /**
  * Undo the species states updated by a reaction identified by the given
@@ -314,5 +456,26 @@ bool Sim_Method::undo_reaction(const Sim_Method::v_desc_t& rd_undo) const
 
   return true;
 }
+
+sim_iter_t Sim_Method::get_max_iter() const
+{
+  return m_max_iter;
+}
+
+sim_time_t Sim_Method::get_max_time() const
+{
+  return m_max_time;
+}
+
+sim_iter_t Sim_Method::get_sim_iter() const
+{
+  return m_sim_iter;
+}
+
+sim_time_t Sim_Method::get_sim_time() const
+{
+  return m_sim_time;
+}
+
 /**@}*/
 } // end of namespace wcs

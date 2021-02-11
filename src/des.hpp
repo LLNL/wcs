@@ -24,6 +24,7 @@
 #include <ross.h>
 #include "reaction_network/network.hpp"
 #include "sim_methods/ssa_nrm.hpp"
+#include "params/ssa_params.hpp"
 
 //----------------------------
 // C++ and C state structures
@@ -56,7 +57,7 @@ WCS_LP_State::WCS_LP_State(std::unique_ptr<wcs::SSA_NRM>&& ssa_ptr,
 /// Structure that contains global state variables
 struct WCS_Global_State
 {
-  Config m_cfg; ///< Configuration state made from command-line arguments
+  SSA_Config m_cfg; ///< Configuration state made from command-line arguments
   std::vector<WCS_LP_State> m_LP_states; ///< List of per-LP states
 };
 

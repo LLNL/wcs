@@ -19,7 +19,6 @@
 #include <string>
 #include <cstring> // memset
 #include <iostream>
-#include "ssa-cfg.hpp"
 #include "utils/write_graphviz.hpp"
 #include "utils/timer.hpp"
 #include "utils/to_string.hpp"
@@ -35,7 +34,7 @@ int main(int argc, char **argv)
   tw_opt_add(app_opt);
   tw_init(&argc, &argv);
 
-  Config& cfg = gState.m_cfg;
+  SSA_Config& cfg = gState.m_cfg;
   cfg.getopt(argc, argv);
   tw_define_lps(nlp_per_pe, sizeof(WCS_Message));
 
@@ -68,7 +67,7 @@ int main(int argc, char **argv)
 
 void wcs_init(WCS_State *s, tw_lp *lp)
 {
-  Config& cfg = gState.m_cfg;
+  SSA_Config& cfg = gState.m_cfg;
 
   std::shared_ptr<wcs::Network> rnet_ptr = std::make_shared<wcs::Network>();
   wcs::Network& rnet = *rnet_ptr;
@@ -195,7 +194,7 @@ void wcs_event_commit(WCS_State *s, tw_bf *bf, WCS_Message *msg, tw_lp *lp)
 
 void wcs_final(WCS_State *s, tw_lp *lp)
 {
-  Config& cfg = gState.m_cfg;
+  SSA_Config& cfg = gState.m_cfg;
   const WCS_LP_State& lp_state = gState.m_LP_states.at(s->m_lp_idx);
 
   std::cout << "Wall clock time to run simulation: "

@@ -8,9 +8,8 @@
  *                                                                            *
  ******************************************************************************/
 
-#ifndef  __WCS_UTILS_FILE__
-#define  __WCS_UTILS_FILE__
-#include <string>
+#ifndef WCS_SSA_PARAMS_HPP
+#define WCS_SSA_PARAMS_HPP
 
 #if defined(WCS_HAS_CONFIG)
 #include "wcs_config.hpp"
@@ -18,29 +17,43 @@
 #error "no config"
 #endif
 
-#if defined(WCS_HAS_STD_FILESYSTEM)
-#include <filesystem>
-#else
-#include <boost/filesystem.hpp>
-#endif
+#include <string>
+#include "wcs_types.hpp"
 
 namespace wcs {
-/** \addtogroup wcs_utils
+/** \addtogroup wcs_params
  *  @{ */
 
-/// Split a path string into three components: parent dir, stem, and extension
-void extract_file_component(const std::string path, std::string& parent_dir,
-                            std::string& stem, std::string& extension);
+class SSA_Params {
+ public:
+  SSA_Params();
+  void getopt(int& argc, char** &argv);
+  void print_usage(const std::string exec, int code);
+  void print() const;
+  void set_outfile(const std::string& ofname);
+  std::string get_outfile() const;
 
-/// Returns a new path string that has a stem appended with the given str
-std::string append_to_stem(const std::string path, const std::string str);
+  unsigned m_seed;
+  wcs::sim_iter_t m_max_iter;
+  wcs::sim_time_t m_max_time;
+  int m_method;
+  bool m_tracing;
+  bool m_sampling;
+  wcs::sim_iter_t m_iter_interval;
+  wcs::sim_time_t m_time_interval;
+  unsigned m_frag_size;
+  bool m_is_frag_size_set;
 
-bool check_if_file_exists(const std::string filename);
+  std::string m_infile;
+  std::string m_gvizfile;
 
-std::string get_libname_from_model(const std::string& model_filename);
+  bool m_is_iter_set;
+  bool m_is_time_set;
 
-std::string get_default_outname_from_model(const std::string& model_filename);
+ private:
+  std::string m_outfile;
+};
 
 /**@}*/
 } // end of namespace wcs
-#endif //  __WCS_UTILS_FILE__
+#endif // WCS_SSA_PARAMS_HPP

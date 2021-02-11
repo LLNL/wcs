@@ -8,9 +8,8 @@
  *                                                                            *
  ******************************************************************************/
 
-#ifndef  __WCS_UTILS_FILE__
-#define  __WCS_UTILS_FILE__
-#include <string>
+#ifndef  __WCS_PROTO_WCS_PARAMS_HPP__
+#define  __WCS_PROTO_WCS_PARAMS_HPP__
 
 #if defined(WCS_HAS_CONFIG)
 #include "wcs_config.hpp"
@@ -18,29 +17,31 @@
 #error "no config"
 #endif
 
-#if defined(WCS_HAS_STD_FILESYSTEM)
-#include <filesystem>
-#else
-#include <boost/filesystem.hpp>
+#if !defined(WCS_HAS_PROTOBUF)
+#error WCS requires protocol buffer
 #endif
+
+#include <string>
+#include "proto/wcs_params.pb.h"
+#include "params/ssa_params.hpp"
+#include "partition/metis_params.hpp"
 
 namespace wcs {
 /** \addtogroup wcs_utils
  *  @{ */
 
-/// Split a path string into three components: parent dir, stem, and extension
-void extract_file_component(const std::string path, std::string& parent_dir,
-                            std::string& stem, std::string& extension);
+void read_proto_params(const std::string& filename,
+                       wcs::SSA_Params& sp, bool verbose = false);
 
-/// Returns a new path string that has a stem appended with the given str
-std::string append_to_stem(const std::string path, const std::string str);
+#if defined(WCS_HAS_METIS)
+void read_proto_params(const std::string& filename,
+                       wcs::Metis_Params mp, bool verbose = false);
 
-bool check_if_file_exists(const std::string filename);
-
-std::string get_libname_from_model(const std::string& model_filename);
-
-std::string get_default_outname_from_model(const std::string& model_filename);
-
+void read_proto_params(const std::string& filename,
+                       wcs::SSA_Params& sp, 
+                       wcs::Metis_Params& mp,
+                       bool verbose = false);
+#endif // defined(WCS_HAS_METIS)
 /**@}*/
 } // end of namespace wcs
-#endif //  __WCS_UTILS_FILE__
+#endif //  __WCS_PROTO_WCS_PARAMS_HPP__

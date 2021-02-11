@@ -57,21 +57,35 @@ message WCS_Params {
   }
   
   message Partition_Params {
-    int32  n_iters = 1; ///< Number of refinement iterations
-    int32  n_parts = 2; ///< Number of partitions
-    int32  seed = 3;    ///< Random number seed
-    int32  ufactor = 4; ///< Uniform load balance factor
-    int32  ub_vwgt = 5; ///< Upper-bound of vertex weight
-    double vratio = 6;  ///< Ratio of vertex weight to size
-    bool   rm_coarse = 7; ///< Coarsening by random matching
-    bool   minconn = 8; ///< Minimize the maximum connectivity
-    bool   cut_obj = 9; ///< optimize edge-cut rather than communication volume
-    bool   run_embedded = 10; ///< Whether to run the hard-coded example
+    int32  n_parts = 1; ///< Number of partitions
+
+    bool   cut_obj = 2; ///< Optimize edge-cut rather than communication volume
+    bool   minconn = 3; ///< Minimize the maximum connectivity between subdomains
+    bool   rm_coarse = 4; ///< Coarsening by random matching or by sorted heavy-edge matching
+
+    // Maximum allowed load imbalance in 1/1000 scale
+    int32  ufactor = 5;
+
+    // Upper-bound of the range that a vertex weight will be linearly scaled
+    // into such that it can be used as Metis input. This needs to be searched
+    // by the trial-and-error as Metis is sensitive with the choice of the
+    // range.
+    int32  ub_vwgt = 6;
+
+    // We define the quantity of edge-weight or communication volume as
+    // inversely proportional to the vertex weight. This has a direct impact
+    // on how the partitioning algorithm optimize for the objective.
+    double vratio = 7;
+
+    int32  n_iters = 8; ///< Number of refinement iterations
+    int32  seed = 9;    ///< Random number seed
+    int32  dbglvl = 10; ///< Metis debug level
+
     bool   verbose = 11; ///< Whether to show details
-    int32  dbglvl = 12; ///< Metis debug level
-  
-    string infile = 13;
-    string outfile = 14;
+    string infile = 12;
+    string outfile = 13;
+
+    bool   run_embedded = 14; ///< Whether to run the hard-coded example
   }
   
   message DES_Params {

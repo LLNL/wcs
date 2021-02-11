@@ -231,14 +231,16 @@ void set_metis_options(const Config& cfg, wcs::Metis_Params& mp)
                  cfg.ufactor, cfg.dbglvl);
   mp.limit_max_vertex_weight(cfg.ub_vwgt);
   mp.set_ratio_of_vertex_weight_to_size(cfg.vratio);
+  mp.m_verbose = cfg.verbose;
+  mp.m_outfile = cfg.outfile;
 }
 
 
 /// Run Metis on a manually constructed adjacency list
 bool run_metis(wcs::Metis_Params& mp, std::vector<idx_t>& parts,
-              idx_t& objval, bool verbose = false)
+              idx_t& objval)
 {
-  if (verbose) {
+  if (mp.m_verbose) {
     mp.print();
   }
 
@@ -305,7 +307,7 @@ bool initial_partition(const Config& cfg,
   wcs::Metis_Partition partitioner(mp);
   partitioner.prepare();
   //const auto& map_idx2vd = partitioner.get_map_from_idx_to_desc();
-  if (cfg.verbose) {
+  if (mp.m_verbose) {
     partitioner.print_params();
     partitioner.print_metis_graph(std::cout);
     partitioner.print_adjacency(std::cout);
@@ -321,10 +323,11 @@ bool initial_partition(const Config& cfg,
 
     if (!(rnet_ptr->my_reaction_list()).empty()) {
       const auto gpart_name
-        = wcs::append_to_stem(cfg.outfile, "-" + std::to_string(i));
+        = wcs::append_to_stem(mp.m_outfile, "-" + std::to_string(i));
 
       wcs::SSA_NRM nrm(rnet_ptr);
-      nrm.init(1, 0.0, cfg.seed);
+      // Initialize network using a different seed from that is used for Metis
+      nrm.init(1, 0.0, cfg.seed+ 1357);
       const auto r = nrm.choose_reaction();
       const auto rname = ((rnet_ptr->graph())[r.second]).get_label();
       std::cout << "First reaction from partition " << i << " is "
@@ -382,7 +385,7 @@ int main(int argc, char** argv)
     wcs::Metis_Params mp;
     mp.m_nparts = cfg.n_parts;
     set_metis_options(cfg, mp);
-    ok = run_metis(mp, parts, objval, cfg.verbose);
+    ok = run_metis(mp, parts, objval);
   } else {
     ok = initial_partition(cfg, rnet_ptr, parts, objval);
   }

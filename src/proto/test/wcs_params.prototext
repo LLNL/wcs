@@ -7,12 +7,17 @@ sim_setup {
   outfile: "trajectory.txt"
 }
 part_setup {
-  n_iters: 10
   n_parts: 2
-  seed: 1234
+#  cut_obj: false
+#  minconn: false
+  rm_coarse: true
   ufactor: 30
   ub_vwgt: 200
   vratio: 0.1
+  n_iters: 10
+  seed: 1234
+#  dbglvl: 0
+#  verbose: false
   infile: "graph_in.txt"
   outfile: "part_out.txt"
 }

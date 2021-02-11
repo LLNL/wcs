@@ -30,12 +30,29 @@
 #cmakedefine WCS_HAS_VTUNE
 #cmakedefine WCS_HAS_HPCTOOLKIT
 #cmakedefine WCS_HAS_ROSS
+#cmakedefine WCS_HAS_OPENMP
+#cmakedefine WCS_HAS_NUMA
 #cmakedefine WCS_HAS_METIS
 #cmakedefine WCS_HAS_STD_FILESYSTEM
 #cmakedefine WCS_HAS_PROTOBUF
 
 #cmakedefine WCS_VERTEX_LIST_TYPE @WCS_VERTEX_LIST_TYPE@
 #cmakedefine WCS_OUT_EDGE_LIST_TYPE @WCS_OUT_EDGE_LIST_TYPE@
+
+#ifdef WCS_HAS_OPENMP
+#include <omp.h>
+#cmakedefine WCS_OMP_REACTION_UPDATES
+#cmakedefine WCS_OMP_REACTION_REACTANTS
+#cmakedefine WCS_OMP_REACTION_PRODUCTS
+#cmakedefine WCS_OMP_RUN_PARTITION
+#if defined(WCS_OMP_REACTION_UPDATES)
+  #define WCS_THREAD_PRIVATE_RNG 1
+#endif
+#endif
+
+#ifdef WCS_HAS_NUMA
+#include <numa.h>
+#endif
 
 #ifdef WCS_HAS_VTUNE
 #include <ittnotify.h>

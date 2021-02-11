@@ -18,21 +18,22 @@
 #define CMAKE_CXX_SHARED_LIBRARY_FLAGS "@CMAKE_CXX_SHARED_LIBRARY_FLAGS@"
 
 /* Defined if WCS is in debug mode */
-#cmakedefine WCS_DEBUG
+#cmakedefine WCS_DEBUG 1
 
-#cmakedefine WCS_GNU_LINUX
+#cmakedefine WCS_GNU_LINUX 1
 
-#cmakedefine WCS_HAS_SUNDIALS
-#cmakedefine WCS_HAS_SBML
-#cmakedefine WCS_HAS_EXPRTK
-#cmakedefine WCS_HAS_CEREAL
-#cmakedefine WCS_HAS_CATCH2
-#cmakedefine WCS_HAS_VTUNE
-#cmakedefine WCS_HAS_HPCTOOLKIT
-#cmakedefine WCS_HAS_ROSS
-#cmakedefine WCS_HAS_METIS
-#cmakedefine WCS_HAS_STD_FILESYSTEM
-#cmakedefine WCS_HAS_PROTOBUF
+#cmakedefine WCS_HAS_SUNDIALS 1
+#cmakedefine WCS_HAS_SBML 1
+#cmakedefine WCS_HAS_EXPRTK 1
+#cmakedefine WCS_HAS_CEREAL 1
+#cmakedefine WCS_HAS_CATCH2 1
+#cmakedefine WCS_HAS_VTUNE 1
+#cmakedefine WCS_HAS_HPCTOOLKIT 1
+#cmakedefine WCS_HAS_ROSS 1
+#cmakedefine WCS_HAS_METIS 1
+#cmakedefine WCS_HAS_STD_FILESYSTEM 1
+#cmakedefine WCS_HAS_PROTOBUF 1
+#cmakedefine WCS_64BIT_CNT 1
 
 #cmakedefine WCS_VERTEX_LIST_TYPE @WCS_VERTEX_LIST_TYPE@
 #cmakedefine WCS_OUT_EDGE_LIST_TYPE @WCS_OUT_EDGE_LIST_TYPE@
@@ -47,7 +48,7 @@
 
 /* flag to allow disabling a selective region of the code
  * during performance profiling */
-#cmakedefine WCS_PERF_PROF
+#cmakedefine WCS_PERF_PROF 1
 #if !defined(WCS_PERF_PROF)
  #if defined(WCS_HAS_VTUNE) || defined(WCS_HAS_HPCTOOLKIT)
   #define WCS_PERF_PROF 1

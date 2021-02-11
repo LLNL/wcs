@@ -98,10 +98,12 @@ endif ()
 # Options
 ################################################################
 
+option(WCS_64BIT_CNT "Enable 64-bit species counter. The default is 32-bit." OFF)
+
 # Sundials may become requirement later
 option(WCS_WITH_SUNDIALS "Enable SUNDIALS library" OFF)
 
-option(WCS_WITH_SBML "Enable SBML library" OFF)
+option(WCS_WITH_SBML "Enable SBML library" ON)
 
 option(WCS_WITH_EXPRTK "Include ExprTk" OFF)
 
@@ -786,6 +788,7 @@ string(APPEND _str "\n")
 #Print the true/false guys
 append_str_tf(_str
   WCS_GNU_LINUX
+  WCS_64BIT_CNT
   WCS_HAS_SUNDIALS
   WCS_HAS_SBML
   WCS_HAS_EXPRTK

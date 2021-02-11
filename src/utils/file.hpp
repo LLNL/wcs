@@ -39,6 +39,8 @@ bool check_if_file_exists(const std::string filename);
 
 std::string get_libname_from_model(const std::string& model_filename);
 
+std::string get_default_outname_from_model(const std::string& model_filename);
+
 /**@}*/
 } // end of namespace wcs
 #endif //  __WCS_UTILS_FILE__

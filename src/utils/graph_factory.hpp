@@ -242,7 +242,7 @@ GraphFactory::convert_to(
   #if !defined(WCS_HAS_EXPRTK)
   // Implement the interface to the dynamic linking loader
 
-  void* handle = dlopen(("./" + library_file).c_str(), RTLD_LAZY);
+  void* handle = dlopen(library_file.c_str(), RTLD_LAZY);
 
   if (!handle) {
     WCS_THROW("Cannot open library: " + std::string(dlerror()) + "\n");

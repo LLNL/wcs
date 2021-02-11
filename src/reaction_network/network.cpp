@@ -158,7 +158,7 @@ void Network::loadSBML(const std::string sbml_filename, const bool reuse)
   #if !defined(WCS_HAS_EXPRTK)
 
   const std::string lib_filename = get_libname_from_model(sbml_filename);
-  generate_cxx_code code_generator(lib_filename, reuse);
+  generate_cxx_code code_generator(lib_filename, !reuse);
 
   typename params_map_t::const_iterator pit;
   // dep_params_f = all params in formula expected as input per reaction

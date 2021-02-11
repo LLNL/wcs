@@ -11,6 +11,7 @@
 #include <string>
 #include <iostream>
 #include "params/ssa_params.hpp"
+#include "utils/file.hpp"
 #include "utils/write_graphviz.hpp"
 #include "utils/timer.hpp"
 #include "reaction_network/network.hpp"
@@ -103,8 +104,13 @@ int main(int argc, char** argv)
   if (cfg.m_tracing || cfg.m_sampling) {
     ssa->finalize_recording();
   } else {
-    std::cout << "Species   : " << rnet.show_species_labels("") << std::endl;
-    std::cout << "FinalState: " << rnet.show_species_counts() << std::endl;
+    std::string ofile = cfg.outfile;
+    if (ofile.empty()) {
+      ofile = wcs::get_default_outname_from_model(cfg.infile);
+    }
+    std::ofstream ofs(ofile);
+    ofs << "Species   : " << rnet.show_species_labels("") << std::endl;
+    ofs << "FinalState: " << rnet.show_species_counts() << std::endl;
   }
 
   delete ssa;

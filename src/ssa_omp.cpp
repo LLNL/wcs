@@ -305,7 +305,9 @@ wcs::Sim_Method::result_t schedule(nrm_evt_t& evt_earliest)
       (((omp_in.first < omp_out.first) || \
         ((omp_in.first == omp_out.first) && (omp_in.second < omp_out.second)))? \
        omp_in : omp_out)) \
-    initializer(omp_priv = sevt_undef)
+    initializer(omp_priv = {std::numeric_limits<wcs::sim_time_t>::max(),\
+                            std::numeric_limits<wcs::v_idx_t>::max()})
+    //initializer(omp_priv = sevt_undef) // <- clang does not allow this
 
   #pragma omp parallel num_threads(shared_state.m_nparts) reduction(earliest:evt_earliest)
   {
@@ -320,7 +322,17 @@ wcs::Sim_Method::result_t schedule(nrm_evt_t& evt_earliest)
       if (BOOST_UNLIKELY(re.first > shared_state.m_max_time)) {
         evt_earliest = sevt_undef;
       } else {
-        evt_earliest = nrm_evt_t{re.first, net.reaction_d2i(re.second)};
+       #if __INTEL_COMPILER
+        // TODO: temporary get around for intel compiler bug
+        evt_earliest = nrm_evt_t{re.first, re.second};
+        // evt_earliest = nrm_evt_t{re.first, net.reaction_d2i(re.second)};
+       #else
+        if constexpr (std::is_same<wcs::wcs_vertex_list_t, ::boost::vecS>::value) {
+          evt_earliest = nrm_evt_t{re.first, re.second};
+        } else {
+          evt_earliest = nrm_evt_t{re.first, net.reaction_d2i(re.second)};
+        }
+       #endif // __INTEL_COMPILER
       }
     }
   }
@@ -334,7 +346,10 @@ wcs::Sim_Method::result_t schedule(nrm_evt_t& evt_earliest)
 
 bool forward(const nrm_evt_t& evt_earliest)
 {
-  bool ok[omp_get_max_threads()] = {false};
+  bool ok[omp_get_max_threads()];
+  memset(ok, 0, omp_get_max_threads());
+  // bool ok[omp_get_max_threads()] = {false}; // <- clang does not allow this
+
   #pragma omp parallel num_threads(shared_state.m_nparts)
   {
     auto& ssa = *(lp_state.m_ssa_ptr);
@@ -347,9 +362,23 @@ bool forward(const nrm_evt_t& evt_earliest)
     auto& ssa = *(lp_state.m_ssa_ptr);
     const auto& net = *(lp_state.m_net_ptr);
 
-    wcs::Sim_Method::revent_t firing =
-      std::make_pair (evt_earliest.first,
-                      net.reaction_i2d(evt_earliest.second));
+    wcs::Sim_Method::revent_t firing;
+
+   #if __INTEL_COMPILER
+      // TODO: temporary get around for intel compiler bug
+      firing = std::make_pair (evt_earliest.first,
+                               evt_earliest.second);
+      //firing = std::make_pair (evt_earliest.first,
+      //                         net.reaction_i2d(evt_earliest.second));
+   #else
+    if constexpr (std::is_same<wcs::wcs_vertex_list_t, ::boost::vecS>::value) {
+      firing = std::make_pair (evt_earliest.first,
+                               evt_earliest.second);
+    } else {
+      firing = std::make_pair (evt_earliest.first,
+                               net.reaction_i2d(evt_earliest.second));
+    }
+   #endif // __INTEL_COMPILER
 
     wcs::Sim_State_Change digest(firing);
 
@@ -357,15 +386,14 @@ bool forward(const nrm_evt_t& evt_earliest)
     // the processing of the reaction is different.
     const bool local = (net.graph()[firing.second].get_partition() ==
                         omp_get_thread_num());
+    // Execute the reaction, updating species counts
+    // Only returns the affected reactions that are local
+    ssa.fire_reaction(digest);
     if (local) {
-      // Execute the reaction, updating species counts
-      ssa.fire_reaction(digest);
-      // update the propensities and times of those reactions fired and affected
+      // Update the propensities and times of all local reactions that are fired and affected
       ssa.update_reactions(firing, digest.m_reactions_affected, digest.m_reaction_times);
     } else {
-      // Only returns the affected reactions that are local
-      ssa.fire_reaction(digest);
-      // Don't update the reaction fired which is not local.
+      // This does not update the reaction fired which is not local.
       ssa.update_reactions(firing.first, digest.m_reactions_affected, digest.m_reaction_times);
     }
 

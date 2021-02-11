@@ -233,7 +233,7 @@ void SSA_NRM::update_reactions(const sim_time_t t_fired,
        SSA_NRM::reaction_times_t& affected_rtimes)
 {
  #if defined(_OPENMP) && defined(WCS_OMP_RUN_PARTITION)
-  const auto pid = m_net_ptr->get_partition_id();
+  //const auto pid = m_net_ptr->get_partition_id();
  #endif // defined(_OPENMP) && defined(WCS_OMP_RUN_PARTITION)
 
   lambdas_for_indexed_heap
@@ -244,7 +244,8 @@ void SSA_NRM::update_reactions(const sim_time_t t_fired,
   for (size_t i = 0ul; i < r_affected.size(); i++)
   {
     const v_desc_t& r = r_affected[i];
-    if (m_net_ptr->graph()[r].get_partition() != pid) continue;
+    // This check is redundant as it is already done by fire_reaction
+    // if (m_net_ptr->graph()[r].get_partition() != pid) continue;
 
     const auto t = m_heap[indexer(r)].first; // reaction time
 
@@ -257,7 +258,8 @@ void SSA_NRM::update_reactions(const sim_time_t t_fired,
   }
  #else // defined(_OPENMP)
   for (const auto& r: affected) {
-    if (m_net_ptr->graph()[r].get_partition() != pid) continue;
+    // This check is redundant as it is already done by fire_reaction
+    // if (m_net_ptr->graph()[r].get_partition() != pid) continue;
     const auto t = m_heap[indexer(r)].first; // reaction time
 
     const auto dt = adjust_reaction_time(r, t - t_fired);

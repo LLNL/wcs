@@ -326,7 +326,9 @@ bool Sim_Method::fire_reaction(Sim_State_Change& digest)
     if (!sp_updating.inc_count(stoichio)) { // State update
       std::string err = "Can not produce more of " + sv_updating.get_label()
                       + "[" + std::to_string(sp_updating.get_count())
-                      + "] by reaction " + g[rd_firing].get_label();
+                      + "] by reaction " + g[rd_firing].get_label()
+                      + ". To enable 64-bit counter, rebuild using the cmake "
+                      + "option '-DWCS_64BIT_CNT=ON'.";
       WCS_THROW(err);
       return false;
     }

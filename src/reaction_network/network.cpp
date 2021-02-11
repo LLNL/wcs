@@ -517,7 +517,9 @@ bool Network::check_reaction(const wcs::Network::v_desc_t r) const
       // check if reaction is possible, i.e., increment is possible
       using std::operator>>;
       std::cerr << "reaction " << m_graph[r].get_label()
-                << " cannot increment the amount of products "
+                << " cannot increment the amount of products."
+                << " To enable 64-bit counter, rebuild using the cmake"
+                << " option '-DWCS_64BIT_CNT=ON'."
                 << std::endl;
       set_reaction_rate(r, 0.0);
       return false;

@@ -250,6 +250,16 @@ void wcs_init(const wcs::SSA_Params& cfg, const partition_idx_t& parts)
     net.init();
     net.set_partition(parts, tid);
 
+   #ifdef WCS_CACHE_DEPENDENT
+    const auto& rstats = net.get_rate_stats();
+    rstats.print();
+    std::function< bool(size_t, wcs::reaction_rate_t) > to_cache
+     = [](size_t, wcs::reaction_rate_t) {
+        return true;
+      };
+    net.cache_dependent_reactions(to_cache);
+   #endif // WCS_CACHE_DEPENDENT
+
     ssa_ptr = std::make_unique<wcs::SSA_NRM>(net_ptr);
     wcs::SSA_NRM& ssa = *ssa_ptr;
     ssa.set_num_threads(shared_state.m_num_inner_threads);
@@ -395,10 +405,18 @@ bool forward(const nrm_evt_t& evt_earliest)
     ssa.fire_reaction(digest);
     if (local) {
       // Update the propensities and times of all local reactions that are fired and affected
+     #ifdef WCS_CACHE_DEPENDENT
+      ssa.update_reactions(firing, digest.m_dependent_reactions, digest.m_reaction_times);
+     #else
       ssa.update_reactions(firing, digest.m_reactions_affected, digest.m_reaction_times);
+     #endif // WCS_CACHE_DEPENDENT
     } else {
       // This does not update the reaction fired which is not local.
+     #ifdef WCS_CACHE_DEPENDENT
+      ssa.update_reactions(firing.first, digest.m_dependent_reactions, digest.m_reaction_times);
+     #else
       ssa.update_reactions(firing.first, digest.m_reactions_affected, digest.m_reaction_times);
+     #endif // WCS_CACHE_DEPENDENT
     }
 
     #pragma omp master

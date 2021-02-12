@@ -29,6 +29,11 @@ struct Sim_State_Change {
   /** Type for the list of reactions that share any of the species with the
    *  firing reaction */
   using affected_reactions_t = std::set<v_desc_t>;
+  /** To carry the same information as affected_reactions_t does. However,
+   *  by using the randomly accessible container, this makes it easier to
+   *  construct a parallel loop over the container.
+   */
+  using dependent_reactions_t = std::vector<v_desc_t>;
   using reaction_times_t = std::vector<std::pair<v_desc_t, sim_time_t> >;
   using revent_t = std::pair<sim_time_t, v_desc_t>;
 
@@ -48,6 +53,7 @@ struct Sim_State_Change {
    *  result of processing the reaction.
    */
   affected_reactions_t m_reactions_affected;
+  dependent_reactions_t m_dependent_reactions;
 
   /**
    *  The currently expected times of the affected reactions to occur.

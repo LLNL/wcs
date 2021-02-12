@@ -190,6 +190,7 @@ void Network::init()
 
   m_reactions.reserve(num_vertices);
   m_species.reserve(num_vertices);
+  m_rstats.init();
 
   v_iter_t vi, vi_end;
   for (boost::tie(vi, vi_end) = boost::vertices(m_graph); vi != vi_end; ++vi) {
@@ -297,10 +298,12 @@ void Network::init()
 
       r.set_products(products);
 
-      set_reaction_rate(*vi);
+      // Set the reaction rate, and collect statistics.
+      m_rstats.read(set_reaction_rate(*vi), involved_species.size());
     }
   }
 
+  m_rstats.set_avg();
   sort_species();
   build_index_maps();
 
@@ -823,6 +826,92 @@ void Network::print() const
 
   std::cout << "Num inactive reactions: "
             << num_inactive << "/" << reaction_list().size() << std::endl;
+}
+
+#ifdef WCS_CACHE_DEPENDENT
+void Network::cache_dependent_reactions(
+  std::function< bool(size_t, reaction_rate_t) >& to_cache) const
+{
+  const size_t n = m_my_reactions.size();
+
+ #if defined(_OPENMP)
+  #pragma omp parallel for //schedule(dynamic)
+ #endif // defined(_OPENMP)
+  for (size_t i = 0u; i < n; i++) {
+    const auto& rd = m_my_reactions[i]; // descriptor of reaction vertex
+    auto& rv = m_graph[rd]; // reaction vertex
+    auto& rp = rv.property<r_prop_t>(); // reaction vertex property
+
+    std::set<v_desc_t> dependent_reactions;
+
+    // ========================= reactant species ==============================
+    for (const auto ei_in :
+         boost::make_iterator_range(boost::in_edges(rd, m_graph)))
+    {
+      const auto sd_reac = boost::source(ei_in, m_graph);
+     #if !defined(__INTEL_COMPILER)
+      if constexpr (wcs::Vertex::_num_vertex_types_ > 3) {
+        // in case that there are other type of vertices than species or reaction
+        const auto& sv_reac = m_graph[sd_reac];
+        if (sv_reac.get_type() != wcs::Vertex::_species_) continue;
+      }
+     #endif // !defined(__INTEL_COMPILER)
+
+      const auto stoichio = m_graph[ei_in].get_stoichiometry_ratio();
+      if (stoichio == static_cast<stoic_t>(0)) {
+        continue;
+      }
+
+      for (const auto vi_affected :
+           boost::make_iterator_range(boost::out_edges(sd_reac, m_graph)))
+      {
+        const auto rd_affected = boost::target(vi_affected, m_graph);
+        if (rd_affected == rd) continue;
+        if (m_graph[rd_affected].get_partition() != m_pid) continue;
+        dependent_reactions.insert(rd_affected);
+      }
+    }
+
+    // ========================== product species ==============================
+    for (const auto ei_out :
+         boost::make_iterator_range(boost::out_edges(rd, m_graph)))
+    {
+      const auto sd_prod = boost::target(ei_out, m_graph);
+     #if !defined(__INTEL_COMPILER)
+      if constexpr (wcs::Vertex::_num_vertex_types_ > 3) {
+        // in case that there are other type of vertices than species or reaction
+        const auto& sv_prod = m_graph[sd_prod];
+        if (sv_prod.get_type() != wcs::Vertex::_species_) continue;
+      }
+     #endif // !defined(__INTEL_COMPILER)
+
+      const auto stoichio = m_graph[ei_out].get_stoichiometry_ratio();
+      if (stoichio == static_cast<stoic_t>(0)) {
+        continue;
+      }
+
+      for (const auto vi_affected :
+           boost::make_iterator_range(boost::out_edges(sd_prod, m_graph)))
+      {
+        const auto rd_affected = boost::target(vi_affected, m_graph);
+        if (rd_affected == rd) continue;
+        if (m_graph[rd_affected].get_partition() != m_pid) continue;
+        dependent_reactions.insert(rd_affected);
+      }
+    }
+
+    if (to_cache(dependent_reactions.size(), rp.get_rate())) {
+      rp.set_dependent_reactions(dependent_reactions);
+    } else {
+      rp.clear_dependent_reactions();
+    }
+  }
+}
+#endif // WCS_CACHE_DEPENDENT
+
+const RateStats& Network::get_rate_stats() const
+{
+  return m_rstats;
 }
 
 /**@}*/

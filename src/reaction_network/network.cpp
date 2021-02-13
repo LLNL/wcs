@@ -798,7 +798,7 @@ void Network::print() const
           if (sv.get_type() != wcs::Vertex::_species_) continue;
         }
         const auto stoichio = m_graph[vi_out].get_stoichiometry_ratio();
-        inactive |= sp.inc_check(stoichio);
+        inactive |= !sp.inc_check(stoichio);
       }
     } // end of for loop over out-edges
 
@@ -815,7 +815,7 @@ void Network::print() const
             if (sv.get_type() != wcs::Vertex::_species_) continue;
           }
           const auto stoichio = m_graph[vi_in].get_stoichiometry_ratio();
-          inactive |= sp.dec_check(stoichio);
+          inactive |= !sp.dec_check(stoichio);
         }
       } // end of for loop over in-edges
     } // end of is_bidirectional

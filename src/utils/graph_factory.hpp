@@ -86,7 +86,7 @@ class GraphFactory {
   #if defined(WCS_HAS_SBML)
   template<typename G>
   void convert_to(const LIBSBML_CPP_NAMESPACE::Model& model, G& g,
-    const std::string library_file,
+    const std::string& library_file,
     const params_map_t& dep_params_f,
     const params_map_t& dep_params_nf,
     const rate_rules_dep_t& rate_rules_dep_map) const;
@@ -189,7 +189,7 @@ template<typename G> void GraphFactory::copy_to(G& g) const
 template<typename G> void
 GraphFactory::convert_to(
   const LIBSBML_CPP_NAMESPACE::Model& model, G& g,
-  const std::string library_file,
+  const std::string& library_file,
   const params_map_t& dep_params_f,
   const params_map_t& dep_params_nf,
   const rate_rules_dep_t& rate_rules_dep_map) const
@@ -239,13 +239,21 @@ GraphFactory::convert_to(
     aspset.insert(species_list->get(si)->getIdAttribute());
   }
 
+  std::string library_name = library_file;
   #if !defined(WCS_HAS_EXPRTK)
+  if (library_name.find_first_of("/") == std::string::npos) {
+    // Only if filename contains "/", then it is interpreted as a (relative or
+    // absolute) pathname. Otherwise, dlopen searches the library in various
+    // paths listed in  DT_PATH, LD_LIBRARY_PATH, DT_RUNPATH and system
+    // directories
+    library_name = "./" + library_name;
+  }
   // Implement the interface to the dynamic linking loader
-
-  void* handle = dlopen(library_file.c_str(), RTLD_LAZY);
+  void* handle = dlopen(library_name.c_str(), RTLD_LAZY);
 
   if (!handle) {
-    WCS_THROW("Cannot open library: " + std::string(dlerror()) + "\n");
+    WCS_THROW("Cannot open library '" + library_name + "': " \
+              + std::string(dlerror()) + "\n");
     return;
   }
 

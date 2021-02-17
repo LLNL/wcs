@@ -32,16 +32,17 @@ LIBSBML_CPP_NAMESPACE_USE
 
 int main(int argc, char** argv)
 {
-  if ((argc < 2) || (argc > 4))  {
+  if ((argc < 2) || (argc > 5))  {
     std::cout << "Usage: " << argv[0]
-              << " model_filename [gen_library(0|1)]"
-              << " [compilation_error_log(0|1)]" << std::endl;
+              << " model_filename [gen_library(0|1)"
+              << " [compilation_error_log(0|1) [chunk_size]]]" << std::endl;
     return EXIT_SUCCESS;
   }
 
   const char* model_filename = argv[1];
   const bool gen_lib = (argc > 2) && (atoi(argv[2]) != 0);
   const bool show_error = (argc > 3) && (atoi(argv[3]) != 0);
+  const unsigned int chunk_size = ((argc > 4)? atoi(argv[4]) : 1000u);
   SBMLReader reader;
   SBMLDocument* document = reader.readSBML(model_filename);
   const unsigned int num_errors = document->getNumErrors();
@@ -64,8 +65,11 @@ int main(int argc, char** argv)
     return EXIT_FAILURE;
   }
 
+  std::cout << "chunk size: " << chunk_size << std::endl;
+
   const std::string lib_filename = wcs::get_libname_from_model(model_filename);
-  wcs::generate_cxx_code code_generator(lib_filename, true, show_error, false);
+  wcs::generate_cxx_code code_generator(lib_filename,
+                                        true, show_error, false, chunk_size);
 
   using params_map = std::unordered_map <std::string, std::vector<std::string>>;
   using rate_rules_dep = std::unordered_map <std::string, std::set<std::string>>;
@@ -75,8 +79,11 @@ int main(int argc, char** argv)
   code_generator.generate_code(*model, dep_params_f, dep_params_nf,
                                rate_rules_dep_map);
 
-  std::cout << "Generated source filename: "
-            << code_generator.get_src_filename() << std::endl;
+  std::cout << "Generated source filenames:";
+  for (const auto& fn: code_generator.get_src_filenames()) {
+    std::cout << ' ' << fn;
+  }
+  std::cout  << std::endl;
 
   if (gen_lib) {
     code_generator.compile_code();

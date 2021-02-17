@@ -870,6 +870,7 @@ void generate_cxx_code::print_global_state_functions(
   const unsigned int num_rules = rules_list->size();
   typename assignment_rules_t::const_iterator arit;
   typename model_reactions_t::const_iterator mrit;
+  const std::string zero = std::string("static_cast<") + Real + ">(0)";
   for (unsigned int ic = 0u; ic < num_rules; ic++) {
     const LIBSBML_CPP_NAMESPACE::Rule& rule = *(rules_list->get(ic));
     if (rule.getType()==0) { //rate_rule
@@ -963,7 +964,7 @@ void generate_cxx_code::print_global_state_functions(
           size_t sz = denominators.size();
           if (sz > 0ul) {
             for (size_t i=0ul; i<sz; i++) {
-              genfile << "      if (" << denominators[i] << " == 0) {\n"
+              genfile << "      if (" << denominators[i] << " == " << zero << ") {\n"
                       << "        WCS_THROW(\"Divide by zero in rate rule "
                       << rule.getVariable()  << ", in expression of " << arit->first
                       << " with the element " << denominators_noscope[i] << ".\"); \n"
@@ -987,7 +988,7 @@ void generate_cxx_code::print_global_state_functions(
           size_t sz = denominators.size();
           if (sz > 0ul) {
             for (size_t i=0ul; i<sz; i++) {
-              genfile << "      if (" << denominators[i] << " == 0) {\n"
+              genfile << "      if (" << denominators[i] << " == " << zero << ") {\n"
                       << "        WCS_THROW(\"Divide by zero in rate rule "
                       << rule.getVariable()  << ", in expression of " << mrit->first
                       << " with the element " << denominators_noscope[i] << ".\"); \n"
@@ -1010,7 +1011,7 @@ void generate_cxx_code::print_global_state_functions(
       size_t sz = denominators_rr.size();
       if (sz > 0ul) {
         for (size_t i=0ul; i<sz; i++) {
-          genfile << "    if (" << denominators_rr[i] << " == 0) {\n"
+          genfile << "    if (" << denominators_rr[i] << " == " << zero << ") {\n"
                   << "      WCS_THROW(\"Divide by zero in rate rule "
                   << rule.getVariable()
                   << " with the element " << denominators_rr_noscope[i] << ".\"); \n"
@@ -1051,6 +1052,7 @@ void generate_cxx_code::print_reaction_rates(
   wcs::rate_rules_dep_t::const_iterator rrdit;
   using  event_assignments_t = std::unordered_set<std::string>;
   typename event_assignments_t::const_iterator evassigit;
+  const std::string zero = std::string("static_cast<") + Real + ">(0)";
   for (unsigned int ic = 0u; ic < num_reactions; ic++) {
     const LIBSBML_CPP_NAMESPACE::Reaction& reaction = *(reaction_list->get(ic));
     const LIBSBML_CPP_NAMESPACE::ListOfLocalParameters* local_parameter_list
@@ -1239,7 +1241,7 @@ void generate_cxx_code::print_reaction_rates(
         size_t sz = denominators.size();
         if (sz > 0ul) {
           for (size_t i=0ul; i<sz; i++) {
-            genfile << "      if (" << denominators[i] << " == 0) {\n"
+            genfile << "      if (" << denominators[i] << " == " << zero << ") {\n"
                     << "        WCS_THROW(\"Divide by zero in reaction "
                     << reaction.getIdAttribute() << ", in expression of " << arit->first
                     << " with the element " << denominators_noscope[i] << ".\"); \n"
@@ -1262,7 +1264,7 @@ void generate_cxx_code::print_reaction_rates(
     size_t sz = denominators_rr.size();
     if (sz > 0ul) {
       for (size_t i=0ul; i<sz; i++) {
-        genfile << "    if (" << denominators_rr[i] << " == 0) {\n"
+        genfile << "    if (" << denominators_rr[i] << " == " << zero << ") {\n"
                 << "      WCS_THROW(\"Divide by zero in reaction "
                 << reaction.getIdAttribute()
                 << " with the element " << denominators_rr_noscope[i] << ".\"); \n"

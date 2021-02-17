@@ -87,13 +87,64 @@ inline void Reaction<VD>::set_rate_inputs(const std::map<std::string, rdriver_t>
   m_rate_inputs = std::vector<rdriver_t>( num_inputs );
   m_params.resize(num_inputs);
   size_t i = 0ul;
-  for(auto &e : species_involved ) {
-      std::string var_str = e.first;
-      m_rate_inputs[i] = e.second;
-      // Need to remap if the m_params reallocates
-      m_sym_table.add_variable( var_str, m_params[i] );
-      i++;
+
+  std::set<std::string> var_names;
+  using new_species_involvedt = std::map<std::string, rdriver_t> ;
+  typename new_species_involvedt::const_iterator it_species;
+
+  std::string formula = this->get_rate_formula();
+  std::string str2 ("m_rate := ");
+  std::size_t found = formula.find(str2);
+  formula.replace(formula.begin(), formula.begin() + found + 10,""); //remove vars before formula
+  formula.replace(formula.end()-1, formula.end(),""); //remove ; from the end of the formula
+  //using std::operator<<;
+  for (const auto& x: species_involved) {
+    var_names.insert(x.first);
+    //std::cout << " " << x.first << " ,";
   }
+  //std::cout << '\n';
+
+  // put the function parameters with the order met in the formula
+  static const std::regex symbol_name("[\\w_]+"); // sequence of alnum or '_'
+  std::unordered_map<std::string, size_t> input_map;
+  std::sregex_token_iterator p(formula.cbegin(), formula.cend(), symbol_name);
+  std::sregex_token_iterator e;
+  for ( ; p!=e ; ++p) {
+    for (const auto& vn : var_names) {
+      if (vn == *p) {
+        if (input_map.count(vn) == 0u) {
+          input_map.insert(std::make_pair(vn, i++));
+        }
+        if (input_map.size() == var_names.size()) {
+          break;
+        }
+      }
+    }
+  }
+
+  std::vector<std::string> var_names_ord (input_map.size());
+  for (const auto& x: input_map) {
+    var_names_ord[x.second] = x.first;
+  }
+
+  size_t j = 0ul;
+  //put only species_involved are used in formula
+  std::vector<std::string>::const_iterator it;
+  for (it = var_names_ord.cbegin(); it < var_names_ord.cend(); it++) {
+    it_species = species_involved.find(*it);
+    if (it_species != species_involved.cend()) {
+      std::string var_str = it_species->first;
+      m_rate_inputs[j] = it_species->second;
+      // Need to remap if the m_params reallocates
+      m_sym_table.add_variable( var_str, m_params[j] );
+      j++;
+    }
+  }
+
+  //resize both
+  m_rate_inputs.resize(j);
+  m_params.resize(j);
+
   m_sym_table.add_variable("m_rate", m_rate);
   m_sym_table.add_constant("r_const", m_rate_const);
   m_sym_table.add_constants();

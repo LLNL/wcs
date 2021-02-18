@@ -157,10 +157,10 @@ endif ()
 #set(WCS_VERTEX_LIST_TYPE "::boost::listS"
 #  CACHE STRING "The BGL vertex list type to use in WCS")
 
-######################### For clang ###############################
 #set(WCS_OUT_EDGE_LIST_TYPE "::boost::vecS"
 #  CACHE STRING "The BGL out edge list type to use in WCS")
 
+######################### For clang ###############################
 #  Setup specific to using clang on Livermore Computing (LC) platforms
 #
 #  Currently, to use clang on Livermore Computing (LC) platforms with
@@ -561,6 +561,28 @@ if (WCS_HAS_METIS)
   set_target_properties(ssa_partition-bin PROPERTIES CMAKE_INSTALL_RPATH
                         "${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}")
   list(APPEND WCS_EXEC_TARGETS ssa_partition-bin)
+endif (WCS_HAS_METIS)
+
+# add executable ssa_partition_inline
+if (WCS_HAS_METIS)
+  add_executable( ssa_partition_inline-bin src/ssa_partition_inline.cpp)
+  target_include_directories(ssa_partition_inline-bin PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}>
+    $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/src>
+    $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/src>
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_INCLUDEDIR}>)
+
+  target_include_directories(ssa_partition_inline-bin
+      PRIVATE $<TARGET_PROPERTY:wcs,INTERFACE_INCLUDE_DIRECTORIES>
+      ${Protobuf_DIR}/include ${Boost_INCLUDE_DIRS})
+
+  target_link_libraries(ssa_partition_inline-bin wcs ${LIB_FILESYSTEM}
+                        -L${Boost_LIBRARY_DIRS} boost_program_options)
+
+  set_target_properties(ssa_partition_inline-bin PROPERTIES OUTPUT_NAME ssa_partition_inline)
+  set_target_properties(ssa_partition_inline-bin PROPERTIES CMAKE_INSTALL_RPATH
+                        "${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}")
+  list(APPEND WCS_EXEC_TARGETS ssa_partition_inline-bin)
 endif (WCS_HAS_METIS)
 
 # add executable graphml2dot

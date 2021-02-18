@@ -456,6 +456,12 @@ bool SSA_NRM::advance_time_and_iter(const sim_time_t t_new)
   m_sim_time = t_new;
   return true;
 }
+
+void SSA_NRM::advance_step(const sim_time_t t_new)
+{
+  ++ m_sim_iter;
+  m_sim_time = t_new;
+}
 #endif // defined(_OPENMP) && defined(WCS_OMP_RUN_PARTITION)
 
 bool SSA_NRM::forward(const revent_t firing)

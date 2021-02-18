@@ -20,6 +20,7 @@
 #include <iostream>
 #include <fstream>
 #include <sstream>
+#include <algorithm> // std::min
 #include <cstdlib> // system
 #include <climits> // PATH_MAX
 #include <cstring> // strncpy
@@ -353,7 +354,7 @@ void generate_cxx_code::find_used_params(
   const model_reactions_t& model_reactions_map,
   const rate_rules_t& rate_rules_map,
   const std::unordered_set <std::string>& model_species,
-  const event_assignments_t& m_ev_assig)
+  const event_assignments_t& ev_assign)
 {
   const ListOfReactions* reaction_list = model.getListOfReactions();
   const unsigned int num_reactions = reaction_list->size();
@@ -393,14 +394,14 @@ void generate_cxx_code::find_used_params(
       rrit = rate_rules_map.find(*it);
       mrit = model_reactions_map.find(*it);
       msit = model_species.find(*it);
-      evassigit = m_ev_assig.find(*it);
+      evassigit = ev_assign.find(*it);
       if (arit == assignment_rules_map.cend() &&
           rrit == rate_rules_map.cend() &&
           mrit == model_reactions_map.cend() &&
           upit == used_params.cend() &&
           msit == model_species.cend() &&
           //*it != "time" &&   //uncomment for events
-          evassigit == m_ev_assig.cend())
+          evassigit == ev_assign.cend())
       {
         used_params.insert(*it);
       }
@@ -428,7 +429,7 @@ void generate_cxx_code::find_used_params(
         rrit = rate_rules_map.find(*it);
         mrit = model_reactions_map.find(*it);
         msit = model_species.find(*it);
-        evassigit = m_ev_assig.find(*it);
+        evassigit = ev_assign.find(*it);
 
         if (arit == assignment_rules_map.cend() &&
             rrit == rate_rules_map.cend() &&
@@ -436,7 +437,7 @@ void generate_cxx_code::find_used_params(
             upit == used_params.cend() &&
             msit == model_species.cend() &&
             //*it != "time" &&  //uncomment for events
-            evassigit == m_ev_assig.cend())
+            evassigit == ev_assign.cend())
         {
           used_params.insert(*it);
         }
@@ -448,8 +449,8 @@ void generate_cxx_code::find_used_params(
 
 void generate_cxx_code::print_constants_and_initial_states(
   const LIBSBML_CPP_NAMESPACE::Model& model,
-  const char * Real,
-  std::ostream & genfile,
+  std::ostream & genfile_hdr,
+  std::ostream & genfile_impl,
   map_symbol_to_ast_node_t & sconstant_init_assig,
   const initial_assignments_t& sinitial_assignments,
   const assignment_rules_t& assignment_rules_map,
@@ -459,8 +460,9 @@ void generate_cxx_code::print_constants_and_initial_states(
   const rate_rules_t& rate_rules_map,
   std::unordered_set<std::string>& wcs_all_const,
   std::unordered_set<std::string>& wcs_all_var,
-  const event_assignments_t& m_ev_assig)
+  const event_assignments_t& ev_assign)
 {
+  const char* Real = generate_cxx_code::basetype_to_string<reaction_rate_t>::value;
   const ListOfParameters* parameter_list = model.getListOfParameters();
   const unsigned int num_parameters = parameter_list->size();
   const ListOfCompartments* compartment_list = model.getListOfCompartments();
@@ -601,7 +603,7 @@ void generate_cxx_code::print_constants_and_initial_states(
   }*/
 
   // print no used parameters which are only used in the events formula
-  if ( m_ev_assig.size() > 0) {
+  if ( ev_assign.size() > 0) {
     for (unsigned int ic = 0u; ic < num_events; ic++) {
       const LIBSBML_CPP_NAMESPACE::Event& event = *(events_list->get(ic));
       const Trigger* trigger = event.getTrigger();
@@ -651,9 +653,9 @@ void generate_cxx_code::print_constants_and_initial_states(
   std::unordered_set<std::string>::const_iterator wcs_all_const_it, wcs_all_var_it;
 
   // define global namespace for constants
-  genfile << "namespace WCS_GLOBAL_CONST {\n";
+  genfile_hdr << "namespace WCS_GLOBAL_CONST {\n";
   for (const auto& x: wcs_const) {
-    genfile << "  constexpr " << Real << " " << x.first << " = " << x.second << ";\n";
+    genfile_hdr << "  constexpr " << Real << " " << x.first << " = " << x.second << ";\n";
     wcs_all_const.insert(x.first);
   }
   for (const auto& x: wcs_const_exp) {
@@ -678,7 +680,7 @@ void generate_cxx_code::print_constants_and_initial_states(
           LIBSBML_CPP_NAMESPACE::ASTNode math;
           math = *arit->second;
           include_init_for_rate_rules(math, rate_rules_map);
-          genfile << "  constexpr " << Real << " " << wcs_const_it->first
+          genfile_hdr << "  constexpr " << Real << " " << wcs_const_it->first
                   << " = " << SBML_formulaToString(&math) << ";\n";
           wcs_all_const.insert(wcs_const_it->first);
         } else {
@@ -690,74 +692,75 @@ void generate_cxx_code::print_constants_and_initial_states(
         LIBSBML_CPP_NAMESPACE::ASTNode math;
         math = *wcs_const_it->second;
         include_init_for_rate_rules(math, rate_rules_map);
-        genfile << "  constexpr " << Real << " " << wcs_const_it->first
+        genfile_hdr << "  constexpr " << Real << " " << wcs_const_it->first
                 << " = " << SBML_formulaToString(&math) << ";\n";
         wcs_all_const.insert(wcs_const_it->first);
       }
     }
   }
-  genfile << "};\n";
+  genfile_hdr << "};\n";
 
   // define global structure for variables
-  genfile << "\n";
-  genfile << "struct WCS_GLOBAL_VAR {\n";
+  genfile_hdr << "\n";
+  genfile_hdr << "struct WCS_GLOBAL_VAR {\n";
   //insert event assignment variables
-  if ( m_ev_assig.size() > 0ul) {
-    for (const auto& x: m_ev_assig) {
-      genfile << "  " << Real << " " << x << ";\n";
+  if ( ev_assign.size() > 0ul) {
+    for (const auto& x: ev_assign) {
+      genfile_hdr << "  " << Real << " " << x << ";\n";
       wcs_all_var.insert(x);
     }
   }
   for (const auto& x: wcs_var) { //include events too
     wcs_all_var_it = wcs_all_var.find(x.first);
     if (wcs_all_var_it == wcs_all_var.cend()) {
-      genfile << "  " << Real << " " << x.first << ";\n";
+      genfile_hdr << "  " << Real << " " << x.first << ";\n";
       wcs_all_var.insert(x.first);
     }
   }
   //include rate rules
   for  (const auto& x: rate_rules_map) {
-    genfile << "  " << Real << " " << x.first << ";\n";
+    genfile_hdr << "  " << Real << " " << x.first << ";\n";
     wcs_all_var.insert(x.first);
   }
   for (const auto& x: wcs_var_exp) {
     wcs_var_it = wcs_var_exp_map.find(x);
     if (wcs_var_it != wcs_var_exp_map.cend()) {
-      genfile << "  " << Real << " " << wcs_var_it->first << ";\n";
+      genfile_hdr << "  " << Real << " " << wcs_var_it->first << ";\n";
       wcs_all_var.insert(wcs_var_it->first);
     }
   }
   // print the rest of variables in assignment rules
   for (const auto& x: assignment_rules_map) {
     if ( std::find(wcs_var_exp.cbegin(), wcs_var_exp.cend(), x.first) == wcs_var_exp.cend()) {
-      genfile << "  " << Real << " " << x.first <<  ";\n";
+      genfile_hdr << "  " << Real << " " << x.first <<  ";\n";
       wcs_all_var.insert(x.first);
     }
   }
 
-  genfile << "  WCS_GLOBAL_VAR();\n";
-  genfile << "  void init();\n";
-  genfile << "};\n";
-  genfile << "WCS_GLOBAL_VAR wcs_global_var;\n\n";
-  genfile << "WCS_GLOBAL_VAR::WCS_GLOBAL_VAR()\n";
-  genfile << "{\n";
-  genfile << "  init();\n";
-  genfile << "}\n";
+  genfile_hdr << "  WCS_GLOBAL_VAR();\n";
+  genfile_hdr << "  void init();\n";
+  genfile_hdr << "};\n";
+  genfile_hdr << "extern WCS_GLOBAL_VAR wcs_global_var;\n\n";
+  genfile_impl << "WCS_GLOBAL_VAR wcs_global_var;\n\n";
+  genfile_impl << "WCS_GLOBAL_VAR::WCS_GLOBAL_VAR()\n";
+  genfile_impl << "{\n";
+  genfile_impl << "  init();\n";
+  genfile_impl << "}\n";
 
-  genfile << "void WCS_GLOBAL_VAR::init()\n";
-  genfile << "{\n";
-  for (const auto& x: m_ev_assig) {
-    genfile << "  wcs_global_var." << x << " = WCS_GLOBAL_CONST::_init_" << x <<";\n";
+  genfile_impl << "void WCS_GLOBAL_VAR::init()\n";
+  genfile_impl << "{\n";
+  for (const auto& x: ev_assign) {
+    genfile_impl << "  wcs_global_var." << x << " = WCS_GLOBAL_CONST::_init_" << x <<";\n";
   }
   for (const auto& x: wcs_var) { //include events too
-    evassigit = m_ev_assig.find(x.first);
-    if (evassigit == m_ev_assig.cend()) {
-      genfile << "  wcs_global_var." << x.first << " = " << x.second << ";\n";
+    evassigit = ev_assign.find(x.first);
+    if (evassigit == ev_assign.cend()) {
+      genfile_impl << "  wcs_global_var." << x.first << " = " << x.second << ";\n";
     }
   }
   //include rate rules
   for  (const auto& x: rate_rules_map) {
-    genfile << "  wcs_global_var." << x.first << " = WCS_GLOBAL_CONST::_init_"
+    genfile_impl << "  wcs_global_var." << x.first << " = WCS_GLOBAL_CONST::_init_"
             << x.first << ";\n";
   }
   for (const auto& x: wcs_var_exp) {
@@ -766,28 +769,29 @@ void generate_cxx_code::print_constants_and_initial_states(
       LIBSBML_CPP_NAMESPACE::ASTNode math;
       math = *wcs_var_it->second;
       update_scope_ast_node(math, {}, wcs_all_const, {});
-      genfile << "  wcs_global_var." << wcs_var_it->first << " = "
+      genfile_impl << "  wcs_global_var." << wcs_var_it->first << " = "
               << SBML_formulaToString(&math) << ";\n";
     }
   }
   // print the rest of variables in assignment rules
   for (const auto& x: assignment_rules_map) {
     if ( std::find(wcs_var_exp.cbegin(), wcs_var_exp.cend(), x.first) == wcs_var_exp.cend()) {
-      genfile << "  wcs_global_var." << x.first <<  " = 0.0;\n";
+      genfile_impl << "  wcs_global_var." << x.first <<  " = 0.0;\n";
     }
   }
-  genfile << "}\n";
+  genfile_impl << "}\n";
 }
 
 
 void generate_cxx_code::print_functions(
   const LIBSBML_CPP_NAMESPACE::Model& model,
-  const char * Real,
   std::ostream & genfile)
 {
+  const char* Real = generate_cxx_code::basetype_to_string<reaction_rate_t>::value;
   const ListOfFunctionDefinitions* function_definition_list
     = model.getListOfFunctionDefinitions();
   const unsigned int num_functions = function_definition_list->size();
+
   for (unsigned int ic = 0u; ic < num_functions; ic++) {
     const LIBSBML_CPP_NAMESPACE::FunctionDefinition& function
       = *(function_definition_list->get(ic));
@@ -810,15 +814,15 @@ void generate_cxx_code::print_functions(
 
 void generate_cxx_code::print_event_functions(
   const LIBSBML_CPP_NAMESPACE::Model& model,
-  const char * Real,
   std::ostream & genfile,
-  const event_assignments_t & m_ev_assig,
+  const event_assignments_t & ev_assign,
   const std::unordered_set<std::string>& wcs_all_const,
   const std::unordered_set<std::string>& wcs_all_var)
 {
+  const char* Real = generate_cxx_code::basetype_to_string<reaction_rate_t>::value;
   const ListOfEvents* events_list = model.getListOfEvents();
   const unsigned int num_events = events_list->size();
-  for (const auto& x: m_ev_assig) {
+  for (const auto& x: ev_assign) {
     genfile << "extern \"C\" " << Real << " wcs__rate_" << x
             << "() {\n";
     genfile << "  " << Real << " " << x <<" = wcs_global_var." << x << ";\n";
@@ -857,7 +861,6 @@ void generate_cxx_code::print_event_functions(
 
 void generate_cxx_code::print_global_state_functions(
   const LIBSBML_CPP_NAMESPACE::Model& model,
-  const char * Real,
   std::ostream & genfile,
   const std::unordered_set<std::string> & good_params,
   const map_symbol_to_ast_node_t & sconstant_init_assig,
@@ -866,6 +869,7 @@ void generate_cxx_code::print_global_state_functions(
   const std::unordered_set<std::string>& wcs_all_const,
   const std::unordered_set<std::string>& wcs_all_var)
 {
+  const char* Real = generate_cxx_code::basetype_to_string<reaction_rate_t>::value;
   const ListOfRules* rules_list = model.getListOfRules();
   const unsigned int num_rules = rules_list->size();
   typename assignment_rules_t::const_iterator arit;
@@ -957,7 +961,7 @@ void generate_cxx_code::print_global_state_functions(
           genfile << "    if (!isfinite(" << elem_with_scope << ")) {\n";
           math = *arit->second;
           update_scope_ast_node(math, wcs_all_var, wcs_all_const, {});
-          std::vector<std::string> denominators_noscope= return_all_denominators
+          std::vector<std::string> denominators_noscope = return_all_denominators
           (*arit->second, rule.getVariable());
           std::vector<std::string> denominators = return_all_denominators
           (math, rule.getVariable());
@@ -1033,27 +1037,39 @@ void generate_cxx_code::print_global_state_functions(
 
 void generate_cxx_code::print_reaction_rates(
   const LIBSBML_CPP_NAMESPACE::Model& model,
-  const char * Real,
+  const unsigned int rid_start,
+  const unsigned int rid_end,
   std::ostream & genfile,
+  const std::string& header,
   const std::unordered_set<std::string> & good_params,
   const map_symbol_to_ast_node_t & sconstant_init_assig,
   const assignment_rules_t & assignment_rules_map,
   const model_reactions_t & model_reactions_map,
-  const event_assignments_t & m_ev_assig,
+  const event_assignments_t & ev_assign,
   const std::unordered_set<std::string>& wcs_all_const,
   const std::unordered_set<std::string>& wcs_all_var,
   wcs::params_map_t& dep_params_f,
   wcs::params_map_t& dep_params_nf,
   const rate_rules_dep_t& rate_rules_dep_map)
 {
+  const char* Real = generate_cxx_code::basetype_to_string<reaction_rate_t>::value;
+  const std::string zero = std::string("static_cast<") + Real + ">(0)";
   const ListOfReactions* reaction_list = model.getListOfReactions();
   const unsigned int num_reactions = reaction_list->size();
   typename assignment_rules_t::const_iterator arit;
   wcs::rate_rules_dep_t::const_iterator rrdit;
   using  event_assignments_t = std::unordered_set<std::string>;
   typename event_assignments_t::const_iterator evassigit;
-  const std::string zero = std::string("static_cast<") + Real + ">(0)";
-  for (unsigned int ic = 0u; ic < num_reactions; ic++) {
+
+  if (rid_start > num_reactions ||
+      rid_end > num_reactions ||
+      rid_start > rid_end) {
+    WCS_THROW("Invalid reaction range: " + std::to_string(rid_start) + \
+              " - "+ std::to_string(rid_end));
+  }
+
+  genfile << "#include \"" + header + '"' + "\n\n";
+  for (unsigned int ic = rid_start; ic < rid_end; ic++) 
     const LIBSBML_CPP_NAMESPACE::Reaction& reaction = *(reaction_list->get(ic));
     const LIBSBML_CPP_NAMESPACE::ListOfLocalParameters* local_parameter_list
       = reaction.getKineticLaw()->getListOfLocalParameters();
@@ -1111,7 +1127,7 @@ void generate_cxx_code::print_reaction_rates(
     int par_index = 0;
     for (it = var_names_ord.cbegin(); it < var_names_ord.cend(); it++){
       rrdit = rate_rules_dep_map.find(*it);
-      evassigit = m_ev_assig.find(*it);
+      evassigit = ev_assign.find(*it);
       if (rrdit != rate_rules_dep_map.cend()) { //rate rules
         const std::set<std::string>& params_fn = rrdit->second;
         std::set<std::string> params_fn_dec;
@@ -1125,11 +1141,11 @@ void generate_cxx_code::print_reaction_rates(
           var_names_it = var_names.find(*itf);
           all_var_names_it = all_var_names.find(*itf);
           if (all_var_names_it == all_var_names.cend()) {
-            genfile << "  " << Real << " " << *itf <<" = __input[" << par_index++ << "];\n";
+            genfile << "  " << Real << " " << *itf << " = __input[" << par_index++ << "];\n";
             var_names.erase(*itf);
           } else {
             if (var_names_it != var_names.cend()) {
-              genfile << "  " << Real << " " << *itf <<" = __input[" << par_index++ << "];\n";
+              genfile << "  " << Real << " " << *itf << " = __input[" << par_index++ << "];\n";
               var_names.erase(*itf);
             }
           }
@@ -1138,12 +1154,12 @@ void generate_cxx_code::print_reaction_rates(
         genfile << "  wcs_global_var."  << *it << " = wcs__rate_" << *it << "(std::vector<"
                 << Real << "> {" << function_input << "});\n";
         par_names.push_back(*it);
-      } else if (evassigit != m_ev_assig.cend()) { //events variables
+      } else if (evassigit != ev_assign.cend()) { //events variables
         std::string function_input;
         function_input ="";
         genfile << "  wcs_global_var." << *it << " = wcs__rate_" << *it << "(" << function_input << ");\n";
       } else {
-        genfile << "  " << Real << " " << *it <<" = __input[" << par_index++ << "];\n";
+        genfile << "  " << Real << " " << *it << " = __input[" << par_index++ << "];\n";
         par_names.push_back(*it);
       }
       var_names.erase(*it);
@@ -1151,7 +1167,7 @@ void generate_cxx_code::print_reaction_rates(
     //print rest parameters (not in formula) taking input
     for (const auto& x: var_names) {
       rrdit = rate_rules_dep_map.find(x);
-      evassigit = m_ev_assig.find(x);
+      evassigit = ev_assign.find(x);
       if (rrdit != rate_rules_dep_map.cend()) { //rate rules
         const std::set<std::string>& params_fn = rrdit->second;
         std::string function_input ;
@@ -1164,11 +1180,11 @@ void generate_cxx_code::print_reaction_rates(
           var_names_it = var_names.find(*itf);
           all_var_names_it = all_var_names.find(*itf);
           if (all_var_names_it == all_var_names.cend()) {
-              genfile << "  " << Real << " " << *itf <<" = __input[" << par_index++ << "];\n";
+              genfile << "  " << Real << " " << *itf << " = __input[" << par_index++ << "];\n";
               var_names.erase(*itf);
           } else {
             if (var_names_it != var_names.cend()) {
-              genfile << "  " << Real << " " << *itf <<" = __input[" << par_index++ << "];\n";
+              genfile << "  " << Real << " " << *itf << " = __input[" << par_index++ << "];\n";
               var_names.erase(*itf);
             }
           }
@@ -1177,12 +1193,12 @@ void generate_cxx_code::print_reaction_rates(
         genfile << "  wcs_global_var."  << x << " = wcs__rate_" << x << "(std::vector<" << Real
                 << "> {" << function_input << "});\n";
         par_names_nf.push_back(x);
-      } else if (evassigit != m_ev_assig.cend()) { // event variables
+      } else if (evassigit != ev_assign.cend()) { // event variables
         std::string function_input;
         function_input ="";
         genfile << "  wcs_global_var." << x << " = wcs__rate_" << x << "(" << function_input << ");\n";
       } else {
-        genfile << "  " << Real << " " << x <<" = __input[" << par_index++ << "];\n";
+        genfile << "  " << Real << " " << x << " = __input[" << par_index++ << "];\n";
         par_names_nf.push_back(x);
       }
     }
@@ -1294,12 +1310,16 @@ void generate_cxx_code::print_reaction_rates(
  *  Caller can set `save_log` for dignosis if compilation failure is expected.
  *  By default, it is off. Caller can also set or unset `cleanup` argument
  *  to remove the temporary source file generated or leave it.
- *  By default, it is on.
+ *  By default, it is on. To avoid generating a single translation unit that
+ *  is extreme large, we limit the number of reactions that are written
+ *  into a single file by specifying chunk_size. By default, it is set to
+ *  1000.
  */
 generate_cxx_code::generate_cxx_code(const std::string& libpath,
-                                     bool regen, bool save_log, bool cleanup)
+                                     bool regen, bool save_log, bool cleanup,
+                                     unsigned int chunk_size)
 : m_lib_filename(libpath), m_regen(regen),
-  m_save_log(save_log), m_cleanup(cleanup)
+  m_save_log(save_log), m_cleanup(cleanup), m_chunk(chunk_size)
 {
   m_regen = m_regen || !check_if_file_exists(m_lib_filename);
 
@@ -1340,13 +1360,45 @@ const nullstream &operator<<(nullstream &&os, const T&) {
   return os;
 }
 
+void generate_cxx_code::create_ostream(src_file_t& ofile, size_t suffix_size)
+{
+  std::string& src_name = ofile.first;
+  std::unique_ptr<std::ostream>& os_ptr = ofile.second;
+
+ #if defined(PATH_MAX)
+  char tmp_filename[PATH_MAX];
+  strncpy(tmp_filename, src_name.c_str(), PATH_MAX);
+ #else
+  char tmp_filename[4096];
+  strncpy(tmp_filename, src_name.c_str(), 4096);
+ #endif
+
+  int fd = mkostemps(tmp_filename, static_cast<int>(suffix_size),
+                     O_CREAT | O_RDWR | O_EXCL);
+  std::stringstream ss;
+  ss << tmp_filename;
+  src_name = ss.str();
+
+  if (fd < 1) {
+    WCS_THROW("\n Creation of temp file '" + src_name +
+              "' failed with error " + strerror(errno));
+  }
+
+  close(fd);
+
+  os_ptr = std::make_unique<std::ofstream>(src_name);
+  if (!os_ptr || !(*os_ptr)) {
+    WCS_THROW("\n Failed to open a source file " + src_name);
+  }
+}
+
 /**
  *  Open an output stream for the code to be generated. In case that, it is
  *  set to generate code, open a temporary file with a unique name under /tmp,
  *  which has an extension `.cc`. If it is not set to generate a code, but
  *  to reuse the existing library file, a null stream is open.
  */
-void generate_cxx_code::open_ostream()
+void generate_cxx_code::open_ostream(const unsigned int num_reactions)
 {
  #if (__GLIBC__ < 2) || (__GLIBC_MINOR__ < 11)
    #error Requires Glibc version >= 2.19 for mkostemps()
@@ -1354,86 +1406,224 @@ void generate_cxx_code::open_ostream()
  #endif
 
   if (m_regen) {
+   /* In case of running OpenMP with partitioned network, each thread has
+    * its own generate_cxx_code object, we need to prevent redundant file
+    * I/O. However, each thread still requires dependency analysis.
+    */
    #if defined(_OPENMP)
-    m_regen = false; // default for non-master
-    m_os_ptr = std::make_unique<nullstream>(); // default for non-master
+    m_ostreams.clear();
+    #pragma omp barrier
+    m_regen = false;
+    #pragma omp barrier
     #pragma omp master
    #endif // defined(_OPENMP)
     { // only the master executes this block in case of parallel execution
-      m_regen = true; // only master opens/closes a stream
+      m_regen = true;
       std::string dir;
       std::string stem;
       std::string ext;
-
       extract_file_component(m_lib_filename, dir, stem, ext);
-      std::string src_name = "/tmp/" + stem + "_XXXXXX.cc";
 
-     #if defined(PATH_MAX)
-      char tmp_filename[PATH_MAX];
-      strncpy(tmp_filename,src_name.c_str(), PATH_MAX);
-     #else
-      char tmp_filename[4096];
-      strncpy(tmp_filename,src_name.c_str(), 4096);
-     #endif
-
-      int fd = mkostemps(tmp_filename, 3, O_CREAT | O_RDWR | O_EXCL);
-
-      if (fd < 1) {
-        WCS_THROW("\n Creation of temp file failed with error " + strerror(errno));
+      if (m_chunk == 0u) {
+        m_chunk = 3000u;
       }
+      size_t num_reaction_files = (num_reactions + m_chunk - 1) / m_chunk;
+      m_ostreams.resize(num_reaction_files + 2);
 
-      std::stringstream ss;
-      ss << tmp_filename;
-      m_src_filename = ss.str();
-      close(fd);
+      const std::string hdr_suffix = ".hpp";
+      const std::string src_suffix = ".cpp";
+      m_ostreams[0].first = "/tmp/" + stem + "_XXXXXX" + hdr_suffix;
+      create_ostream(m_ostreams[0], hdr_suffix.size());
+      m_ostreams[1].first = "/tmp/" + stem + "_XXXXXX" + src_suffix;
+      create_ostream(m_ostreams[1], src_suffix.size());
 
-      m_os_ptr = std::make_unique<std::ofstream>(m_src_filename);
-      if (!m_os_ptr || !(*m_os_ptr)) {
-        WCS_THROW("\n Failed to open a source file " + m_src_filename);
+      for (unsigned i = 0u, j = 0u; i < num_reactions; i += m_chunk, j++) {
+        m_ostreams[j+2].first = "/tmp/" + stem + '_' + std::to_string(j)
+                              + "_XXXXXX" + src_suffix;
+        create_ostream(m_ostreams[j+2], src_suffix.size());
       }
     }
+   #if defined(_OPENMP)
+    #pragma omp barrier
+   #endif // defined(_OPENMP)
   } else {
-    m_os_ptr = std::make_unique<nullstream>();
+    m_chunk = num_reactions;
+    m_ostreams.resize(3);
+    for (auto& os: m_ostreams) {
+      os.first = "";
+      os.second = std::make_unique<nullstream>();
+    }
   }
 }
 
-void generate_cxx_code::generate_code(
+void generate_cxx_code::close_ostream(const std::unique_ptr<std::ostream>& os_ptr)
+{
+  if (m_regen) {
+   #if defined(_OPENMP)
+    // avoid closing the file multiple times
+    #pragma omp master
+   #endif // defined(_OPENMP)
+    {
+      dynamic_cast<std::ofstream*>(os_ptr.get())->close();
+    }
+  }
+}
+
+static unsigned int get_model_species(
   const LIBSBML_CPP_NAMESPACE::Model& model,
-  params_map_t& dep_params_f,
-  params_map_t& dep_params_nf,
-  rate_rules_dep_t& rate_rules_dep_map)
+  assignment_rules_t& assignment_rules_map,
+  std::unordered_set <std::string>& model_species)
 {
   const ListOfSpecies* species_list = model.getListOfSpecies();
   const unsigned int num_species = species_list->size();
-  const ListOfReactions* reaction_list = model.getListOfReactions();
-  const unsigned int num_reactions = reaction_list->size();
-  const ListOfFunctionDefinitions* function_definition_list
-    = model.getListOfFunctionDefinitions();
-  const unsigned int num_functions = function_definition_list->size();
-  const ListOfRules* rules_list = model.getListOfRules();
-  const unsigned int num_rules = rules_list->size();
-  const ListOfEvents* events_list = model.getListOfEvents();
-  const unsigned int num_events = events_list->size();
+
+  for (unsigned int ic = 0u; ic < num_species; ic++) {
+    if (assignment_rules_map.find(species_list->get(ic)->getIdAttribute())
+        == assignment_rules_map.cend())
+    {
+      model_species.insert(species_list->get(ic)->getIdAttribute());
+    }
+  }
+  return num_species;
+}
+
+static unsigned int get_sinitial_assignments(
+  const LIBSBML_CPP_NAMESPACE::Model& model,
+  initial_assignments_t& sinitial_assignments)
+{
   const ListOfInitialAssignments* assignments_list
     = model.getListOfInitialAssignments();
   const unsigned int num_assignments = assignments_list->size();
 
+  for (unsigned int ic = 0u; ic < num_assignments; ic++) {
+    const LIBSBML_CPP_NAMESPACE::InitialAssignment& initialassignment
+      = *(assignments_list->get(ic));
+    sinitial_assignments.insert(std::make_pair(initialassignment.getSymbol(),
+                                               initialassignment.getMath()));
+  }
+  return num_assignments;
+}
+
+static unsigned int get_model_reactions_map(
+  const LIBSBML_CPP_NAMESPACE::Model& model,
+  model_reactions_t& model_reactions_map)
+{
+  const ListOfReactions* reaction_list = model.getListOfReactions();
+  const unsigned int num_reactions = reaction_list->size();
+
+  for (unsigned int ic = 0; ic < num_reactions; ic++) {
+    const LIBSBML_CPP_NAMESPACE::Reaction& reaction = *(reaction_list->get(ic));
+
+    if (!reaction.isSetKineticLaw()) {
+      WCS_THROW("The formula of the reaction " + reaction.getIdAttribute() \
+                + " should be set.");
+    }
+
+    model_reactions_map.insert(std::make_pair(reaction.getIdAttribute(),
+                                              reaction.getKineticLaw()->getMath()));
+  }
+  return num_reactions;
+}
+
+static unsigned int get_ev_assign(
+  const LIBSBML_CPP_NAMESPACE::Model& model,
+  event_assignments_t& ev_assign)
+{
+  const ListOfEvents* events_list = model.getListOfEvents();
+  const unsigned int num_events = events_list->size();
+
+  for (unsigned int ic = 0u; ic < num_events; ic++) {
+    const LIBSBML_CPP_NAMESPACE::Event& event = *(events_list->get(ic));
+    const ListOfEventAssignments* event_assignment_list
+      = event.getListOfEventAssignments();
+    const unsigned int num_event_assignments = event_assignment_list->size();
+
+    for (unsigned int ici = 0u; ici < num_event_assignments; ici++) {
+      const LIBSBML_CPP_NAMESPACE::EventAssignment& eventassignment
+        = *(event_assignment_list->get(ici));
+      if (ev_assign.find(eventassignment.getVariable()) == ev_assign.cend()) {
+        //genfile << eventassignment.getVariable() <<"\n";
+        ev_assign.insert(eventassignment.getVariable());
+      }
+    }
+  }
+  return num_events;
+}
+
+static unsigned int get_rules_map(
+  const LIBSBML_CPP_NAMESPACE::Model& model,
+  rate_rules_t rate_rules_map,
+  assignment_rules_t& assignment_rules_map)
+{
+  const ListOfRules* rules_list = model.getListOfRules();
+  const unsigned int num_rules = rules_list->size();
+
+  for (unsigned int ic = 0; ic < num_rules; ic++) {
+    const LIBSBML_CPP_NAMESPACE::Rule& rule = *(rules_list->get(ic));
+    if (rule.getType() == 0) { //rate_rule
+      rate_rules_map.insert(std::make_pair(rule.getVariable(), rule.getMath()));
+    }
+    if (rule.getType() == 1) { //assignment_rule
+      assignment_rules_map.insert(std::make_pair(rule.getVariable(), rule.getMath()));
+    }
+  }
+  return num_rules;
+}
+
+void generate_cxx_code::get_rate_rules_dep_map(
+  const rate_rules_t& rate_rules_map,
+  const assignment_rules_t& assignment_rules_map,
+  const std::unordered_set<std::string>& good_params,
+  const constant_init_ass_t& sconstant_init_assig,
+  const model_reactions_t& model_reactions_map,
+  rate_rules_dep_t& rate_rules_dep_map)
+{
+  for  (const auto& x: rate_rules_map) {
+    std::set<std::string> var_f;
+
+    std::vector<std::string> dependencies_set
+      = generate_cxx_code::get_all_dependencies(
+                             *x.second,
+                             good_params,
+                             sconstant_init_assig,
+                             assignment_rules_map,
+                             model_reactions_map,
+                             {});
+
+    for (auto it = dependencies_set.crbegin();
+         it!= dependencies_set.crend(); ++it)
+    {
+      typename assignment_rules_t::const_iterator arit
+        = assignment_rules_map.find(*it);
+      typename model_reactions_t::const_iterator mrit
+        = model_reactions_map.find(*it);
+
+      if (arit == assignment_rules_map.cend() && mrit == model_reactions_map.cend())
+      {
+        if  (*it != x.first) {
+          var_f.insert(*it);
+        }
+      }
+    }
+
+    rate_rules_dep_map.insert(std::make_pair(x.first, var_f));
+  }
+}
+
+void generate_cxx_code::write_header(
+  const LIBSBML_CPP_NAMESPACE::Model& model,
+  std::ostream& genfile)
+{
+  const ListOfFunctionDefinitions* function_definition_list
+    = model.getListOfFunctionDefinitions();
+  const unsigned int num_functions = function_definition_list->size();
+
   const char * Real = generate_cxx_code::basetype_to_string<reaction_rate_t>::value;
 
-  open_ostream();
-
-  if (!m_os_ptr) {
-    WCS_THROW("\n Failed to open a source file " + m_src_filename);
-  }
-  auto& genfile = *m_os_ptr;
-
-  std::string utilspath = __FILE__;
-  std::string replacetext("generate_cxx_code.cpp");
-  size_t posr = utilspath.find(replacetext);
-  utilspath.replace(posr, replacetext.length(), "exception.hpp");
-
-  genfile << "/** Autogenerated source code, do not edit! \n */"
-            << "\n\n//C++ includes\n"
+  genfile << "/** Autogenerated source code, do not edit! */\n"
+            << "#ifndef WCS_REACTION_RATE_EVALUTATION_FUNCTIONS_GENERATED\n"
+            << "#define WCS_REACTION_RATE_EVALUTATION_FUNCTIONS_GENERATED\n"
+            << "\n//C++ includes\n"
             << "#include <vector>\n"
             << "#include <cmath>\n"
             << "#include <cstdio>\n"
@@ -1444,7 +1634,7 @@ void generate_cxx_code::generate_code(
             << "//Include the text of the SBML in here.\n"
             << "//Use \"xxd -i\" to get the text as a C symbol.\n"
             << "extern \"C\" \n{\n"
-            << "  unsigned char __original_sbml[] = \"\";\n}\n\n"
+            << "  extern unsigned char __original_sbml[];\n}\n\n"
             << "//Constants and other functions defined by the SBML standard.\n\n"
             << "//Get the correct floating point type from the code at runtime.\n"
             << "typedef " << Real << " reaction_rate_t;\n"
@@ -1465,153 +1655,107 @@ void generate_cxx_code::generate_code(
     }
     genfile << ");\n";
   }
+  genfile << "\n";
+  genfile << "//Define all the constants and initial states\n";
+}
 
-  using  model_constants_t = std::unordered_set<std::string>;
-  typename model_constants_t::const_iterator constit;
-  // A set for model constants
-  model_constants_t sconstants;
+void generate_cxx_code::write_common_impl(
+  const LIBSBML_CPP_NAMESPACE::Model& model,
+  const std::string& header_name,
+  std::ostream& genfile)
+{
+  const ListOfFunctionDefinitions* function_definition_list
+    = model.getListOfFunctionDefinitions();
+  const unsigned int num_functions = function_definition_list->size();
+
+  genfile << "#include \"" + header_name + '"' + "\n\n";
+  genfile << "extern \"C\" \n{\n"
+          << "  unsigned char __original_sbml[] = \"\";\n}\n\n";
+
+  if ( num_functions > 0ul) {
+    genfile << "\n//Define the functions\n";
+    generate_cxx_code::print_functions(model, genfile);
+  }
+}
+
+
+void generate_cxx_code::generate_code(
+  const LIBSBML_CPP_NAMESPACE::Model& model,
+  params_map_t& dep_params_f,
+  params_map_t& dep_params_nf,
+  rate_rules_dep_t& rate_rules_dep_map)
+{
 
   // A map for initial_assignments
   initial_assignments_t sinitial_assignments;
 
-  //  A map for constants in initial assignments
-  constant_init_ass_t sconstant_init_assig;
+  // Put initial assignments in map
+  get_sinitial_assignments(model, sinitial_assignments);
+
+  // A map for model reactions
+  model_reactions_t model_reactions_map;
+
+  // Put reactions in a map
+  const unsigned int num_reactions
+    = get_model_reactions_map(model, model_reactions_map);
+
+  // A set for model event assignments
+  event_assignments_t ev_assign;
+
+  //Put event assignments in a set
+  get_ev_assign(model, ev_assign);
 
   // A map for model rate rules
   rate_rules_t rate_rules_map;
 
-  typename assignment_rules_t::const_iterator arit;
   // A map for model assignment rules
   assignment_rules_t assignment_rules_map;
 
-  typename model_reactions_t::const_iterator mrit;
-  // A map for model reactions
-  model_reactions_t model_reactions_map;
+  // Put rate rules and assignements rules in maps
+  get_rules_map(model, rate_rules_map, assignment_rules_map);
 
-  std::unordered_set <std::string> good_params, used_params,
-  model_species;
-  std::unordered_set <std::string>::const_iterator upit, msit;
-
-
-
-  // Put reactions in a map
-  for (unsigned int ic = 0; ic < num_reactions; ic++) {
-    const LIBSBML_CPP_NAMESPACE::Reaction& reaction = *(reaction_list->get(ic));
-
-    if (!reaction.isSetKineticLaw()) {
-      WCS_THROW("The formula of the reaction " + reaction.getIdAttribute() \
-                + " should be set.");
-    }
-
-    model_reactions_map.insert(std::make_pair(reaction.getIdAttribute(),
-                                              reaction.getKineticLaw()->getMath()));
-  }
-
-  // Put initial assignments in map
-  for (unsigned int ic = 0u; ic < num_assignments; ic++) {
-    const LIBSBML_CPP_NAMESPACE::InitialAssignment& initialassignment
-      = *(assignments_list->get(ic));
-    sinitial_assignments.insert(std::make_pair(initialassignment.getSymbol(),
-                                               initialassignment.getMath()));
-  }
+  std::unordered_set <std::string> model_species;
 
   // Put species in a set
-  for (unsigned int ic = 0u; ic < num_species; ic++) {
-    if (assignment_rules_map.find(species_list->get(ic)->getIdAttribute())
-        == assignment_rules_map.cend())
-    {
-      model_species.insert(species_list->get(ic)->getIdAttribute());
-    }
-  }
-
-  genfile << "\n";
-
-  typename event_assignments_t::const_iterator evassigit;
-  // A set for model event assignments
-  event_assignments_t m_ev_assig;
-
-  //Put event assignments in a set
-  for (unsigned int ic = 0u; ic < num_events; ic++) {
-    const LIBSBML_CPP_NAMESPACE::Event& event = *(events_list->get(ic));
-    const ListOfEventAssignments* event_assignment_list
-      = event.getListOfEventAssignments();
-    const unsigned int num_event_assignments = event_assignment_list->size();
-
-    for (unsigned int ici = 0u; ici < num_event_assignments; ici++) {
-      const LIBSBML_CPP_NAMESPACE::EventAssignment& eventassignment
-        = *(event_assignment_list->get(ici));
-      if (m_ev_assig.find(eventassignment.getVariable()) == m_ev_assig.cend()) {
-        //genfile << eventassignment.getVariable() <<"\n";
-        m_ev_assig.insert(eventassignment.getVariable());
-      }
-    }
-  }
-
-
-  // Put rate rules and assignements rules in maps
-  for (unsigned int ic = 0; ic < num_rules; ic++) {
-    const LIBSBML_CPP_NAMESPACE::Rule& rule = *(rules_list->get(ic));
-    if (rule.getType() == 0) { //rate_rule
-      rate_rules_map.insert(std::make_pair(rule.getVariable(), rule.getMath()));
-    }
-    if (rule.getType() == 1) { //assignment_rule
-      assignment_rules_map.insert(std::make_pair(rule.getVariable(), rule.getMath()));
-    }
-
-  }
+  get_model_species(model, assignment_rules_map, model_species);
+  std::unordered_set <std::string> used_params;
 
   // Find used parameters in the rates and the differential rates
+  // The rest aruments are read-only
   generate_cxx_code::find_used_params(
     model, used_params, sinitial_assignments, assignment_rules_map,
-    model_reactions_map, rate_rules_map, model_species, m_ev_assig);
+    model_reactions_map, rate_rules_map, model_species, ev_assign);
+
+  const ListOfFunctionDefinitions* function_definition_list
+    = model.getListOfFunctionDefinitions();
+  function_definition_list->size();
 
 
-  genfile << "//Define all the constants and initial states\n";
+  open_ostream(num_reactions);
+  auto& os_header = *(m_ostreams[0].second);
+  auto& os_common_impl = *(m_ostreams[1].second);
+
+
+  write_header(model, os_header);
+  write_common_impl(model, m_ostreams[0].first, os_common_impl);
+
+  //  A map for constants in initial assignments
+  constant_init_ass_t sconstant_init_assig;
+  std::unordered_set<std::string> good_params;
   std::unordered_set<std::string> wcs_all_const, wcs_all_var;
 
+  // Populate sconstant_init_assig, good_params, wcs_all_const, and wcs_all_var
   generate_cxx_code::print_constants_and_initial_states(
-    model, Real, genfile, sconstant_init_assig, sinitial_assignments,
+    model, os_header, os_common_impl,
+    sconstant_init_assig, sinitial_assignments,
     assignment_rules_map, used_params, good_params, model_reactions_map,
-    rate_rules_map, wcs_all_const, wcs_all_var, m_ev_assig);
-
-
-  if ( num_functions > 0ul) {
-    genfile << "\n//Define the functions\n";
-    generate_cxx_code::print_functions(model, Real, genfile);
-  }
+    rate_rules_map, wcs_all_const, wcs_all_var, ev_assign);
 
 
   // Put dependencies of rate rules in a map (for transient parameters)
-  typename rate_rules_dep_t::const_iterator rrdit;
-
-  for  (const auto& x: rate_rules_map) {
-    std::set<std::string> var_f;
-
-    std::vector<std::string> dependencies_set
-      = generate_cxx_code::get_all_dependencies(
-                             *x.second,
-                             good_params,
-                             sconstant_init_assig,
-                             assignment_rules_map,
-                             model_reactions_map,
-                             {});
-
-    for (auto it = dependencies_set.crbegin();
-         it!= dependencies_set.crend(); ++it)
-    {
-      arit = assignment_rules_map.find(*it);
-      mrit = model_reactions_map.find(*it);
-      if (arit == assignment_rules_map.cend() && mrit == model_reactions_map.cend())
-      {
-        if  (*it != x.first) {
-          var_f.insert(*it);
-        }
-      }
-    }
-
-    rate_rules_dep_map.insert(std::make_pair(x.first, var_f));
-  }
-
+  get_rate_rules_dep_map(rate_rules_map, assignment_rules_map, good_params,
+                         sconstant_init_assig, model_reactions_map,
+                         rate_rules_dep_map);
 
   /**genfile << "Size of used params: " << used_params.size() <<"\n" ;
 
@@ -1623,54 +1767,64 @@ void generate_cxx_code::generate_code(
   genfile << "Size of good params: " << good_params.size() <<"\n\n" ;*/
 
   // define functions for events
-  if ( m_ev_assig.size() > 0ul) {
-    genfile << "\n//Define functions for events\n";
-    generate_cxx_code::print_event_functions(model, Real, genfile, m_ev_assig,
+  if ( ev_assign.size() > 0ul) {
+    os_common_impl << "\n//Define functions for events\n";
+    generate_cxx_code::print_event_functions(model, os_common_impl, ev_assign,
                                              wcs_all_const, wcs_all_var);
   }
 
-  genfile << "\n//Define the functions for updating global state variables\n";
+  os_header << "\n//Define the functions for updating global state variables\n";
+  os_common_impl << "\n//Define the functions for updating global state variables\n";
   //genfile << "\n//Define differential rates\n";
   generate_cxx_code::print_global_state_functions(
-    model, Real, genfile, good_params, sconstant_init_assig,
+    model, os_common_impl, good_params, sconstant_init_assig,
     assignment_rules_map, model_reactions_map, wcs_all_const, wcs_all_var);
 
-  genfile << "//Define the rates\n";
-  generate_cxx_code::print_reaction_rates(
-    model, Real, genfile, good_params, sconstant_init_assig,
-    assignment_rules_map, model_reactions_map, m_ev_assig,
-    wcs_all_const, wcs_all_var, dep_params_f,
-    dep_params_nf, rate_rules_dep_map);
+  os_header << "\n#endif // WCS_REACTION_RATE_EVALUTATION_FUNCTIONS_GENERATED\n";
+  close_ostream(m_ostreams[0].second);
+  close_ostream(m_ostreams[1].second);
 
-  if (m_regen) {
-    dynamic_cast<std::ofstream*>(m_os_ptr.get())->close();
+  for (unsigned i = 0u, j = 0u; i < num_reactions; i += m_chunk, j++) {
+    auto& genfile = *(m_ostreams[j+2].second);
+    genfile << "//Define the rates\n";
+    const unsigned int rid_end = std::min(i + m_chunk, num_reactions);
+
+    generate_cxx_code::print_reaction_rates(
+      model, i, rid_end, genfile, m_ostreams[0].first,
+      good_params, sconstant_init_assig,
+      assignment_rules_map, model_reactions_map, ev_assign,
+      wcs_all_const, wcs_all_var, dep_params_f,
+      dep_params_nf, rate_rules_dep_map);
   }
 }
 
+
 std::string generate_cxx_code::compile_code()
 {
-  std::string dir;
-  std::string stem;
-  std::string ext;
-
   if (!m_regen) {
     return m_lib_filename;
   }
 
-  if (m_src_filename.empty()) {
+  if (m_ostreams.size() < 3u || m_ostreams[0].first.empty() || m_ostreams[1].first.empty()) {
     WCS_THROW("\n No source file to compile! Run generate_code() first.");
     return "";
   }
 
   int ret = EXIT_SUCCESS;
 
+  std::vector<std::string> src_filenames;
+
  #if defined(_OPENMP)
   #pragma omp master
  #endif // defined(_OPENMP)
-  { // Only the master executes this block in case of parallel execution
-    // This block updates no state of the current object. It only generates
-    // file I/O.
-    extract_file_component(m_src_filename, dir, stem, ext);
+  {
+    std::string dir;
+    std::string stem;
+    std::string ext;
+    src_filenames = get_src_filenames();
+
+    int ret = EXIT_SUCCESS;
+    extract_file_component(src_filenames[1], dir, stem, ext);
 
     const std::string obj_filename = stem + ".o";
 
@@ -1680,15 +1834,7 @@ std::string generate_cxx_code::compile_code()
     std::string cmd1
       = std::string(CMAKE_CXX_COMPILER) + " " + CMAKE_CXX_FLAGS + suppress_warnings
       + " -std=c++17 -g -fPIC " + WCS_INCLUDE_DIR + CMAKE_CXX_SHARED_LIBRARY_FLAGS
-      + " -c " + m_src_filename + compilation_log;
-
-    std::string cmd2
-      = std::string(CMAKE_CXX_COMPILER) + " " + CMAKE_CXX_FLAGS
-      + " -std=c++17 -g -fPIC " + CMAKE_CXX_SHARED_LIBRARY_FLAGS
-      + " -shared -Wl,--export-dynamic " + obj_filename + " -o " + m_lib_filename;
-
-    std::string cmd3 = "rm -f " + obj_filename
-                     + (m_cleanup? " " + m_src_filename : "");
+      + " -c " + src_filenames[1] + compilation_log;
 
     ret = system(cmd1.c_str());
     if (!WIFEXITED(ret)) {
@@ -1696,12 +1842,101 @@ std::string generate_cxx_code::compile_code()
       std::cerr << msg << std::endl;
       ret = EXIT_FAILURE;
     } else if (WEXITSTATUS(ret) != 0) {
-      std::string msg = "The compilation of " + m_src_filename
+      std::string msg = "The compilation of " + src_filenames[1]
                       + " has failed. The command used is\n" + cmd1;
       if (m_save_log) msg += " See wcs_compile_log.txt for further details.";
       std::cerr << msg << std::endl;
       ret = EXIT_FAILURE;
     }
+
+    if (m_cleanup) {
+      std::string cmd3 = "rm -f " + src_filenames[1];
+      ret = system(cmd3.c_str());
+      if (!WIFEXITED(ret)) {
+        std::string msg = "The command `" + cmd3 + "` has failed.";
+        std::cerr << msg << std::endl;
+        ret = EXIT_FAILURE;
+      }
+    }
+  }
+
+  if (ret == EXIT_FAILURE) return "";
+
+ #if defined(_OPENMP)
+  #pragma omp parallel for
+ #endif // defined(_OPENMP)
+  for (size_t i = 2u; i < src_filenames.size(); ++i)
+  {
+    // This block updates no state of the current object. It only generates
+    // file I/O.
+    if (m_ostreams[i].first.empty()) {
+      WCS_THROW("\n No source file to compile! Run generate_code() first.");
+      continue;
+    }
+
+    std::string dir;
+    std::string stem;
+    std::string ext;
+
+    int ret = EXIT_SUCCESS;
+    extract_file_component(src_filenames[i], dir, stem, ext);
+
+    const std::string obj_filename = stem + ".o";
+
+    const std::string suppress_warnings = " -Wno-unused ";
+    const std::string compilation_log = (m_save_log? " 2> wcs_compile_log.txt" : "");
+
+    std::string cmd1
+      = std::string(CMAKE_CXX_COMPILER) + " " + CMAKE_CXX_FLAGS + suppress_warnings
+      + " -std=c++17 -g -fPIC " + WCS_INCLUDE_DIR + CMAKE_CXX_SHARED_LIBRARY_FLAGS
+      + " -c " + src_filenames[i] + compilation_log;
+
+    ret = system(cmd1.c_str());
+    if (!WIFEXITED(ret)) {
+      std::string msg = "The command `" + cmd1 + "` has failed.";
+      std::cerr << msg << std::endl;
+      ret = EXIT_FAILURE;
+    } else if (WEXITSTATUS(ret) != 0) {
+      std::string msg = "The compilation of " + src_filenames[i]
+                      + " has failed. The command used is\n" + cmd1;
+      if (m_save_log) msg += " See wcs_compile_log.txt for further details.";
+      std::cerr << msg << std::endl;
+      ret = EXIT_FAILURE;
+    }
+
+    if (m_cleanup) {
+      std::string cmd3 = "rm -f " + src_filenames[i];
+      ret = system(cmd3.c_str());
+      if (!WIFEXITED(ret)) {
+        std::string msg = "The command `" + cmd3 + "` has failed.";
+        std::cerr << msg << std::endl;
+        ret = EXIT_FAILURE;
+      }
+    }
+  }
+  m_regen = false;
+
+  if (ret == EXIT_FAILURE) return "";
+
+ #if defined(_OPENMP)
+  #pragma omp barrier
+  #pragma omp master
+ #endif // defined(_OPENMP)
+  {
+    std::string dir;
+    std::string stem;
+    std::string ext;
+
+    std::string obj_files;
+    for (size_t i = 1u; i < src_filenames.size(); ++i) {
+      extract_file_component(src_filenames[i], dir, stem, ext);
+      obj_files += ' ' + stem + ".o";
+    }
+
+    std::string cmd2
+      = std::string(CMAKE_CXX_COMPILER) + " " + CMAKE_CXX_FLAGS
+      + " -std=c++17 -g -fPIC " + CMAKE_CXX_SHARED_LIBRARY_FLAGS
+      + " -shared -Wl,--export-dynamic " + obj_files + " -o " + m_lib_filename;
 
     ret = system(cmd2.c_str());
     if (!WIFEXITED(ret)) {
@@ -1715,6 +1950,7 @@ std::string generate_cxx_code::compile_code()
       ret = EXIT_FAILURE;
     }
 
+    std::string cmd3 = "rm -f " + obj_files;
     ret = system(cmd3.c_str());
     if (!WIFEXITED(ret)) {
       std::string msg = "The command `" + cmd3 + "` has failed.";
@@ -1722,11 +1958,6 @@ std::string generate_cxx_code::compile_code()
       ret = EXIT_FAILURE;
     }
   }
-  m_regen = false;
-
- #if defined(_OPENMP)
-  #pragma omp barrier
- #endif // defined(_OPENMP)
 
   if (ret == EXIT_FAILURE) return "";
 
@@ -1734,10 +1965,16 @@ std::string generate_cxx_code::compile_code()
 }
 
 
-std::string generate_cxx_code::get_src_filename() const
+std::vector<std::string> generate_cxx_code::get_src_filenames() const
 {
-  return m_src_filename;
+  std::vector<std::string> src_filenames;
+  src_filenames.reserve(m_ostreams.size());
+  for (const auto& of: m_ostreams) {
+    src_filenames.emplace_back(of.first);
+  }
+  return src_filenames;
 }
+
 std::string generate_cxx_code::get_lib_filename() const
 {
   return m_lib_filename;

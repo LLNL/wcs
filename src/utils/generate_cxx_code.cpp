@@ -1069,7 +1069,7 @@ void generate_cxx_code::print_reaction_rates(
   }
 
   genfile << "#include \"" + header + '"' + "\n\n";
-  for (unsigned int ic = rid_start; ic < rid_end; ic++) 
+  for (unsigned int ic = rid_start; ic < rid_end; ic++) {
     const LIBSBML_CPP_NAMESPACE::Reaction& reaction = *(reaction_list->get(ic));
     const LIBSBML_CPP_NAMESPACE::ListOfLocalParameters* local_parameter_list
       = reaction.getKineticLaw()->getListOfLocalParameters();

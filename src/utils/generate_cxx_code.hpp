@@ -73,7 +73,7 @@ class generate_cxx_code {
  private:
   static void create_ostream(src_file_t& ofile, size_t suffix_size);
   void open_ostream(unsigned int num_reactions);
-  void close_ostream(const std::unique_ptr<std::ostream>& os_ptr);
+  void close_ostream(std::unique_ptr<std::ostream>& os_ptr);
 
   static void get_rate_rules_dep_map(
     const rate_rules_t& rate_rules_map,

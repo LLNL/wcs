@@ -71,7 +71,7 @@ using wcs_vertex_list_t = adjlist_selector_t<>::type;
 using is_vertex_list_ordered = adjlist_selector_t<>::ordered;
 #else
 using wcs_vertex_list_t = adjlist_selector_t<WCS_VERTEX_LIST_TYPE>::type;
-using is_vertex_list_ordered = adjlist_selector_t<WCS_VERTEX_LIST_TYPE>>::ordered;
+using is_vertex_list_ordered = adjlist_selector_t<WCS_VERTEX_LIST_TYPE>::ordered;
 #endif
 
 #ifndef WCS_OUT_EDGE_LIST_TYPE

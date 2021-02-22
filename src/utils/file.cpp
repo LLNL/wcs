@@ -10,6 +10,10 @@
 
 #include "utils/file.hpp"
 #include "utils/exception.hpp"
+#include <sys/stat.h> // mkdir()
+#include <cerrno> // errno
+#include <unistd.h> // getuid()
+#include <cstdio> // perror()
 
 namespace wcs {
 /** \addtogroup wcs_utils
@@ -109,6 +113,44 @@ std::string get_default_outname_from_model(const std::string& model_filename)
     WCS_THROW("Model filename should not have the extension '.out'");
   }
   return stem + ".out";
+}
+/**
+ * Create a directory `path` with the given access permission `m`.
+ * It is the same as the POSIX mkdir() except that it does not
+ * return as failure if the directory to create already exists with
+ * the same access permission. However, the access group name is not
+ * checked. The default mode of creation is 0700.
+ */
+int mkdir_as_needed (const std::string& path, const mode_t m)
+{
+  if (path.empty()) {
+    errno = ENOENT;
+    perror(path.c_str());
+    return -1;
+  }
+
+  struct stat sb;
+  const mode_t RWX_UGO = (S_IRWXU | S_IRWXG | S_IRWXO);
+
+  if ((stat(path.c_str(), &sb) == 0) &&  // already exists
+      (S_ISDIR(sb.st_mode) != 0) &&      // is a directory
+      (sb.st_uid == getuid()) &&         // same owner
+      (((sb.st_mode & RWX_UGO) ^ (m & RWX_UGO)) ==
+       static_cast<mode_t>(00))) // same permission
+  {
+    // Assuming the access group are the same
+    return 0; // report success as the same already exists
+  }
+  std::cerr << "Creating a directory '" + path + "'" << std::endl;
+
+  const mode_t old_mask = umask (0);
+  if (mkdir (path.c_str(), m) != 0) {
+    perror(path.c_str());
+    return -1;
+  }
+  umask (old_mask);
+
+  return 0;
 }
 
 /**@}*/

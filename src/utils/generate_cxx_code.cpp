@@ -1456,7 +1456,7 @@ void generate_cxx_code::open_ostream(const unsigned int num_reactions)
   }
 }
 
-void generate_cxx_code::close_ostream(const std::unique_ptr<std::ostream>& os_ptr)
+void generate_cxx_code::close_ostream(std::unique_ptr<std::ostream>& os_ptr)
 {
   if (m_regen) {
    #if defined(_OPENMP)
@@ -1465,6 +1465,7 @@ void generate_cxx_code::close_ostream(const std::unique_ptr<std::ostream>& os_pt
    #endif // defined(_OPENMP)
     {
       dynamic_cast<std::ofstream*>(os_ptr.get())->close();
+      delete os_ptr.release();
     }
   }
 }
@@ -1870,6 +1871,7 @@ std::string generate_cxx_code::compile_code()
     // This block updates no state of the current object. It only generates
     // file I/O.
     if (m_ostreams[i].first.empty()) {
+      ret = EXIT_FAILURE;
       WCS_THROW("\n No source file to compile! Run generate_code() first.");
       continue;
     }

@@ -75,8 +75,11 @@ int main(int argc, char** argv)
   code_generator.generate_code(*model, dep_params_f, dep_params_nf,
                                rate_rules_dep_map);
 
-  std::cout << "Generated source filename: "
-            << code_generator.get_src_filename() << std::endl;
+  std::cout << "Generated source filenames:";
+  for (const auto& fn: code_generator.get_src_filenames()) {
+    std::cout << ' ' << fn;
+  }
+  std::cout  << std::endl;
 
   if (gen_lib) {
     code_generator.compile_code();

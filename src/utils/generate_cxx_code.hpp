@@ -45,11 +45,13 @@ class generate_cxx_code {
   using model_reactions_t = map_symbol_to_ast_node_t;
   using rate_rules_t = map_symbol_to_ast_node_t;
   using constant_init_ass_t = map_symbol_to_ast_node_t;
+  using src_file_t = std::pair< std::string, std::unique_ptr<std::ostream> >;
 
   generate_cxx_code(const std::string& libname,
                     bool regen = false,
                     bool save_log = false,
-                    bool cleanup = true);
+                    bool cleanup = true,
+                    unsigned int chunk_size = 1000u);
 
   void generate_code(
     const LIBSBML_CPP_NAMESPACE::Model& model,
@@ -59,7 +61,7 @@ class generate_cxx_code {
 
   std::string compile_code();
 
-  std::string get_src_filename() const;
+  std::vector<std::string> get_src_filenames() const;
   std::string get_lib_filename() const;
 
   template <typename TTT>
@@ -69,7 +71,26 @@ class generate_cxx_code {
   };
 
  private:
-  void open_ostream();
+  static void create_ostream(src_file_t& ofile, size_t suffix_size);
+  void open_ostream(unsigned int num_reactions);
+  void close_ostream(std::unique_ptr<std::ostream>& os_ptr);
+
+  static void get_rate_rules_dep_map(
+    const rate_rules_t& rate_rules_map,
+    const assignment_rules_t& assignment_rules_map,
+    const std::unordered_set<std::string>& good_params,
+    const constant_init_ass_t& sconstant_init_assig,
+    const model_reactions_t& model_reactions_map,
+    rate_rules_dep_t& rate_rules_dep_map);
+
+  static void write_header(
+    const LIBSBML_CPP_NAMESPACE::Model& model,
+    std::ostream& genfile);
+
+  static void write_common_impl(
+    const LIBSBML_CPP_NAMESPACE::Model& model,
+    const std::string& header_name,
+    std::ostream& genfile);
 
   static void get_dependencies(
     const LIBSBML_CPP_NAMESPACE::ASTNode& math,
@@ -108,8 +129,8 @@ class generate_cxx_code {
 
   static void print_constants_and_initial_states(
     const LIBSBML_CPP_NAMESPACE::Model& model,
-    const char * Real,
-    std::ostream & genfile,
+    std::ostream & genfile_hdr,
+    std::ostream & genfile_impl,
     map_symbol_to_ast_node_t & sconstant_init_assig,
     const initial_assignments_t& sinitial_assignments,
     const assignment_rules_t& assignment_rules_map,
@@ -123,12 +144,10 @@ class generate_cxx_code {
 
   static void print_functions(
     const LIBSBML_CPP_NAMESPACE::Model& model,
-    const char * Real,
     std::ostream & genfile);
 
   static void print_event_functions(
     const LIBSBML_CPP_NAMESPACE::Model& model,
-    const char * Real,
     std::ostream & genfile,
     const event_assignments_t & m_ev_assig,
     const std::unordered_set<std::string>& wcs_all_const,
@@ -136,7 +155,6 @@ class generate_cxx_code {
 
   static void print_global_state_functions(
     const LIBSBML_CPP_NAMESPACE::Model& model,
-    const char * Real,
     std::ostream & genfile,
     const std::unordered_set<std::string> & good_params,
     const map_symbol_to_ast_node_t & sconstant_init_assig,
@@ -147,8 +165,10 @@ class generate_cxx_code {
 
   static void print_reaction_rates(
     const LIBSBML_CPP_NAMESPACE::Model& model,
-    const char * Real,
+    const unsigned int rid_start,
+    const unsigned int rid_end,
     std::ostream & genfile,
+    const std::string& header_name,
     const std::unordered_set<std::string> & good_params,
     const map_symbol_to_ast_node_t & sconstant_init_assig,
     const assignment_rules_t & assignment_rules_map,
@@ -161,13 +181,14 @@ class generate_cxx_code {
     const rate_rules_dep_t& rate_rules_dep_map);
 
  private:
-   std::string m_src_filename; ///< Name of the temporary source code file
    std::string m_lib_filename; ///< Name of the library file
    bool m_regen; ///< Whether to regenerate the library
    bool m_save_log; ///< Whether to save compilation log
    bool m_cleanup; ///< Whether to remove the temporary source file generated
-   /// The output stream used to write the source code
-   std::unique_ptr<std::ostream> m_os_ptr;
+
+   /// The number of reactions to group into a translation unit for compilation
+   unsigned int m_chunk;
+   std::vector<src_file_t> m_ostreams;
 };
 
 /**@}*/

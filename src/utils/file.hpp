@@ -11,6 +11,7 @@
 #ifndef  __WCS_UTILS_FILE__
 #define  __WCS_UTILS_FILE__
 #include <string>
+#include <sys/stat.h> // mode_t
 
 #if defined(WCS_HAS_CONFIG)
 #include "wcs_config.hpp"
@@ -40,6 +41,8 @@ bool check_if_file_exists(const std::string filename);
 std::string get_libname_from_model(const std::string& model_filename);
 
 std::string get_default_outname_from_model(const std::string& model_filename);
+
+int mkdir_as_needed (const std::string& path, const mode_t m = 0700);
 
 /**@}*/
 } // end of namespace wcs

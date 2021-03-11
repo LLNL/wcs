@@ -12,6 +12,11 @@
 #define  __WCS_UTILS_FILE__
 #include <string>
 #include <sys/stat.h> // mode_t
+#include <linux/limits.h> // PATH_MAX
+
+#if !defined(PATH_MAX)
+#define PATH_MAX 4096
+#endif
 
 #if defined(WCS_HAS_CONFIG)
 #include "wcs_config.hpp"
@@ -43,6 +48,9 @@ std::string get_libname_from_model(const std::string& model_filename);
 std::string get_default_outname_from_model(const std::string& model_filename);
 
 int mkdir_as_needed (const std::string& path, const mode_t m = 0700);
+
+bool sync_directory(const std::string& path);
+void fsync_ofstream(std::ofstream& os);
 
 /**@}*/
 } // end of namespace wcs

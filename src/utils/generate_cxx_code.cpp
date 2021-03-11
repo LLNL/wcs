@@ -31,11 +31,6 @@
 #include <regex>
 #include <string>
 #include "wcs_types.hpp"
-#include <linux/limits.h> // PATH_MAX
-
-#if !defined(PATH_MAX)
-#define PATH_MAX 4096
-#endif
 
 #if defined(WCS_HAS_SBML)
 
@@ -1476,9 +1471,11 @@ void generate_cxx_code::close_ostream(std::unique_ptr<std::ostream>& os_ptr)
    #endif // defined(_OPENMP)
     {
       if (dynamic_cast<std::ofstream*>(os_ptr.get()) != nullptr) {
+        fsync_ofstream(dynamic_cast<std::ofstream&>(*os_ptr));
         dynamic_cast<std::ofstream*>(os_ptr.get())->flush();
         dynamic_cast<std::ofstream*>(os_ptr.get())->close();
         delete os_ptr.release();
+        os_ptr = nullptr;
       }
     }
   }
@@ -1832,8 +1829,103 @@ static int build(const std::string& cmd,
   return ret;
 }
 
+std::string generate_cxx_code::gen_makefile()
+{
+  std::string obj_files;
+
+ #if defined(_OPENMP)
+  #pragma omp master
+ #endif // defined(_OPENMP)
+  {
+    const std::string& hdr_filename = m_ostreams[1].first;
+    std::ostream& os_makefile = *(m_ostreams[0].second);
+    std::string shared_lib;
+
+    {
+      std::string dir, stem, ext;
+      extract_file_component(m_lib_filename, dir, stem, ext);
+      shared_lib = stem + ext;
+
+      os_makefile << "all: " + shared_lib + "\n\n";
+    }
+
+    // commands to build object file for each source file
+    for (size_t i = 2u; i < m_ostreams.size(); ++i)
+    {
+      const std::string& src_filename = m_ostreams[i].first;
+
+      // This block updates no state of the current object. It only generates
+      // file I/O.
+      if (src_filename.empty()) {
+        WCS_THROW("\n No source file to compile! Run generate_code() first.");
+        continue;
+      }
+
+      std::string dir, stem, ext;
+
+      extract_file_component(src_filename, dir, stem, ext);
+
+      const std::string obj_filename = stem + ".o";
+      obj_files += ' ' + obj_filename;
+
+      const std::string suppress_warnings = " -Wno-unused ";
+      const std::string compilation_log = (m_save_log? " 2>> wcs_jit_log.txt" : "");
+      const std::string tmp_file = (m_cleanup? src_filename : "");
+
+      std::string cmd1
+        = std::string(CMAKE_CXX_COMPILER) + " " + CMAKE_CXX_FLAGS + suppress_warnings
+        + " -std=c++17 -g -fPIC " + WCS_INCLUDE_DIR + CMAKE_CXX_SHARED_LIBRARY_FLAGS
+        + " -c " + src_filename + compilation_log;
+
+      os_makefile << obj_filename + ": " + src_filename + ' ' + hdr_filename + "\n"
+                   + "\t" + cmd1 + "\n\n";
+
+      //int ret = build(cmd1, obj_filename, tmp_file, compilation_log);
+    }
+
+    { // command for final linking
+      std::string cmd2
+        = std::string(CMAKE_CXX_COMPILER) + " " + CMAKE_CXX_FLAGS
+        + " -std=c++17 -g -fPIC " + CMAKE_CXX_SHARED_LIBRARY_FLAGS
+        + " -shared -Wl,--export-dynamic " + obj_files + " -o " + m_lib_filename;
+
+      os_makefile << shared_lib + ": " + obj_files + "\n"
+                   + "\t" + cmd2 + "\n\n";
+      os_makefile << "clean: \n\t@rm -f " + obj_files + " " + m_lib_filename + "\n";
+
+      //int ret = build(cmd2, m_lib_filename, obj_files, "");
+    }
+  }
+
+  close_ostream(m_ostreams[0].second);
+  m_regen = false; // finished generating Makefile
+ #if defined(_OPENMP)
+  #pragma omp master
+ #endif // defined(_OPENMP)
+  {
+    sync_directory("/tmp");
+  }
+ #if defined(_OPENMP)
+  #pragma omp barrier
+ #endif // defined(_OPENMP)
+
+#if 0
+  std::ifstream makefile(m_ostreams[0].first);
+  if (makefile.is_open()) {
+    std::cout << "Reading " + m_ostreams[0].first << std::endl;
+    std::cout << makefile.rdbuf() << std::endl;
+  } else {
+    std::cout << "Cannot read " + m_ostreams[0].first << std::endl;
+  }
+#endif
+
+  return obj_files;
+}
+
 std::string generate_cxx_code::compile_code()
 {
+  int ret = EXIT_SUCCESS;
+
   if (!m_regen) {
    #if defined(_OPENMP)
     #pragma omp master
@@ -1851,74 +1943,18 @@ std::string generate_cxx_code::compile_code()
     return "";
   }
 
-  int ret = EXIT_SUCCESS;
+  std::string obj_files = gen_makefile();
 
  #if defined(_OPENMP)
   #pragma omp master
  #endif // defined(_OPENMP)
   {
-    const std::string& hdr_filename = m_ostreams[1].first;
-    std::string obj_files;
-
-    for (size_t i = 2u; i < m_ostreams.size(); ++i)
-    {
-      const std::string& src_filename = m_ostreams[i].first;
-
-      // This block updates no state of the current object. It only generates
-      // file I/O.
-      if (src_filename.empty()) {
-        ret = EXIT_FAILURE;
-        WCS_THROW("\n No source file to compile! Run generate_code() first.");
-        continue;
-      }
-
-      std::string dir;
-      std::string stem;
-      std::string ext;
-
-      int ret = EXIT_SUCCESS;
-      extract_file_component(src_filename, dir, stem, ext);
-
-      const std::string obj_filename = stem + ".o";
-      obj_files += ' ' + obj_filename;
-
-      const std::string suppress_warnings = " -Wno-unused ";
-      const std::string compilation_log = (m_save_log? " 2>> wcs_jit_log.txt" : "");
-      const std::string tmp_file = (m_cleanup? src_filename : "");
-
-      std::string cmd1
-        = std::string(CMAKE_CXX_COMPILER) + " " + CMAKE_CXX_FLAGS + suppress_warnings
-        + " -std=c++17 -g -fPIC " + WCS_INCLUDE_DIR + CMAKE_CXX_SHARED_LIBRARY_FLAGS
-        + " -c " + src_filename + compilation_log;
-
-      std::ostream& os_makefile = *(m_ostreams[0].second);
-      os_makefile << obj_filename + ": " + src_filename + ' ' + hdr_filename + "\n"
-                   + "\t" + cmd1 + "\n\n";
-
-      //ret = build(cmd1, obj_filename, tmp_file, compilation_log);
-    }
-
-    {
-      std::string cmd2
-        = std::string(CMAKE_CXX_COMPILER) + " " + CMAKE_CXX_FLAGS
-        + " -std=c++17 -g -fPIC " + CMAKE_CXX_SHARED_LIBRARY_FLAGS
-        + " -shared -Wl,--export-dynamic " + obj_files + " -o " + m_lib_filename;
-
-      auto& os_makefile = *(m_ostreams[0].second);
-      os_makefile << "all: " + obj_files + "\n"
-                   + "\t" + cmd2 + "\n\n";
-      os_makefile << "clean: \n\t@rm -f " + obj_files + " " + m_lib_filename + "\n";
-      m_regen = false; // finished generating Makefile
-
-      //ret = build(cmd2, m_lib_filename, obj_files, "");
-      uint8_t parallel_compile = 4;
-      std::string cmd3 = "pushd /tmp; make -j " + std::to_string(parallel_compile)
-                       + " -f " + m_ostreams[0].first + " all; popd";
-      std::cout << cmd3 << std::endl;
-      ret = build(cmd3, m_lib_filename, obj_files, "");
-    }
+    uint8_t parallel_compile = 4;
+    std::string cmd3 = "pushd /tmp; ls -1 " + m_ostreams[0].first + "; make -j " + std::to_string(parallel_compile)
+                     + " -f " + m_ostreams[0].first + " all; popd";
+    std::cout << cmd3 << std::endl;
+    ret = build(cmd3, m_lib_filename, obj_files, "");
   }
-  close_ostream(m_ostreams[0].second);
 
   if (ret == EXIT_FAILURE) return "";
 

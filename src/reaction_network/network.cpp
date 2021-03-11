@@ -170,8 +170,8 @@ void Network::loadSBML(const std::string sbml_filename, const bool reuse)
 
   const std::string library_file = code_generator.compile_code();
 
-  //using std::operator<<;
-  //std::cout << "Generated file: " << generated_source << std::endl;
+  using std::operator<<;
+  std::cerr << "Constructing a graph from SBML ..." << std::endl;
   // print_parameters_of_reactions(dep_params_f, dep_params_nf, rate_rules_dep_map);
 
   gfactory.convert_to(*model, m_graph, library_file,

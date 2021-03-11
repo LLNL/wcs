@@ -1313,9 +1313,10 @@ void generate_cxx_code::print_reaction_rates(
  */
 generate_cxx_code::generate_cxx_code(const std::string& libpath,
                                      bool regen, bool save_log, bool cleanup,
+                                     const std::string& tmp_dir,
                                      unsigned int chunk_size)
-: m_lib_filename(libpath), m_regen(regen),
-  m_save_log(save_log), m_cleanup(cleanup), m_chunk(chunk_size)
+: m_lib_filename(libpath), m_regen(regen), m_save_log(save_log),
+  m_cleanup(cleanup), m_tmp_dir(tmp_dir), m_chunk(chunk_size)
 {
   m_regen = m_regen || !check_if_file_exists(m_lib_filename);
 
@@ -1345,6 +1346,34 @@ generate_cxx_code::generate_cxx_code(const std::string& libpath,
      }
   }
 
+  if (((m_tmp_dir.size() == 1u) && (m_tmp_dir[0] == '/')) ||
+      m_tmp_dir.empty())
+  {
+   #if defined(_OPENMP)
+    #pragma omp master
+   #endif // defined(_OPENMP)
+    {
+      std::cerr << "Creating files into the current directory" << std::endl;
+    }
+    m_tmp_dir = ".";
+  } else {
+    if (m_regen) {
+      int ret = mkdir_as_needed(m_tmp_dir);
+      if (ret != 0) {
+        WCS_THROW("Terminating after failed to create a directory.");
+      }
+    }
+  }
+  if (m_tmp_dir[0] != '/') {
+     char canonical[PATH_MAX] = {'\0'};
+     realpath("./", canonical);
+     const size_t sz = strlen(canonical);
+     if ((sz > 0ul) && (canonical[sz-1] != '/')) {
+       m_tmp_dir = canonical + std::string{"/"} + m_tmp_dir;
+     } else { // it is ok even if canonical is empty
+       m_tmp_dir = canonical + m_tmp_dir;
+     }
+  }
  #if defined(_OPENMP)
   #pragma omp master
  #endif // defined(_OPENMP)
@@ -1443,15 +1472,15 @@ void generate_cxx_code::open_ostream(const unsigned int num_reactions)
 
       const std::string hdr_suffix = ".hpp";
       const std::string src_suffix = ".cpp";
-      m_ostreams[0].first = "/tmp/Makefile_XXXXXX";
-      m_ostreams[1].first = "/tmp/" + stem + "_XXXXXX" + hdr_suffix;
-      m_ostreams[2].first = "/tmp/" + stem + "_XXXXXX" + src_suffix;
+      m_ostreams[0].first = m_tmp_dir + "/Makefile_XXXXXX";
+      m_ostreams[1].first = m_tmp_dir + "/" + stem + "_XXXXXX" + hdr_suffix;
+      m_ostreams[2].first = m_tmp_dir + "/" + stem + "_XXXXXX" + src_suffix;
       create_ostream(m_ostreams[0], 0);
       create_ostream(m_ostreams[1], hdr_suffix.length());
       create_ostream(m_ostreams[2], src_suffix.length());
 
       for (unsigned i = 0u, j = 0u; i < num_reactions; i += m_chunk, j++) {
-        m_ostreams[j+3].first = "/tmp/" + stem + '_' + std::to_string(j)
+        m_ostreams[j+3].first = m_tmp_dir + "/" + stem + '_' + std::to_string(j)
                               + "_XXXXXX" + src_suffix;
         create_ostream(m_ostreams[j+3], src_suffix.size());
       }
@@ -1874,7 +1903,7 @@ std::string generate_cxx_code::gen_makefile()
 
       std::string cmd1
         = std::string(CMAKE_CXX_COMPILER) + " " + CMAKE_CXX_FLAGS + suppress_warnings
-        + " -std=c++17 -g -fPIC " + WCS_INCLUDE_DIR + CMAKE_CXX_SHARED_LIBRARY_FLAGS
+        + " -fPIC " + WCS_INCLUDE_DIR + CMAKE_CXX_SHARED_LIBRARY_FLAGS
         + " -c " + src_filename + compilation_log;
 
       os_makefile << obj_filename + ": " + src_filename + ' ' + hdr_filename + "\n"
@@ -1886,7 +1915,7 @@ std::string generate_cxx_code::gen_makefile()
     { // command for final linking
       std::string cmd2
         = std::string(CMAKE_CXX_COMPILER) + " " + CMAKE_CXX_FLAGS
-        + " -std=c++17 -g -fPIC " + CMAKE_CXX_SHARED_LIBRARY_FLAGS
+        + " -fPIC " + CMAKE_CXX_SHARED_LIBRARY_FLAGS
         + " -shared -Wl,--export-dynamic " + obj_files + " -o " + m_lib_filename;
 
       os_makefile << shared_lib + ": " + obj_files + "\n"
@@ -1903,7 +1932,7 @@ std::string generate_cxx_code::gen_makefile()
   #pragma omp master
  #endif // defined(_OPENMP)
   {
-    sync_directory("/tmp");
+    sync_directory(m_tmp_dir);
   }
  #if defined(_OPENMP)
   #pragma omp barrier
@@ -1927,12 +1956,6 @@ std::string generate_cxx_code::compile_code()
   int ret = EXIT_SUCCESS;
 
   if (!m_regen) {
-   #if defined(_OPENMP)
-    #pragma omp master
-   #endif // defined(_OPENMP)
-    { // Only the master executes this block in case of parallel execution
-      std::cout << "Reusing " << m_lib_filename << std::endl;
-    }
     close_ostream(m_ostreams[0].second);
     return m_lib_filename;
   }
@@ -1950,7 +1973,7 @@ std::string generate_cxx_code::compile_code()
  #endif // defined(_OPENMP)
   {
     uint8_t parallel_compile = 4;
-    std::string cmd3 = "pushd /tmp; ls -1 " + m_ostreams[0].first + "; make -j " + std::to_string(parallel_compile)
+    std::string cmd3 = "pushd " + m_tmp_dir + "; make -j " + std::to_string(parallel_compile)
                      + " -f " + m_ostreams[0].first + " all; popd";
     std::cout << cmd3 << std::endl;
     ret = build(cmd3, m_lib_filename, obj_files, "");

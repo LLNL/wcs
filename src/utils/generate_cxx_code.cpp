@@ -1201,9 +1201,9 @@ void generate_cxx_code::print_reaction_rates(
 
     // put input parameters into maps
     dep_params_f.insert(std::make_pair(reaction.getIdAttribute(),
-                                                 par_names));
+                                       par_names));
     dep_params_nf.insert(std::make_pair(reaction.getIdAttribute(),
-                                                 par_names_nf));
+                                        par_names_nf));
 
     //genfile << "printf(\" and expected  %u \\n\", " << par_index << ");\n";
     /*genfile << "  printf(\"Expected in generated code: \");\n";
@@ -1290,9 +1290,7 @@ void generate_cxx_code::print_reaction_rates(
     //        << reaction.getIdAttribute() << ");\n";
     genfile << "  return " << reaction.getIdAttribute() << ";\n";
     genfile << "}\n\n";
-
   }
-
 }
 
 

@@ -71,6 +71,7 @@ class GraphFactory {
   using v_desc_t = boost::graph_traits<graph_t>::vertex_descriptor;
   using e_desc_t = boost::graph_traits<graph_t>::edge_descriptor;
 
+  // TODO: gather these JIT-related types into a single file.
   using params_map_t = std::unordered_map <std::string, std::vector<std::string>>;
   using rate_rules_dep_t = std::unordered_map <std::string, std::set<std::string>>;
 

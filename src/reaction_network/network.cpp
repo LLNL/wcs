@@ -171,7 +171,7 @@ void Network::loadSBML(const std::string sbml_filename, const bool reuse)
   const std::string library_file = code_generator.compile_code();
 
   using std::operator<<;
-  std::cerr << "Constructing a graph from SBML ..." << std::endl;
+  std::cerr << "Constructing a graph from the SBML model ..." << std::endl;
   // print_parameters_of_reactions(dep_params_f, dep_params_nf, rate_rules_dep_map);
 
   gfactory.convert_to(*model, m_graph, library_file,
@@ -187,6 +187,7 @@ void Network::loadSBML(const std::string sbml_filename, const bool reuse)
   #else
   WCS_THROW("SBML is not enabled.");
   #endif // defined(WCS_HAS_SBML)
+  std::cerr << "The SBML model has been loaded into a graph!" << std::endl;
 
 }
 

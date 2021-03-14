@@ -1726,6 +1726,14 @@ void generate_cxx_code::generate_code(
   params_map_t& dep_params_nf,
   rate_rules_dep_t& rate_rules_dep_map)
 {
+ #if defined(_OPENMP)
+  #pragma omp master
+ #endif // defined(_OPENMP)
+  {
+    std::string msg = std::string("Analyzing dependencies ")
+                    + (m_regen? " and generating code for JIT ..." : "...");
+    std::cerr << msg << std::endl;
+  }
 
   // A map for initial_assignments
   initial_assignments_t sinitial_assignments;
@@ -1795,7 +1803,7 @@ void generate_cxx_code::generate_code(
                          rate_rules_dep_map);
 
   // define functions for events
-  if ( ev_assign.size() > 0ul) {
+  if (ev_assign.size() > 0ul) {
     os_common_impl << "\n//Define functions for events\n";
     generate_cxx_code::print_event_functions(model, os_common_impl, ev_assign,
                                              wcs_all_const, wcs_all_var);
@@ -1953,6 +1961,12 @@ std::string generate_cxx_code::gen_makefile()
 
 std::string generate_cxx_code::compile_code()
 {
+ #if defined(_OPENMP)
+  #pragma omp master
+ #endif // defined(_OPENMP)
+  {
+    std::cerr << "JIT compiling ..." << std::endl;
+  }
   int ret = EXIT_SUCCESS;
 
   if (!m_regen) {

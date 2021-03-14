@@ -1346,24 +1346,28 @@ generate_cxx_code::generate_cxx_code(const std::string& libpath,
      }
   }
 
-  if (((m_tmp_dir.size() == 1u) && (m_tmp_dir[0] == '/')) ||
-      m_tmp_dir.empty())
+ #if defined(_OPENMP)
+  #pragma omp master
+ #endif // defined(_OPENMP)
   {
-   #if defined(_OPENMP)
-    #pragma omp master
-   #endif // defined(_OPENMP)
+    if (((m_tmp_dir.size() == 1u) && (m_tmp_dir[0] == '/')) ||
+        m_tmp_dir.empty())
     {
       std::cerr << "Creating files into the current directory" << std::endl;
-    }
-    m_tmp_dir = ".";
-  } else {
-    if (m_regen) {
-      int ret = mkdir_as_needed(m_tmp_dir);
-      if (ret != 0) {
-        WCS_THROW("Terminating after failed to create a directory.");
+      m_tmp_dir = ".";
+    } else if (m_tmp_dir != "/tmp") {
+      if (m_regen) {
+        int ret = mkdir_as_needed(m_tmp_dir);
+        if (ret != 0) {
+          WCS_THROW("Terminating after failed to create a directory.");
+        }
       }
     }
   }
+ #if defined(_OPENMP)
+  #pragma omp barrier
+ #endif // defined(_OPENMP)
+
   if (m_tmp_dir[0] != '/') {
      char canonical[PATH_MAX] = {'\0'};
      realpath("./", canonical);
@@ -1382,9 +1386,6 @@ generate_cxx_code::generate_cxx_code(const std::string& libpath,
               + " the machine code for reaction rate formula ("
               + m_lib_filename + ")" << std::endl;
   }
- #if defined(_OPENMP)
-  #pragma omp barrier
- #endif // defined(_OPENMP)
 }
 
 //https://stackoverflow.com/questions/8243743/is-there-a-null-stdostream-implementation-in-c-or-libraries

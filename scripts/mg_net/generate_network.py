@@ -56,19 +56,19 @@ reaction rate formulas (default from 2.5 to 7.5)''',
 
     #print('Range:', args.range_values)
     if args.range_values != None :
-      if (args.range_values[0] > args.range_values[1] or args.range_values[0] < 0 ) :
-        print('Error: the first argument of -r has to be greater than 0 and smaller than the second argument')
+      if (int(args.range_values[0]) > int(args.range_values[1]) or int(args.range_values[0]) < 0 ) :
+        print('Error: the first argument of -u has to be greater than 0 and smaller than the second argument')
         sys.exit()
-      min_range_value = args.range_values[0]
-      max_range_value = args.range_values[1]
+      min_range_value = int(args.range_values[0])
+      max_range_value = int(args.range_values[1])
       #print ("\n" + str(min_range_value) + " " + str(max_range_value))
 
     if args.normal_distr != None :
-      if (args.normal_distr[0] > args.normal_distr[1] or args.normal_distr[0] < 0 ) :
+      if (float(args.normal_distr[0]) > float(args.normal_distr[1]) or float(args.normal_distr[0]) < 0 ) :
         print('Error: the first argument of -n has to be greater than 0 and smaller than the second argument')
         sys.exit()
-      min_k_value = args.normal_distr[0]
-      max_k_value = args.normal_distr[1]
+      min_k_value = float(args.normal_distr[0])
+      max_k_value = float(args.normal_distr[1])
     #print ("\n" + str(min_k_value) + " " + str(max_k_value))
 
     processes = set ()

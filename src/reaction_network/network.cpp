@@ -34,13 +34,6 @@ namespace wcs {
 
 sim_time_t Network::m_etime_ulimit = std::numeric_limits<sim_time_t>::infinity();
 
-#if !defined(WCS_HAS_EXPRTK)
-using params_map_t = std::unordered_map <std::string, std::vector<std::string>>;
-params_map_t dep_params_f, dep_params_nf;
-using rate_rules_dep_t = std::unordered_map <std::string, std::set<std::string>>;
-rate_rules_dep_t rate_rules_dep_map;
-#endif // !defined(WCS_HAS_EXPRTK
-
 void Network::load(const std::string filename, const bool reuse)
 {
   input_filetype fn(filename);
@@ -161,22 +154,19 @@ void Network::loadSBML(const std::string sbml_filename, const bool reuse)
   generate_cxx_code code_generator(lib_filename, !reuse);
 
   typename params_map_t::const_iterator pit;
-  // dep_params_f = all params in formula expected as input per reaction
-  // dep_params_nf = all params not in formula expected as input per reaction
-  // rate_rules_dep_map = all rate_rules (params in dep_params_f and dep_params_nf)
-  // with their dependent params (transient parameters)
   code_generator.generate_code(*model,
-        dep_params_f, dep_params_nf, rate_rules_dep_map);
+        m_dep_params_f, m_dep_params_nf, m_rate_rules_dep_map);
 
   const std::string library_file = code_generator.compile_code();
 
   using std::operator<<;
   std::cerr << "Constructing a graph from the SBML model ..." << std::endl;
-  // print_parameters_of_reactions(dep_params_f, dep_params_nf, rate_rules_dep_map);
+  // print_parameters_of_reactions(m_dep_params_f, m_dep_params_nf,
+  //                               m_rate_rules_dep_map);
 
   gfactory.convert_to(*model, m_graph, library_file,
-                      dep_params_f, dep_params_nf,
-                      rate_rules_dep_map);
+                      m_dep_params_f, m_dep_params_nf,
+                      m_rate_rules_dep_map);
 
   #else
   gfactory.convert_to(*model, m_graph, "",{},{},{});
@@ -226,8 +216,8 @@ void Network::init()
       typename params_map_t::const_iterator pit, pit_nf;
       std::vector<std::string> params_reactants;
       std::string reaction_name = m_graph[*vi].get_label();
-      pit = dep_params_f.find(reaction_name);
-      if (pit != dep_params_f.end()) {
+      pit = m_dep_params_f.find(reaction_name);
+      if (pit != m_dep_params_f.end()) {
         params_reactants=pit->second;
       }
       #endif // !defined(WCS_HAS_EXPRTK)
@@ -263,17 +253,18 @@ void Network::init()
       auto& r = m_graph[*vi].checked_property< Reaction<v_desc_t> >();
 
       #if !defined(WCS_HAS_EXPRTK)
-      pit = dep_params_f.find(reaction_name);
-      pit_nf = dep_params_nf.find(reaction_name);
+      pit = m_dep_params_f.find(reaction_name);
+      pit_nf = m_dep_params_nf.find(reaction_name);
       typename rate_rules_dep_t::const_iterator rrdit;
-      if (pit != dep_params_f.cend()) {
-        if (pit_nf != dep_params_nf.cend()) {
+
+      if (pit != m_dep_params_f.cend()) {
+        if (pit_nf != m_dep_params_nf.cend()) {
           const std::vector<std::string>& params_fv = pit->second;
           const std::vector<std::string>& params_nfv = pit_nf->second;
           std::vector<std::string> fparams, nfparams;
           for (const auto& x: params_fv) {
-            rrdit = rate_rules_dep_map.find(x);
-            if (rrdit != rate_rules_dep_map.cend()) {
+            rrdit = m_rate_rules_dep_map.find(x);
+            if (rrdit != m_rate_rules_dep_map.cend()) {
               const std::set<std::string>& params_rr = rrdit->second;
               for (const auto& w: params_rr) {
                 fparams.push_back(w);
@@ -284,8 +275,8 @@ void Network::init()
           }
 
           for (const auto& x: params_nfv) {
-            rrdit = rate_rules_dep_map.find(x);
-            if (rrdit != rate_rules_dep_map.cend()) {
+            rrdit = m_rate_rules_dep_map.find(x);
+            if (rrdit != m_rate_rules_dep_map.cend()) {
               const std::set<std::string>& params_rr = rrdit->second;
               for (const auto& w: params_rr) {
                 nfparams.push_back(w);

@@ -174,10 +174,10 @@ class Network {
   void build_index_maps();
   void loadGraphML(const std::string graphml_filename);
   void loadSBML(const std::string sbml_filename, const bool reuse = true);
-  void print_parameters_of_reactions(
-         const params_map_t& dep_params_f,
-         const params_map_t& dep_params_nf,
-         const rate_rules_dep_t& rate_rules_dep_map);
+  static void print_parameters_of_reactions(
+             const params_map_t& dep_params_f,
+             const params_map_t& dep_params_nf,
+             const rate_rules_dep_t& rate_rules_dep_map);
 
  protected:
   /// The BGL graph to represent a reaction network
@@ -208,6 +208,18 @@ class Network {
   reaction_list_t m_my_reactions;
   /// List of species that belong to this partition
   species_list_t m_my_species;
+
+ #if !defined(WCS_HAS_EXPRTK)
+  /// all params in formula expected as input per reaction
+  params_map_t m_dep_params_f;
+  /// all params not in formula expected as input per reaction
+  params_map_t m_dep_params_nf;
+  /**
+   *  all rate_rules (params in dep_params_f and dep_params_nf) with their
+   *  dependent params (transient parameters)
+   */
+  rate_rules_dep_t m_rate_rules_dep_map;
+ #endif // !defined(WCS_HAS_EXPRTK
 };
 
 /**@}*/

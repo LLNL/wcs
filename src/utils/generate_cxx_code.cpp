@@ -1201,9 +1201,9 @@ void generate_cxx_code::print_reaction_rates(
 
     // put input parameters into maps
     dep_params_f.insert(std::make_pair(reaction.getIdAttribute(),
-                                                 par_names));
+                                       par_names));
     dep_params_nf.insert(std::make_pair(reaction.getIdAttribute(),
-                                                 par_names_nf));
+                                        par_names_nf));
 
     //genfile << "printf(\" and expected  %u \\n\", " << par_index << ");\n";
     /*genfile << "  printf(\"Expected in generated code: \");\n";
@@ -1290,9 +1290,7 @@ void generate_cxx_code::print_reaction_rates(
     //        << reaction.getIdAttribute() << ");\n";
     genfile << "  return " << reaction.getIdAttribute() << ";\n";
     genfile << "}\n\n";
-
   }
-
 }
 
 
@@ -1346,6 +1344,34 @@ generate_cxx_code::generate_cxx_code(const std::string& libpath,
      }
   }
 
+  if (((m_tmp_dir.size() == 1u) && (m_tmp_dir[0] == '/')) ||
+      m_tmp_dir.empty())
+  {
+   #if defined(_OPENMP)
+    #pragma omp master
+   #endif // defined(_OPENMP)
+    {
+      std::cerr << "Creating files into the current directory" << std::endl;
+    }
+    m_tmp_dir = ".";
+  } else {
+    if (m_regen) {
+      int ret = mkdir_as_needed(m_tmp_dir);
+      if (ret != 0) {
+        WCS_THROW("Terminating after failed to create a directory.");
+      }
+    }
+  }
+  if (m_tmp_dir[0] != '/') {
+     char canonical[PATH_MAX] = {'\0'};
+     realpath("./", canonical);
+     const size_t sz = strlen(canonical);
+     if ((sz > 0ul) && (canonical[sz-1] != '/')) {
+       m_tmp_dir = canonical + std::string{"/"} + m_tmp_dir;
+     } else { // it is ok even if canonical is empty
+       m_tmp_dir = canonical + m_tmp_dir;
+     }
+  }
  #if defined(_OPENMP)
   #pragma omp master
  #endif // defined(_OPENMP)
@@ -1403,6 +1429,7 @@ void generate_cxx_code::create_ostream(src_file_t& ofile, size_t suffix_size)
 {
   std::string& src_name = ofile.first;
   std::unique_ptr<std::ostream>& os_ptr = ofile.second;
+
 
   char tmp_filename[PATH_MAX+1] = {'\0'};
   strncpy(tmp_filename, src_name.c_str(), PATH_MAX);

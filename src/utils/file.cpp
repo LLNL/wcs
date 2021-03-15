@@ -10,10 +10,14 @@
 
 #include "utils/file.hpp"
 #include "utils/exception.hpp"
-#include <sys/stat.h> // mkdir()
+#include <sys/stat.h> // mkdir(), open()
 #include <cerrno> // errno
-#include <unistd.h> // getuid()
+#include <unistd.h> // getuid(), fsync(), close()
 #include <cstdio> // perror()
+#include <libgen.h> // dirname()
+#include <cstring> // strncpy()
+#include <fcntl.h> // O_RDONLY
+#include <fstream> // filebuf
 
 namespace wcs {
 /** \addtogroup wcs_utils
@@ -151,6 +155,45 @@ int mkdir_as_needed (const std::string& path, const mode_t m)
   umask (old_mask);
 
   return 0;
+}
+
+bool sync_directory(const std::string& path)
+{ // Flush new directory entry https://lwn.net/Articles/457671/
+  char path_copy [PATH_MAX+1] = {'\0'};
+  int odir_fd = -1;
+  char *odir = NULL;
+  bool rc = true;
+
+  strncpy(path_copy, path.c_str(), PATH_MAX);
+  odir = dirname(path_copy);
+
+  if ((odir_fd = open(odir, O_RDONLY)) < 0) {
+    std::cerr << "Cannot open the directory " + std::string(odir) << std::endl;
+    rc = false;
+  } else {
+    if (fsync(odir_fd) < 0) {
+      std::cerr << "Cannot flush the directory " + std::string(odir) << std::endl;
+      rc = false;
+    }
+    if (close(odir_fd) < 0) {
+      std::cerr << "Cannot close the directory " + std::string(odir) << std::endl;
+      rc = false;
+    }
+  }
+  return rc;
+}
+
+// https://stackoverflow.com/questions/676787/how-to-do-fsync-on-an-ofstream
+void fsync_ofstream(std::ofstream& os)
+{
+  class my_filebuf : public std::filebuf
+  {
+   public:
+    int handle() { return _M_file.fd(); }
+  };
+
+  os.flush();
+  fsync(static_cast<my_filebuf&>(*os.rdbuf()).handle());
 }
 
 /**@}*/

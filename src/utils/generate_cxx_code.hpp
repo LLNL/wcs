@@ -60,6 +60,7 @@ class generate_cxx_code {
     rate_rules_dep_t& rate_rules_dep_map);
 
   std::string compile_code();
+  std::string gen_makefile();
 
   std::vector<std::string> get_src_filenames() const;
   std::string get_lib_filename() const;

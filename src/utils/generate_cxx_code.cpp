@@ -21,20 +21,16 @@
 #include <fstream>
 #include <sstream>
 #include <algorithm> // std::min
-#include <cstdlib> // system
+#include <cstdlib> // system, realpath
 #include <climits> // PATH_MAX
 #include <cstring> // strncpy
 #include <fcntl.h> // O_CREAT
 #include <unistd.h> // close
 #include <sys/wait.h> // WEXITSTATUS
-#include "wcs_types.hpp"
 #include <set>
 #include <regex>
-
-
 #include <string>
-
-//#include <cstdio>
+#include "wcs_types.hpp"
 
 #if defined(WCS_HAS_SBML)
 
@@ -499,11 +495,11 @@ void generate_cxx_code::print_constants_and_initial_states(
         if (used_params.find(parameter.getIdAttribute()) !=
             used_params.cend())
         { //declare if it is used
-          std::ostringstream streamObj2;
+          //std::ostringstream streamObj2;
           // Set Fixed -Point Notation
-          streamObj2 << std::fixed;
+          //streamObj2 << std::fixed;
           //Add double to stream
-          streamObj2 << parameter.getValue();
+          //streamObj2 << parameter.getValue();
 
           wcs_const.insert(std::make_pair(parameter.getIdAttribute(), parameter.getValue()));
           good_params.insert(parameter.getIdAttribute());
@@ -971,12 +967,12 @@ void generate_cxx_code::print_global_state_functions(
               genfile << "      if (" << denominators[i] << " == " << zero << ") {\n"
                       << "        WCS_THROW(\"Divide by zero in rate rule "
                       << rule.getVariable()  << ", in expression of " << arit->first
-                      << " with the element " << denominators_noscope[i] << ".\"); \n"
+                      << " with the element " << denominators_noscope[i] << ".\");\n"
                       << "      }\n";
             }
           }
           genfile << "      WCS_THROW(\"Infinite or NaN result in rate rule "
-                << rule.getVariable() << ", in expression " << arit->first << ".\"); \n";
+                << rule.getVariable() << ", in expression " << arit->first << ".\");\n";
 
           genfile << "    }\n";
         } else if (mrit != model_reactions_map.cend()){ //model reactions
@@ -995,12 +991,12 @@ void generate_cxx_code::print_global_state_functions(
               genfile << "      if (" << denominators[i] << " == " << zero << ") {\n"
                       << "        WCS_THROW(\"Divide by zero in rate rule "
                       << rule.getVariable()  << ", in expression of " << mrit->first
-                      << " with the element " << denominators_noscope[i] << ".\"); \n"
+                      << " with the element " << denominators_noscope[i] << ".\");\n"
                       << "      }\n";
             }
           }
           genfile << "      WCS_THROW(\"Infinite or NaN result in rate rule "
-                << rule.getVariable() << ", in expression " << mrit->first << ".\"); \n";
+                << rule.getVariable() << ", in expression " << mrit->first << ".\");\n";
 
           genfile << "    }\n";
         }
@@ -1018,7 +1014,7 @@ void generate_cxx_code::print_global_state_functions(
           genfile << "    if (" << denominators_rr[i] << " == " << zero << ") {\n"
                   << "      WCS_THROW(\"Divide by zero in rate rule "
                   << rule.getVariable()
-                  << " with the element " << denominators_rr_noscope[i] << ".\"); \n"
+                  << " with the element " << denominators_rr_noscope[i] << ".\");\n"
                   << "    }\n";
         }
       }
@@ -1338,13 +1334,26 @@ generate_cxx_code::generate_cxx_code(const std::string& libpath,
     m_regen = true;
     m_lib_filename = dir + stem + ".so";
   }
+  if (m_lib_filename[0] != '/') {
+     char canonical[PATH_MAX] = {'\0'};
+     realpath("./", canonical);
+     const size_t sz = strlen(canonical);
+     if ((sz > 0ul) && (canonical[sz-1] != '/')) {
+       m_lib_filename = canonical + std::string{"/"} + m_lib_filename;
+     } else { // it is ok even if canonical is empty
+       m_lib_filename = canonical + m_lib_filename;
+     }
+  }
+
  #if defined(_OPENMP)
   #pragma omp master
+ #endif // defined(_OPENMP)
   {
-    std::cerr << std::string(m_regen? "Generate" : "Reuse")
+    std::cerr << std::string(m_regen? "Generating" : "Reusing")
               + " the machine code for reaction rate formula ("
               + m_lib_filename + ")" << std::endl;
   }
+ #if defined(_OPENMP)
   #pragma omp barrier
  #endif // defined(_OPENMP)
 }
@@ -1365,13 +1374,8 @@ void generate_cxx_code::create_ostream(src_file_t& ofile, size_t suffix_size)
   std::string& src_name = ofile.first;
   std::unique_ptr<std::ostream>& os_ptr = ofile.second;
 
- #if defined(PATH_MAX)
-  char tmp_filename[PATH_MAX];
+  char tmp_filename[PATH_MAX+1] = {'\0'};
   strncpy(tmp_filename, src_name.c_str(), PATH_MAX);
- #else
-  char tmp_filename[4096];
-  strncpy(tmp_filename, src_name.c_str(), 4096);
- #endif
 
   int fd = mkostemps(tmp_filename, static_cast<int>(suffix_size),
                      O_CREAT | O_RDWR | O_EXCL);
@@ -1405,54 +1409,56 @@ void generate_cxx_code::open_ostream(const unsigned int num_reactions)
    //std::cerr << "Glibc version: " << __GLIBC__ << "." << __GLIBC_MINOR__ << std::endl;
  #endif
 
+  //m_chunk = num_reactions;
+  if (m_chunk == 0u) {
+    m_chunk = 3000u;
+  }
+  size_t num_reaction_files = (num_reactions + m_chunk - 1) / m_chunk;
+  m_ostreams.resize(num_reaction_files + 3);
+
+  for (auto& os: m_ostreams) {
+    os.first = "";
+    os.second = std::make_unique<nullstream>();
+  }
+
   if (m_regen) {
    /* In case of running OpenMP with partitioned network, each thread has
     * its own generate_cxx_code object, we need to prevent redundant file
     * I/O. However, each thread still requires dependency analysis.
     */
    #if defined(_OPENMP)
-    m_ostreams.clear();
-    #pragma omp barrier
-    m_regen = false;
+    m_regen = false; // default for non-master
     #pragma omp barrier
     #pragma omp master
    #endif // defined(_OPENMP)
     { // only the master executes this block in case of parallel execution
-      m_regen = true;
+      m_regen = true; // only master opens/closes a stream
       std::string dir;
       std::string stem;
       std::string ext;
       extract_file_component(m_lib_filename, dir, stem, ext);
 
-      if (m_chunk == 0u) {
-        m_chunk = 3000u;
-      }
-      size_t num_reaction_files = (num_reactions + m_chunk - 1) / m_chunk;
-      m_ostreams.resize(num_reaction_files + 2);
+      m_ostreams.clear();
+      m_ostreams.resize(num_reaction_files + 3);
 
       const std::string hdr_suffix = ".hpp";
       const std::string src_suffix = ".cpp";
-      m_ostreams[0].first = "/tmp/" + stem + "_XXXXXX" + hdr_suffix;
-      create_ostream(m_ostreams[0], hdr_suffix.size());
-      m_ostreams[1].first = "/tmp/" + stem + "_XXXXXX" + src_suffix;
-      create_ostream(m_ostreams[1], src_suffix.size());
+      m_ostreams[0].first = "/tmp/Makefile_XXXXXX";
+      m_ostreams[1].first = "/tmp/" + stem + "_XXXXXX" + hdr_suffix;
+      m_ostreams[2].first = "/tmp/" + stem + "_XXXXXX" + src_suffix;
+      create_ostream(m_ostreams[0], 0);
+      create_ostream(m_ostreams[1], hdr_suffix.length());
+      create_ostream(m_ostreams[2], src_suffix.length());
 
       for (unsigned i = 0u, j = 0u; i < num_reactions; i += m_chunk, j++) {
-        m_ostreams[j+2].first = "/tmp/" + stem + '_' + std::to_string(j)
+        m_ostreams[j+3].first = "/tmp/" + stem + '_' + std::to_string(j)
                               + "_XXXXXX" + src_suffix;
-        create_ostream(m_ostreams[j+2], src_suffix.size());
+        create_ostream(m_ostreams[j+3], src_suffix.size());
       }
     }
    #if defined(_OPENMP)
     #pragma omp barrier
    #endif // defined(_OPENMP)
-  } else {
-    m_chunk = num_reactions;
-    m_ostreams.resize(3);
-    for (auto& os: m_ostreams) {
-      os.first = "";
-      os.second = std::make_unique<nullstream>();
-    }
   }
 }
 
@@ -1464,8 +1470,13 @@ void generate_cxx_code::close_ostream(std::unique_ptr<std::ostream>& os_ptr)
     #pragma omp master
    #endif // defined(_OPENMP)
     {
-      dynamic_cast<std::ofstream*>(os_ptr.get())->close();
-      delete os_ptr.release();
+      if (dynamic_cast<std::ofstream*>(os_ptr.get()) != nullptr) {
+        fsync_ofstream(dynamic_cast<std::ofstream&>(*os_ptr));
+        dynamic_cast<std::ofstream*>(os_ptr.get())->flush();
+        dynamic_cast<std::ofstream*>(os_ptr.get())->close();
+        delete os_ptr.release();
+        os_ptr = nullptr;
+      }
     }
   }
 }
@@ -1727,18 +1738,14 @@ void generate_cxx_code::generate_code(
     model, used_params, sinitial_assignments, assignment_rules_map,
     model_reactions_map, rate_rules_map, model_species, ev_assign);
 
-  const ListOfFunctionDefinitions* function_definition_list
-    = model.getListOfFunctionDefinitions();
-  function_definition_list->size();
-
 
   open_ostream(num_reactions);
-  auto& os_header = *(m_ostreams[0].second);
-  auto& os_common_impl = *(m_ostreams[1].second);
+  std::ostream& os_header = *(m_ostreams[1].second);
+  std::ostream& os_common_impl = *(m_ostreams[2].second);
 
 
   write_header(model, os_header);
-  write_common_impl(model, m_ostreams[0].first, os_common_impl);
+  write_common_impl(model, m_ostreams[1].first, os_common_impl);
 
   //  A map for constants in initial assignments
   constant_init_ass_t sconstant_init_assig;
@@ -1758,15 +1765,6 @@ void generate_cxx_code::generate_code(
                          sconstant_init_assig, model_reactions_map,
                          rate_rules_dep_map);
 
-  /**genfile << "Size of used params: " << used_params.size() <<"\n" ;
-
-  for (auto& x: good_params) {
-    if (used_params.find(x) == used_params.cend()){
-      std::cout << x << "\n";
-    }
-  }
-  genfile << "Size of good params: " << good_params.size() <<"\n\n" ;*/
-
   // define functions for events
   if ( ev_assign.size() > 0ul) {
     os_common_impl << "\n//Define functions for events\n";
@@ -1776,189 +1774,186 @@ void generate_cxx_code::generate_code(
 
   os_header << "\n//Define the functions for updating global state variables\n";
   os_common_impl << "\n//Define the functions for updating global state variables\n";
-  //genfile << "\n//Define differential rates\n";
   generate_cxx_code::print_global_state_functions(
     model, os_common_impl, good_params, sconstant_init_assig,
     assignment_rules_map, model_reactions_map, wcs_all_const, wcs_all_var);
 
   os_header << "\n#endif // WCS_REACTION_RATE_EVALUTATION_FUNCTIONS_GENERATED\n";
-  close_ostream(m_ostreams[0].second);
   close_ostream(m_ostreams[1].second);
+  close_ostream(m_ostreams[2].second);
 
   for (unsigned i = 0u, j = 0u; i < num_reactions; i += m_chunk, j++) {
-    auto& genfile = *(m_ostreams[j+2].second);
+    std::ostream& genfile = *(m_ostreams[j+3].second);
     genfile << "//Define the rates\n";
     const unsigned int rid_end = std::min(i + m_chunk, num_reactions);
 
     generate_cxx_code::print_reaction_rates(
-      model, i, rid_end, genfile, m_ostreams[0].first,
+      model, i, rid_end, genfile, m_ostreams[1].first,
       good_params, sconstant_init_assig,
       assignment_rules_map, model_reactions_map, ev_assign,
       wcs_all_const, wcs_all_var, dep_params_f,
       dep_params_nf, rate_rules_dep_map);
+    close_ostream(m_ostreams[j+3].second);
   }
 }
 
+static int build(const std::string& cmd,
+                 const std::string& target_name,
+                 const std::string& tmp_file,
+                 const std::string& compilation_log)
+{
+  int ret = system(cmd.c_str());
+  if (!WIFEXITED(ret)) {
+    std::string msg = "The command `" + cmd + "` has failed.";
+    std::cerr << msg << std::endl;
+    ret = EXIT_FAILURE;
+  } else if (WEXITSTATUS(ret) != 0) {
+    std::string msg = "Failed to build " + target_name + ".";
+                    + " The command used is\n" + cmd;
+    if (!compilation_log.empty()) {
+      msg += " See wcs_jit_log.txt for further details.";
+    }
+    std::cerr << msg << std::endl;
+    ret = EXIT_FAILURE;
+  }
+
+  if (!tmp_file.empty()) {
+    std::string cmd_rm = "rm -f " + tmp_file;
+    ret = system(cmd_rm.c_str());
+    if (!WIFEXITED(ret)) {
+      std::string msg = "The command `" + cmd_rm + "` has failed.";
+      std::cerr << msg << std::endl;
+      ret = EXIT_FAILURE;
+    }
+  }
+  return ret;
+}
+
+std::string generate_cxx_code::gen_makefile()
+{
+  std::string obj_files;
+
+ #if defined(_OPENMP)
+  #pragma omp master
+ #endif // defined(_OPENMP)
+  {
+    const std::string& hdr_filename = m_ostreams[1].first;
+    std::ostream& os_makefile = *(m_ostreams[0].second);
+    std::string shared_lib;
+
+    {
+      std::string dir, stem, ext;
+      extract_file_component(m_lib_filename, dir, stem, ext);
+      shared_lib = stem + ext;
+
+      os_makefile << "all: " + shared_lib + "\n\n";
+    }
+
+    // commands to build object file for each source file
+    for (size_t i = 2u; i < m_ostreams.size(); ++i)
+    {
+      const std::string& src_filename = m_ostreams[i].first;
+
+      // This block updates no state of the current object. It only generates
+      // file I/O.
+      if (src_filename.empty()) {
+        WCS_THROW("\n No source file to compile! Run generate_code() first.");
+        continue;
+      }
+
+      std::string dir, stem, ext;
+
+      extract_file_component(src_filename, dir, stem, ext);
+
+      const std::string obj_filename = stem + ".o";
+      obj_files += ' ' + obj_filename;
+
+      const std::string suppress_warnings = " -Wno-unused ";
+      const std::string compilation_log = (m_save_log? " 2>> wcs_jit_log.txt" : "");
+      const std::string tmp_file = (m_cleanup? src_filename : "");
+
+      std::string cmd1
+        = std::string(CMAKE_CXX_COMPILER) + " " + CMAKE_CXX_FLAGS + suppress_warnings
+        + " -std=c++17 -g -fPIC " + WCS_INCLUDE_DIR + CMAKE_CXX_SHARED_LIBRARY_FLAGS
+        + " -c " + src_filename + compilation_log;
+
+      os_makefile << obj_filename + ": " + src_filename + ' ' + hdr_filename + "\n"
+                   + "\t" + cmd1 + "\n\n";
+
+      //int ret = build(cmd1, obj_filename, tmp_file, compilation_log);
+    }
+
+    { // command for final linking
+      std::string cmd2
+        = std::string(CMAKE_CXX_COMPILER) + " " + CMAKE_CXX_FLAGS
+        + " -std=c++17 -g -fPIC " + CMAKE_CXX_SHARED_LIBRARY_FLAGS
+        + " -shared -Wl,--export-dynamic " + obj_files + " -o " + m_lib_filename;
+
+      os_makefile << shared_lib + ": " + obj_files + "\n"
+                   + "\t" + cmd2 + "\n\n";
+      os_makefile << "clean: \n\t@rm -f " + obj_files + " " + m_lib_filename + "\n";
+
+      //int ret = build(cmd2, m_lib_filename, obj_files, "");
+    }
+  }
+
+  close_ostream(m_ostreams[0].second);
+  m_regen = false; // finished generating Makefile
+ #if defined(_OPENMP)
+  #pragma omp master
+ #endif // defined(_OPENMP)
+  {
+    sync_directory("/tmp");
+  }
+ #if defined(_OPENMP)
+  #pragma omp barrier
+ #endif // defined(_OPENMP)
+
+#if 0
+  std::ifstream makefile(m_ostreams[0].first);
+  if (makefile.is_open()) {
+    std::cout << "Reading " + m_ostreams[0].first << std::endl;
+    std::cout << makefile.rdbuf() << std::endl;
+  } else {
+    std::cout << "Cannot read " + m_ostreams[0].first << std::endl;
+  }
+#endif
+
+  return obj_files;
+}
 
 std::string generate_cxx_code::compile_code()
 {
+  int ret = EXIT_SUCCESS;
+
   if (!m_regen) {
+   #if defined(_OPENMP)
+    #pragma omp master
+   #endif // defined(_OPENMP)
+    { // Only the master executes this block in case of parallel execution
+      std::cout << "Reusing " << m_lib_filename << std::endl;
+    }
+    close_ostream(m_ostreams[0].second);
     return m_lib_filename;
   }
 
-  if (m_ostreams.size() < 3u || m_ostreams[0].first.empty() || m_ostreams[1].first.empty()) {
+  if (m_ostreams.size() < 4u || m_ostreams[0].first.empty() ||
+      m_ostreams[1].first.empty() || m_ostreams[2].first.empty()) {
     WCS_THROW("\n No source file to compile! Run generate_code() first.");
     return "";
   }
 
-  int ret = EXIT_SUCCESS;
-
-  std::vector<std::string> src_filenames;
+  std::string obj_files = gen_makefile();
 
  #if defined(_OPENMP)
   #pragma omp master
  #endif // defined(_OPENMP)
   {
-    std::string dir;
-    std::string stem;
-    std::string ext;
-    src_filenames = get_src_filenames();
-
-    int ret = EXIT_SUCCESS;
-    extract_file_component(src_filenames[1], dir, stem, ext);
-
-    const std::string obj_filename = stem + ".o";
-
-    const std::string suppress_warnings = " -Wno-unused ";
-    const std::string compilation_log = (m_save_log? " 2> wcs_compile_log.txt" : "");
-
-    std::string cmd1
-      = std::string(CMAKE_CXX_COMPILER) + " " + CMAKE_CXX_FLAGS + suppress_warnings
-      + " -std=c++17 -g -fPIC " + WCS_INCLUDE_DIR + CMAKE_CXX_SHARED_LIBRARY_FLAGS
-      + " -c " + src_filenames[1] + compilation_log;
-
-    ret = system(cmd1.c_str());
-    if (!WIFEXITED(ret)) {
-      std::string msg = "The command `" + cmd1 + "` has failed.";
-      std::cerr << msg << std::endl;
-      ret = EXIT_FAILURE;
-    } else if (WEXITSTATUS(ret) != 0) {
-      std::string msg = "The compilation of " + src_filenames[1]
-                      + " has failed. The command used is\n" + cmd1;
-      if (m_save_log) msg += " See wcs_compile_log.txt for further details.";
-      std::cerr << msg << std::endl;
-      ret = EXIT_FAILURE;
-    }
-
-    if (m_cleanup) {
-      std::string cmd3 = "rm -f " + src_filenames[1];
-      ret = system(cmd3.c_str());
-      if (!WIFEXITED(ret)) {
-        std::string msg = "The command `" + cmd3 + "` has failed.";
-        std::cerr << msg << std::endl;
-        ret = EXIT_FAILURE;
-      }
-    }
-  }
-
-  if (ret == EXIT_FAILURE) return "";
-
- #if defined(_OPENMP)
-  #pragma omp parallel for
- #endif // defined(_OPENMP)
-  for (size_t i = 2u; i < src_filenames.size(); ++i)
-  {
-    // This block updates no state of the current object. It only generates
-    // file I/O.
-    if (m_ostreams[i].first.empty()) {
-      ret = EXIT_FAILURE;
-      WCS_THROW("\n No source file to compile! Run generate_code() first.");
-      continue;
-    }
-
-    std::string dir;
-    std::string stem;
-    std::string ext;
-
-    int ret = EXIT_SUCCESS;
-    extract_file_component(src_filenames[i], dir, stem, ext);
-
-    const std::string obj_filename = stem + ".o";
-
-    const std::string suppress_warnings = " -Wno-unused ";
-    const std::string compilation_log = (m_save_log? " 2> wcs_compile_log.txt" : "");
-
-    std::string cmd1
-      = std::string(CMAKE_CXX_COMPILER) + " " + CMAKE_CXX_FLAGS + suppress_warnings
-      + " -std=c++17 -g -fPIC " + WCS_INCLUDE_DIR + CMAKE_CXX_SHARED_LIBRARY_FLAGS
-      + " -c " + src_filenames[i] + compilation_log;
-
-    ret = system(cmd1.c_str());
-    if (!WIFEXITED(ret)) {
-      std::string msg = "The command `" + cmd1 + "` has failed.";
-      std::cerr << msg << std::endl;
-      ret = EXIT_FAILURE;
-    } else if (WEXITSTATUS(ret) != 0) {
-      std::string msg = "The compilation of " + src_filenames[i]
-                      + " has failed. The command used is\n" + cmd1;
-      if (m_save_log) msg += " See wcs_compile_log.txt for further details.";
-      std::cerr << msg << std::endl;
-      ret = EXIT_FAILURE;
-    }
-
-    if (m_cleanup) {
-      std::string cmd3 = "rm -f " + src_filenames[i];
-      ret = system(cmd3.c_str());
-      if (!WIFEXITED(ret)) {
-        std::string msg = "The command `" + cmd3 + "` has failed.";
-        std::cerr << msg << std::endl;
-        ret = EXIT_FAILURE;
-      }
-    }
-  }
-  m_regen = false;
-
-  if (ret == EXIT_FAILURE) return "";
-
- #if defined(_OPENMP)
-  #pragma omp barrier
-  #pragma omp master
- #endif // defined(_OPENMP)
-  {
-    std::string dir;
-    std::string stem;
-    std::string ext;
-
-    std::string obj_files;
-    for (size_t i = 1u; i < src_filenames.size(); ++i) {
-      extract_file_component(src_filenames[i], dir, stem, ext);
-      obj_files += ' ' + stem + ".o";
-    }
-
-    std::string cmd2
-      = std::string(CMAKE_CXX_COMPILER) + " " + CMAKE_CXX_FLAGS
-      + " -std=c++17 -g -fPIC " + CMAKE_CXX_SHARED_LIBRARY_FLAGS
-      + " -shared -Wl,--export-dynamic " + obj_files + " -o " + m_lib_filename;
-
-    ret = system(cmd2.c_str());
-    if (!WIFEXITED(ret)) {
-      std::string msg = "The command `" + cmd2 + "` has failed.";
-      std::cerr << msg << std::endl;
-      ret = EXIT_FAILURE;
-    } else if (WEXITSTATUS(ret) != 0) {
-      std::string msg = "Failed to create " + m_lib_filename + ".";
-                      + " The command used is\n" + cmd2;
-      std::cerr << msg << std::endl;
-      ret = EXIT_FAILURE;
-    }
-
-    std::string cmd3 = "rm -f " + obj_files;
-    ret = system(cmd3.c_str());
-    if (!WIFEXITED(ret)) {
-      std::string msg = "The command `" + cmd3 + "` has failed.";
-      std::cerr << msg << std::endl;
-      ret = EXIT_FAILURE;
-    }
+    uint8_t parallel_compile = 4;
+    std::string cmd3 = "pushd /tmp; ls -1 " + m_ostreams[0].first + "; make -j " + std::to_string(parallel_compile)
+                     + " -f " + m_ostreams[0].first + " all; popd";
+    std::cout << cmd3 << std::endl;
+    ret = build(cmd3, m_lib_filename, obj_files, "");
   }
 
   if (ret == EXIT_FAILURE) return "";
@@ -1966,13 +1961,12 @@ std::string generate_cxx_code::compile_code()
   return m_lib_filename;
 }
 
-
 std::vector<std::string> generate_cxx_code::get_src_filenames() const
 {
   std::vector<std::string> src_filenames;
   src_filenames.reserve(m_ostreams.size());
-  for (const auto& of: m_ostreams) {
-    src_filenames.emplace_back(of.first);
+  for (size_t i = 0u; i < m_ostreams.size(); ++i) {
+    src_filenames.emplace_back(m_ostreams[i].first);
   }
   return src_filenames;
 }

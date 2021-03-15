@@ -461,6 +461,7 @@ bool setup_partition(const std::string& input_model,
     partitioner.print_adjacency(std::cout);
   }
 
+  std::cerr << "Start partitioning ..." << std::endl;
   idx_t objval; /// Total comm volume or edge-cut of the solution
   bool ret = partitioner.run(parts, objval);
   if (!ret) return false;
@@ -490,6 +491,7 @@ bool setup_partition(const std::string& input_model,
     pinfo.scan(mp.m_verbose);
     pinfo.report();
   }
+  std::cerr << "Partitioning complete!" << std::endl;
   return true;
 }
 

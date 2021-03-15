@@ -51,6 +51,7 @@ class generate_cxx_code {
                     bool regen = false,
                     bool save_log = false,
                     bool cleanup = true,
+                    const std::string& tmp_dir = "tmp_jit",
                     unsigned int chunk_size = 1000u);
 
   void generate_code(
@@ -186,6 +187,7 @@ class generate_cxx_code {
    bool m_regen; ///< Whether to regenerate the library
    bool m_save_log; ///< Whether to save compilation log
    bool m_cleanup; ///< Whether to remove the temporary source file generated
+   std::string m_tmp_dir;
 
    /// The number of reactions to group into a translation unit for compilation
    unsigned int m_chunk;

@@ -1401,7 +1401,8 @@ void generate_cxx_code::create_ostream(src_file_t& ofile, size_t suffix_size)
   std::string& src_name = ofile.first;
   std::unique_ptr<std::ostream>& os_ptr = ofile.second;
 
-  char tmp_filename[PATH_MAX + 1] = {'\0'};
+
+  char tmp_filename[PATH_MAX+1] = {'\0'};
   strncpy(tmp_filename, src_name.c_str(), PATH_MAX);
 
   int fd = mkostemps(tmp_filename, static_cast<int>(suffix_size),

@@ -1884,6 +1884,10 @@ std::string generate_cxx_code::gen_makefile()
       extract_file_component(m_lib_filename, dir, stem, ext);
       shared_lib = stem + ext;
 
+      os_makefile << "CXX = " + std::string(CMAKE_CXX_COMPILER) + "\n";
+      os_makefile << "CXXFLAGS = " + std::string(CMAKE_CXX_FLAGS) + "\n";
+      os_makefile << "WCS_INCLUDE_DIR = " + std::string(WCS_INCLUDE_DIR) + "\n";
+      os_makefile << "LIBRARY_FLAGS = " + std::string(CMAKE_CXX_SHARED_LIBRARY_FLAGS) + "\n\n";
       os_makefile << "all: " + shared_lib + "\n\n";
     }
 
@@ -1911,8 +1915,8 @@ std::string generate_cxx_code::gen_makefile()
       const std::string tmp_file = (m_cleanup? src_filename : "");
 
       std::string cmd1
-        = std::string(CMAKE_CXX_COMPILER) + " " + CMAKE_CXX_FLAGS + suppress_warnings
-        + " -fPIC " + WCS_INCLUDE_DIR + CMAKE_CXX_SHARED_LIBRARY_FLAGS
+        = std::string("$(CXX) $(CXXFLAGS)") + suppress_warnings
+        + " -fPIC $(WCS_INCLUDE_DIR) $(LIBRARY_FLAGS) "
         + " -c " + src_filename + compilation_log;
 
       os_makefile << obj_filename + ": " + src_filename + ' ' + hdr_filename + "\n"
@@ -1923,8 +1927,8 @@ std::string generate_cxx_code::gen_makefile()
 
     { // command for final linking
       std::string cmd2
-        = std::string(CMAKE_CXX_COMPILER) + " " + CMAKE_CXX_FLAGS
-        + " -fPIC " + CMAKE_CXX_SHARED_LIBRARY_FLAGS
+        = std::string("$(CXX) $(CXXFLAGS)")
+        + " -fPIC $(LIBRARY_FLAGS) "
         + " -shared -Wl,--export-dynamic " + obj_files + " -o " + m_lib_filename;
 
       os_makefile << shared_lib + ": " + obj_files + "\n"

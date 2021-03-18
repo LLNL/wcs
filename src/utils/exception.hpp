@@ -14,12 +14,19 @@
 #include <iostream>
 #include <exception>
 
+#if 0 // Intel compiler 19.1.2 fails to compile this
 #define WCS_THROW(_MSG_)                                     \
   do {                                                       \
     throw wcs::exception(std::string( __FILE__) + " : line " \
                          + std::to_string(__LINE__) + " : "  \
                          + _MSG_ + '\n');                    \
   } while (0)
+#else
+#define WCS_THROW(_MSG_)                                     \
+    throw wcs::exception(std::string( __FILE__) + " : line " \
+                         + std::to_string(__LINE__) + " : "  \
+                         + _MSG_ + '\n')
+#endif
 
 namespace wcs {
 /** \addtogroup wcs_utils

@@ -118,6 +118,36 @@ std::string get_default_outname_from_model(const std::string& model_filename)
   }
   return stem + ".out";
 }
+
+/**
+ * For a base path "/a/b/c" and a full path "/a/b/c/d/f.cpp", return "d/f.cpp".
+ * This is useful if the current working directory is the base path.
+ */
+std::string get_subpath(const std::string& basepath,
+                        const std::string& fullpath)
+{
+  std::string dir, stem, ext;
+  extract_file_component(fullpath, dir, stem, ext);
+  auto pos = dir.find(basepath);
+
+  if  (pos == std::string::npos) {
+    return fullpath;
+  }
+
+  auto dir_match = dir.substr(pos);
+
+  if (dir_match.length() < basepath.length()) {
+    return fullpath;
+  }
+  if (((dir_match.length() == basepath.length()) && (basepath.back() == '/')) ||
+      ((dir_match.length() == basepath.length()+1) && (dir_match.back() == '/')))
+  {
+    return stem + ext;
+  }
+
+  return dir_match.substr(basepath.length()) + stem + ext;
+}
+
 /**
  * Create a directory `path` with the given access permission `m`.
  * It is the same as the POSIX mkdir() except that it does not

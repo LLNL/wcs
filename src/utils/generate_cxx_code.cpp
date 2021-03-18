@@ -1875,7 +1875,8 @@ std::string generate_cxx_code::gen_makefile()
   #pragma omp master
  #endif // defined(_OPENMP)
   {
-    const std::string& hdr_filename = m_ostreams[1].first;
+    const std::string& hdr_filename
+      = get_subpath(m_tmp_dir, m_ostreams[1].first);
     std::ostream& os_makefile = *(m_ostreams[0].second);
     std::string shared_lib;
 
@@ -1894,7 +1895,8 @@ std::string generate_cxx_code::gen_makefile()
     // commands to build object file for each source file
     for (size_t i = 2u; i < m_ostreams.size(); ++i)
     {
-      const std::string& src_filename = m_ostreams[i].first;
+      const std::string& src_filename
+        = get_subpath(m_tmp_dir, m_ostreams[i].first);
 
       // This block updates no state of the current object. It only generates
       // file I/O.

@@ -47,6 +47,9 @@ std::string get_libname_from_model(const std::string& model_filename);
 
 std::string get_default_outname_from_model(const std::string& model_filename);
 
+std::string get_subpath(const std::string& basepath,
+                        const std::string& fullpath);
+
 int mkdir_as_needed (const std::string& path, const mode_t m = 0700);
 
 bool sync_directory(const std::string& path);

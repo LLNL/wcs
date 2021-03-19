@@ -52,7 +52,8 @@ class generate_cxx_code {
                     bool save_log = false,
                     bool cleanup = true,
                     const std::string& tmp_dir = "tmp_jit",
-                    unsigned int chunk_size = 1000u);
+                    unsigned int chunk_size = 1000u,
+                    unsigned int num_compiling_threads = 4u);
 
   void generate_code(
     const LIBSBML_CPP_NAMESPACE::Model& model,
@@ -191,6 +192,8 @@ class generate_cxx_code {
 
    /// The number of reactions to group into a translation unit for compilation
    unsigned int m_chunk;
+   /// The number of threads used in parallel compilation (make -j n ...)
+   unsigned int m_num_compiling_threads;
    std::vector<src_file_t> m_ostreams;
 };
 

@@ -11,6 +11,7 @@
 #include <limits>
 #include <utility> // std::forward
 #include "sim_methods/sim_method.hpp"
+#include "sim_methods/fire_reaction_omp.hpp"
 
 namespace wcs {
 /** \addtogroup wcs_reaction_network
@@ -110,6 +111,7 @@ void Sim_Method::finalize_recording() {
   }
 }
 
+#if !WCS_OMP_FINE_GRAGIN
 /**
  * Execute the chosen reaction.
  * In other words, update the species population involved in the reaction.
@@ -128,14 +130,21 @@ bool Sim_Method::fire_reaction(Sim_State_Change& digest)
   const wcs::Network::graph_t& g = m_net_ptr->graph();
   // The vertex descriptor of the reaction to undo
   const auto& rd_firing = digest.m_reaction_fired;
+ #ifdef WCS_CACHE_DEPENDENT
+  const auto& rv_firing = g[rd_firing];
+  const auto& rp_firing = rv_firing.property<wcs::Network::r_prop_t>();
+  const bool not_cached = rp_firing.get_dependent_reactions().empty();
+  std::set<wcs::Network::v_desc_t> reactions_affected;
+ #else
+  auto& reactions_affected = digest.m_reactions_affected;
+  reactions_affected.clear();
+ #endif // WCS_CACHE_DEPENDENT
+
  #ifdef ENABLE_SPECIES_UPDATE_TRACKING
   // can be used for undo_species_updates()
   auto& updating_species = digest.m_species_updated;
   updating_species.clear();
  #endif // ENABLE_SPECIES_UPDATE_TRACKING
-  auto& reactions_affected = digest.m_reactions_affected;
-
-  reactions_affected.clear();
 
  #if defined(_OPENMP) && defined(WCS_OMP_RUN_PARTITION)
   const auto pid = m_net_ptr->get_partition_id();
@@ -187,17 +196,22 @@ bool Sim_Method::fire_reaction(Sim_State_Change& digest)
     }
   #endif // ENABLE_SPECIES_UPDATE_TRACKING
 
-    for (const auto vi_affected :
-         boost::make_iterator_range(boost::out_edges(vd_updating, g)))
+  #ifdef WCS_CACHE_DEPENDENT
+    if (not_cached)
+  #endif // WCS_CACHE_DEPENDENT
     {
-      const auto rd_affected = boost::target(vi_affected, g);
-      if (rd_affected == rd_firing) continue;
-     #if defined(_OPENMP) && defined(WCS_OMP_RUN_PARTITION)
-      if (m_net_ptr->graph()[rd_affected].get_partition() != pid) continue;
-     #endif // defined(_OPENMP) && defined(WCS_OMP_RUN_PARTITION)
-      #pragma omp critical
+      for (const auto vi_affected :
+           boost::make_iterator_range(boost::out_edges(vd_updating, g)))
       {
-        reactions_affected.insert(rd_affected);
+        const auto rd_affected = boost::target(vi_affected, g);
+        if (rd_affected == rd_firing) continue;
+       #if defined(_OPENMP) && defined(WCS_OMP_RUN_PARTITION)
+        if (m_net_ptr->graph()[rd_affected].get_partition() != pid) continue;
+       #endif // defined(_OPENMP) && defined(WCS_OMP_RUN_PARTITION)
+        #pragma omp critical
+        {
+          reactions_affected.insert(rd_affected);
+        }
       }
     }
   }
@@ -235,15 +249,20 @@ bool Sim_Method::fire_reaction(Sim_State_Change& digest)
     updating_species.emplace_back(std::make_pair(vd_updating, -stoichio));
   #endif // ENABLE_SPECIES_UPDATE_TRACKING
 
-    for (const auto vi_affected :
-         boost::make_iterator_range(boost::out_edges(vd_updating, g)))
+  #ifdef WCS_CACHE_DEPENDENT
+    if (not_cached)
+  #endif // WCS_CACHE_DEPENDENT
     {
-      const auto rd_affected = boost::target(vi_affected, g);
-      if (rd_affected == rd_firing) continue;
-     #if defined(_OPENMP) && defined(WCS_OMP_RUN_PARTITION)
-      if (m_net_ptr->graph()[rd_affected].get_partition() != pid) continue;
-     #endif // defined(_OPENMP) && defined(WCS_OMP_RUN_PARTITION)
-      reactions_affected.insert(rd_affected);
+      for (const auto vi_affected :
+           boost::make_iterator_range(boost::out_edges(vd_updating, g)))
+      {
+        const auto rd_affected = boost::target(vi_affected, g);
+        if (rd_affected == rd_firing) continue;
+       #if defined(_OPENMP) && defined(WCS_OMP_RUN_PARTITION)
+        if (m_net_ptr->graph()[rd_affected].get_partition() != pid) continue;
+       #endif // defined(_OPENMP) && defined(WCS_OMP_RUN_PARTITION)
+        reactions_affected.insert(rd_affected);
+      }
     }
   }
  #endif // defined(_OPENMP) && defined(WCS_OMP_REACTION_REACTANTS) // ----------
@@ -290,17 +309,22 @@ bool Sim_Method::fire_reaction(Sim_State_Change& digest)
     }
   #endif // ENABLE_SPECIES_UPDATE_TRACKING
 
-    for (const auto vi_affected :
-         boost::make_iterator_range(boost::out_edges(vd_updating, g)))
+  #ifdef WCS_CACHE_DEPENDENT
+    if (not_cached)
+  #endif // WCS_CACHE_DEPENDENT
     {
-      const auto rd_affected = boost::target(vi_affected, g);
-      if (rd_affected == rd_firing) continue;
-     #if defined(_OPENMP) && defined(WCS_OMP_RUN_PARTITION)
-      if (m_net_ptr->graph()[rd_affected].get_partition() != pid) continue;
-     #endif // defined(_OPENMP) && defined(WCS_OMP_RUN_PARTITION)
-      #pragma omp critical
+      for (const auto vi_affected :
+           boost::make_iterator_range(boost::out_edges(vd_updating, g)))
       {
-        reactions_affected.insert(rd_affected);
+        const auto rd_affected = boost::target(vi_affected, g);
+        if (rd_affected == rd_firing) continue;
+       #if defined(_OPENMP) && defined(WCS_OMP_RUN_PARTITION)
+        if (m_net_ptr->graph()[rd_affected].get_partition() != pid) continue;
+       #endif // defined(_OPENMP) && defined(WCS_OMP_RUN_PARTITION)
+        #pragma omp critical
+        {
+          reactions_affected.insert(rd_affected);
+        }
       }
     }
   }
@@ -337,21 +361,34 @@ bool Sim_Method::fire_reaction(Sim_State_Change& digest)
     updating_species.emplace_back(std::make_pair(vd_updating, stoichio));
   #endif // ENABLE_SPECIES_UPDATE_TRACKING
 
-    for (const auto vi_affected :
-         boost::make_iterator_range(boost::out_edges(vd_updating, g)))
+  #ifdef WCS_CACHE_DEPENDENT
+    if (not_cached)
+  #endif // WCS_CACHE_DEPENDENT
     {
-      const auto rd_affected = boost::target(vi_affected, g);
-      if (rd_affected == rd_firing) continue;
-     #if defined(_OPENMP) && defined(WCS_OMP_RUN_PARTITION)
-      if (m_net_ptr->graph()[rd_affected].get_partition() != pid) continue;
-     #endif // defined(_OPENMP) && defined(WCS_OMP_RUN_PARTITION)
-      reactions_affected.insert(rd_affected);
+      for (const auto vi_affected :
+           boost::make_iterator_range(boost::out_edges(vd_updating, g)))
+      {
+        const auto rd_affected = boost::target(vi_affected, g);
+        if (rd_affected == rd_firing) continue;
+       #if defined(_OPENMP) && defined(WCS_OMP_RUN_PARTITION)
+        if (m_net_ptr->graph()[rd_affected].get_partition() != pid) continue;
+       #endif // defined(_OPENMP) && defined(WCS_OMP_RUN_PARTITION)
+        reactions_affected.insert(rd_affected);
+      }
     }
   }
  #endif // defined(_OPENMP) && defined(WCS_OMP_REACTION_PRODUCTS) // -----------
 
+ #ifdef WCS_CACHE_DEPENDENT
+  if (!not_cached) {
+    digest.m_dependent_reactions = rp_firing.get_dependent_reactions();
+  } else {
+    digest.m_dependent_reactions.assign(reactions_affected.begin(), reactions_affected.end());
+  }
+ #endif // WCS_CACHE_DEPENDENT
   return true;
 }
+#endif // !WCS_OMP_FINE_GRAGIN
 
 
 #ifdef ENABLE_SPECIES_UPDATE_TRACKING

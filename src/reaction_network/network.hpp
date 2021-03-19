@@ -32,6 +32,7 @@
 #include "reaction_network/reaction.hpp"
 #include "reaction_network/vertex.hpp"
 #include "reaction_network/edge.hpp"
+#include "reaction_network/rate_stats.hpp"
 
 namespace wcs {
 /** \addtogroup wcs_reaction_network
@@ -166,6 +167,13 @@ class Network {
   /// Return the id of this partition
   partition_id_t get_partition_id() const;
 
+ #ifdef WCS_CACHE_DEPENDENT
+  void cache_dependent_reactions(
+    std::function< bool(size_t, reaction_rate_t) >& to_cache) const;
+ #endif // WCS_CACHE_DEPENDENT
+
+  const RateStats& get_rate_stats() const;
+
   void print() const;
 
  protected:
@@ -220,6 +228,8 @@ class Network {
    */
   rate_rules_dep_t m_rate_rules_dep_map;
  #endif // !defined(WCS_HAS_EXPRTK
+
+  RateStats m_rstats;
 };
 
 /**@}*/

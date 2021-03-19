@@ -29,6 +29,7 @@ class Reaction : public ReactionBase {
  public:
   using rdriver_t = std::template pair<VD, stoic_t>;
   using involved_species_t = std::template vector<rdriver_t>;
+  using vdesc_t = VD;
 
   Reaction();
   Reaction(const Reaction& rhs);
@@ -52,6 +53,12 @@ class Reaction : public ReactionBase {
     std::vector<std::string>& dep_params_nf);
 #endif // defined(WCS_HAS_EXPRTK)
 
+#ifdef WCS_CACHE_DEPENDENT
+  void set_dependent_reactions(const std::set<vdesc_t>& dependent);
+  const std::vector<vdesc_t>& get_dependent_reactions() const;
+  void clear_dependent_reactions();
+#endif // WCS_CACHE_DEPENDENT
+
  protected:
   void reset(Reaction& obj);
 
@@ -70,6 +77,9 @@ class Reaction : public ReactionBase {
   /// The BGL descriptors of input vertices to reaction rate formula
   involved_species_t m_rate_inputs;
   involved_species_t m_products;
+
+  /// Cached list of dependent reactions that are local
+  std::vector<vdesc_t> m_dependent_reactions;
 };
 
 /**@}*/

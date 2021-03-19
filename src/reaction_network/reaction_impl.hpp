@@ -376,5 +376,25 @@ inline const typename Reaction<VD>::involved_species_t& Reaction<VD>::get_rate_i
   return m_rate_inputs;
 }
 
+#ifdef WCS_CACHE_DEPENDENT
+template <typename VD>
+void Reaction<VD>::set_dependent_reactions(const std::set<VD>& dependent)
+{
+  m_dependent_reactions.assign(dependent.begin(), dependent.end());
+}
+
+template <typename VD>
+const std::vector<VD>& Reaction<VD>::get_dependent_reactions() const
+{
+  return m_dependent_reactions;
+}
+
+template <typename VD>
+void Reaction<VD>::clear_dependent_reactions()
+{
+  m_dependent_reactions.clear();
+}
+#endif // WCS_CACHE_DEPENDENT
+
 /**@}*/
 } // end of namespace wcs

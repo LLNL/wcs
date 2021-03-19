@@ -229,7 +229,11 @@ wcs::sim_time_t SSA_NRM::adjust_reaction_time(const v_desc_t& vd,
  * this function is called when the reaction fired is local.
  */
 void SSA_NRM::update_reactions(const sim_time_t t_fired,
-       const Sim_Method::affected_reactions_t& affected,
+     #ifdef WCS_CACHE_DEPENDENT
+       const dependent_reactions_t& affected,
+     #else
+       const affected_reactions_t& affected,
+     #endif // WCS_CACHE_DEPENDENT
        SSA_NRM::reaction_times_t& affected_rtimes)
 {
  #if defined(_OPENMP) && defined(WCS_OMP_RUN_PARTITION)
@@ -239,7 +243,11 @@ void SSA_NRM::update_reactions(const sim_time_t t_fired,
   lambdas_for_indexed_heap
 
  #if defined(_OPENMP) && defined(WCS_OMP_REACTION_UPDATES)
+  #ifdef WCS_CACHE_DEPENDENT
+  const std::vector<v_desc_t>& r_affected = affected;
+  #else
   const std::vector<v_desc_t> r_affected(affected.begin(), affected.end());
+  #endif // WCS_CACHE_DEPENDENT
   #pragma omp parallel for
   for (size_t i = 0ul; i < r_affected.size(); i++)
   {
@@ -277,7 +285,11 @@ void SSA_NRM::update_reactions(const sim_time_t t_fired,
  */
 void SSA_NRM::update_reactions(
        const SSA_NRM::priority_t& fired,
-       const Sim_Method::affected_reactions_t& affected,
+     #ifdef WCS_CACHE_DEPENDENT
+       const dependent_reactions_t& affected,
+     #else
+       const affected_reactions_t& affected,
+     #endif // WCS_CACHE_DEPENDENT
        SSA_NRM::reaction_times_t& affected_rtimes)
 {
   const auto& t_fired = fired.first;
@@ -299,7 +311,11 @@ void SSA_NRM::update_reactions(
  #endif // defined(WCS_HAS_ROSS)
 
  #if defined(_OPENMP) && defined(WCS_OMP_REACTION_UPDATES)
+  #ifdef WCS_CACHE_DEPENDENT
+  const std::vector<v_desc_t>& r_affected = affected;
+  #else
   const std::vector<v_desc_t> r_affected(affected.begin(), affected.end());
+  #endif // WCS_CACHE_DEPENDENT
   #pragma omp parallel for
   for (size_t i = 0ul; i < r_affected.size(); i++)
   {
@@ -484,7 +500,11 @@ bool SSA_NRM::forward(const revent_t firing)
   Sim_Method::fire_reaction(digest);
 
   // update the propensities and times of those reactions fired and affected
+ #ifdef WCS_CACHE_DEPENDENT
+  update_reactions(firing, digest.m_dependent_reactions, digest.m_reaction_times);
+ #else
   update_reactions(firing, digest.m_reactions_affected, digest.m_reaction_times);
+ #endif // WCS_CACHE_DEPENDENT
 
  #if !defined(WCS_HAS_ROSS)
   // With ROSS, tracing and sampling are moved to process at commit time

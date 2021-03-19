@@ -36,6 +36,9 @@ public:
   /// Type of the pair of BGL vertex descriptor for reaction and the its time
   using reaction_times_t = Sim_State_Change::reaction_times_t;
 
+  using affected_reactions_t = Sim_State_Change::affected_reactions_t;
+  using dependent_reactions_t = Sim_State_Change::dependent_reactions_t;
+
 
   SSA_NRM(const std::shared_ptr<wcs::Network>& net_ptr);
   SSA_NRM(SSA_NRM&& other) = default;
@@ -83,12 +86,20 @@ public:
   /// Used in parallel mode with partitioned network
   bool advance_time_and_iter(const sim_time_t t_new);
   void update_reactions(const sim_time_t t_fired,
-                        const Sim_Method::affected_reactions_t& affected,
+                      #ifdef WCS_CACHE_DEPENDENT
+                        const dependent_reactions_t& affected,
+                      #else
+                        const affected_reactions_t& affected,
+                      #endif // WCS_CACHE_DEPENDENT
                         reaction_times_t& affected_rtimes);
  #endif // defined(_OPENMP) && defined(WCS_OMP_RUN_PARTITION)
 
   void update_reactions(const priority_t& fired,
-                        const Sim_Method::affected_reactions_t& affected,
+                      #ifdef WCS_CACHE_DEPENDENT
+                        const dependent_reactions_t& affected,
+                      #else
+                        const affected_reactions_t& affected,
+                      #endif // WCS_CACHE_DEPENDENT
                         reaction_times_t& affected_rtimes);
 
 protected:

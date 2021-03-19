@@ -37,6 +37,15 @@ int main(int argc, char** argv)
   wcs::Network& rnet = *rnet_ptr;
   rnet.load(cfg.m_infile);
   rnet.init();
+ #ifdef WCS_CACHE_DEPENDENT
+  const auto& rstats = rnet.get_rate_stats();
+  rstats.print();
+  std::function< bool(size_t, wcs::reaction_rate_t) > to_cache
+   = [](size_t, wcs::reaction_rate_t) {
+      return true;
+    };
+  rnet.cache_dependent_reactions(to_cache);
+ #endif // WCS_CACHE_DEPENDENT
   const wcs::Network::graph_t& g = rnet.graph();
 
   if (!cfg.m_gvizfile.empty() &&

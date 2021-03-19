@@ -82,6 +82,7 @@ public:
  #if defined(_OPENMP) && defined(WCS_OMP_RUN_PARTITION)
   /// Used in parallel mode with partitioned network
   bool advance_time_and_iter(const sim_time_t t_new);
+  void advance_step(const sim_time_t t_new);
   void update_reactions(const sim_time_t t_fired,
                         const Sim_Method::affected_reactions_t& affected,
                         reaction_times_t& affected_rtimes);

@@ -24,6 +24,8 @@
 #include <iostream>
 #include <vector>
 #include <functional>
+#include <type_traits>
+#include <typeinfo>
 #include "utils/file.hpp"
 #include "utils/timer.hpp"
 #include "utils/write_graphviz.hpp"
@@ -44,10 +46,13 @@ __itt_string_handle* vtune_handle_sim = __itt_string_handle_create("simulate");
 struct WCS_Shared_State {
   wcs::sim_time_t m_max_time; ///< maximum simulation time
   wcs::sim_iter_t m_max_iter; ///< maximum simulation steps
+  wcs::sim_iter_t m_sim_iter; ///< current simulation step
   int m_nparts;
   int m_num_inner_threads;
 
   void set_num_partitions(int np);
+  bool check_to_continue(const wcs::sim_time_t t_new) const;
+  void advance_step();
 };
 
 void WCS_Shared_State::set_num_partitions(int np)
@@ -68,6 +73,16 @@ void WCS_Shared_State::set_num_partitions(int np)
  #else
   m_num_inner_threads = 1;
  #endif // defined(_OPENMP)
+}
+
+bool WCS_Shared_State::check_to_continue(const wcs::sim_time_t t_new) const
+{
+  return (m_sim_iter < m_max_iter) && (t_new <= m_max_time);
+}
+
+void WCS_Shared_State::advance_step()
+{
+  m_sim_iter ++;
 }
 
 WCS_Shared_State shared_state;
@@ -141,6 +156,9 @@ int main(int argc, char** argv)
   if (!cmd.m_is_set) return EXIT_SUCCESS;
 
   cmd.show();
+  std::cout << "wcs::v_idx_t: " << typeid(wcs::v_idx_t).name() << std::endl;
+  std::cout << "wcs::Network::v_desc_t: " << typeid(wcs::Network::v_desc_t).name() << std::endl;
+  std::cout << "vertex exchange_id_t: " << typeid(exchange_id_t).name() << std::endl;
 
   wcs::SSA_Params sp;
   wcs::Metis_Params mp;
@@ -234,6 +252,7 @@ void wcs_init(const wcs::SSA_Params& cfg, const partition_idx_t& parts)
 
   shared_state.m_max_time = cfg.m_max_time;
   shared_state.m_max_iter = cfg.m_max_iter;
+  shared_state.m_sim_iter = static_cast<wcs::sim_iter_t>(0);
 
  #if OMP_DEBUG
   std::vector<wcs::my_omp_affinity> omp_aff(shared_state.m_nparts);
@@ -243,7 +262,7 @@ void wcs_init(const wcs::SSA_Params& cfg, const partition_idx_t& parts)
   {
     const int tid = omp_get_thread_num();
    #if OMP_DEBUG
-    omp_aff[omp_get_thread_num()].get();
+    omp_aff[tid].get();
    #endif // OMP_DEBUG
 
     auto& ssa_ptr = lp_state.m_ssa_ptr;
@@ -302,12 +321,121 @@ void wcs_init(const wcs::SSA_Params& cfg, const partition_idx_t& parts)
 }
 
 
-wcs::Sim_Method::result_t schedule(nrm_evt_t& evt_earliest)
+void schedule(nrm_evt_t& evt_earliest)
 {
   constexpr nrm_evt_t sevt_undef {std::numeric_limits<wcs::sim_time_t>::max(),
                                   std::numeric_limits<exchange_id_t>::max()};
 
-  evt_earliest = sevt_undef;
+  const auto& ssa = *(lp_state.m_ssa_ptr);
+  const auto& net = *(lp_state.m_net_ptr);
+
+  if (BOOST_UNLIKELY(ssa.is_empty())) {
+    evt_earliest = sevt_undef;
+  } else {
+    wcs::Sim_Method::revent_t re = ssa.choose_reaction();
+    if (BOOST_UNLIKELY(re.first > shared_state.m_max_time)) {
+      evt_earliest = sevt_undef;
+    } else {
+     #if __INTEL_COMPILER
+      // TODO: temporary get around for intel compiler bug
+      evt_earliest = nrm_evt_t{re.first, re.second};
+      // evt_earliest = nrm_evt_t{re.first, net.reaction_d2i(re.second)};
+     #else
+      if constexpr (std::is_same<wcs::wcs_vertex_list_t, ::boost::vecS>::value) {
+        evt_earliest = nrm_evt_t{re.first, re.second};
+      } else {
+        evt_earliest = nrm_evt_t{re.first, net.reaction_d2i(re.second)};
+      }
+     #endif // __INTEL_COMPILER
+    }
+  }
+}
+
+void forward(nrm_evt_t& evt_earliest)
+{
+  constexpr nrm_evt_t sevt_undef {std::numeric_limits<wcs::sim_time_t>::max(),
+                                  std::numeric_limits<exchange_id_t>::max()};
+    std::vector<nrm_evt_t> evt_local(shared_state.m_nparts, sevt_undef);
+/*
+  #pragma omp declare reduction(earliest :\
+    nrm_evt_t :\
+    omp_out = \
+      (((omp_in.first < omp_out.first) || \
+        ((omp_in.first == omp_out.first) && (omp_in.second < omp_out.second)))? \
+       omp_in : omp_out)) \
+    initializer(omp_priv = nrm_evt_t{std::numeric_limits<wcs::sim_time_t>::max(),\
+                                     std::numeric_limits<exchange_id_t>::max()})
+*/
+    #pragma omp parallel num_threads(shared_state.m_nparts) //reduction(earliest:evt_earliest)
+    {
+      auto& ssa = *(lp_state.m_ssa_ptr);
+      const auto& net = *(lp_state.m_net_ptr);
+      const auto tid = omp_get_thread_num();
+
+      wcs::Sim_Method::revent_t firing;
+
+      // At this point, evt_earliest is set to the result of reduction
+      ssa.advance_step(evt_earliest.first);
+      // Advance the simulation time and step index both locally and globally.
+      #pragma omp master
+      {
+        shared_state.advance_step();
+      }
+
+     #if __INTEL_COMPILER
+        // TODO: temporary get around for intel compiler bug
+        firing = std::make_pair (evt_earliest.first,
+                                 evt_earliest.second);
+        //firing = std::make_pair (evt_earliest.first,
+        //                         net.reaction_i2d(evt_earliest.second));
+     #else
+      if constexpr (std::is_same<wcs::wcs_vertex_list_t, ::boost::vecS>::value) {
+        firing = std::make_pair (evt_earliest.first,
+                                 evt_earliest.second);
+      } else {
+        firing = std::make_pair (evt_earliest.first,
+                                 net.reaction_i2d(evt_earliest.second));
+      }
+     #endif // __INTEL_COMPILER
+
+      wcs::Sim_State_Change digest(firing);
+
+      // Depdending on whether the firing reaction is local or not,
+      // the processing of the reaction is different.
+      const bool local = (net.graph()[firing.second].get_partition() == tid);
+      // Execute the reaction, updating species counts
+      // Only returns the affected reactions that are local
+      ssa.fire_reaction(digest);
+      if (local) {
+        // Update the propensities and times of all local reactions that are fired and affected
+        ssa.update_reactions(firing, digest.m_reactions_affected, digest.m_reaction_times);
+      } else {
+        // This does not update the reaction fired which is not local.
+        ssa.update_reactions(firing.first, digest.m_reactions_affected, digest.m_reaction_times);
+      }
+
+      #pragma omp master
+      {
+        ssa.record(firing.second);
+      }
+
+      // Find the local event of the minimum time and perform reduction to find
+      // the event with the globally minimum time
+      schedule(evt_earliest);
+      evt_local[tid] = evt_earliest;
+    }
+    auto earlier = [](const nrm_evt_t& e1, const nrm_evt_t& e2) -> bool {
+      return ((e1.first < e2.first) || \
+              ((e1.first == e2.first) && (e1.second < e2.second)));
+    };
+    evt_earliest = *std::min_element(evt_local.cbegin(), evt_local.cend(), earlier);
+}
+
+std::pair<wcs::sim_iter_t, wcs::sim_time_t> wcs_run()
+{
+  constexpr nrm_evt_t sevt_undef {std::numeric_limits<wcs::sim_time_t>::max(),
+                                  std::numeric_limits<exchange_id_t>::max()};
+  nrm_evt_t evt_earliest = sevt_undef;
 
   #pragma omp declare reduction(earliest :\
     nrm_evt_t :\
@@ -317,118 +445,25 @@ wcs::Sim_Method::result_t schedule(nrm_evt_t& evt_earliest)
        omp_in : omp_out)) \
     initializer(omp_priv = nrm_evt_t{std::numeric_limits<wcs::sim_time_t>::max(),\
                                      std::numeric_limits<exchange_id_t>::max()})
-    //initializer(omp_priv = sevt_undef) // <- clang does not allow this
 
   #pragma omp parallel num_threads(shared_state.m_nparts) reduction(earliest:evt_earliest)
   {
-    const auto& ssa = *(lp_state.m_ssa_ptr);
-    const auto& net = *(lp_state.m_net_ptr);
-
-    if (BOOST_UNLIKELY(ssa.is_empty())) {
-      evt_earliest = sevt_undef;
-    } else {
-      wcs::Sim_Method::revent_t re = ssa.choose_reaction();
-
-      if (BOOST_UNLIKELY(re.first > shared_state.m_max_time)) {
-        evt_earliest = sevt_undef;
-      } else {
-       #if __INTEL_COMPILER
-        // TODO: temporary get around for intel compiler bug
-        evt_earliest = nrm_evt_t{re.first, re.second};
-        // evt_earliest = nrm_evt_t{re.first, net.reaction_d2i(re.second)};
-       #else
-        if constexpr (std::is_same<wcs::wcs_vertex_list_t, ::boost::vecS>::value) {
-          evt_earliest = nrm_evt_t{re.first, re.second};
-        } else {
-          evt_earliest = nrm_evt_t{re.first, net.reaction_d2i(re.second)};
-        }
-       #endif // __INTEL_COMPILER
-      }
-    }
+    schedule(evt_earliest);
   }
 
-  if (BOOST_UNLIKELY(evt_earliest.first > shared_state.m_max_time)) {
-    return wcs::Sim_Method::Inactive;
-  }
-  return wcs::Sim_Method::Success;
-}
+  bool to_continue = shared_state.check_to_continue(evt_earliest.first);
 
-
-bool forward(const nrm_evt_t& evt_earliest)
-{
-  bool ok[omp_get_max_threads()];
-  memset(ok, 0, omp_get_max_threads());
-  // bool ok[omp_get_max_threads()] = {false}; // <- clang does not allow this
-
-  #pragma omp parallel num_threads(shared_state.m_nparts)
-  {
-    auto& ssa = *(lp_state.m_ssa_ptr);
-    ok[omp_get_thread_num()] = ssa.advance_time_and_iter(evt_earliest.first);
-  }
-  if (!ok[0]) return false;
-
-  #pragma omp parallel num_threads(shared_state.m_nparts)
-  {
-    auto& ssa = *(lp_state.m_ssa_ptr);
-    const auto& net = *(lp_state.m_net_ptr);
-
-    wcs::Sim_Method::revent_t firing;
-
-   #if __INTEL_COMPILER
-      // TODO: temporary get around for intel compiler bug
-      firing = std::make_pair (evt_earliest.first,
-                               evt_earliest.second);
-      //firing = std::make_pair (evt_earliest.first,
-      //                         net.reaction_i2d(evt_earliest.second));
-   #else
-    if constexpr (std::is_same<wcs::wcs_vertex_list_t, ::boost::vecS>::value) {
-      firing = std::make_pair (evt_earliest.first,
-                               evt_earliest.second);
-    } else {
-      firing = std::make_pair (evt_earliest.first,
-                               net.reaction_i2d(evt_earliest.second));
-    }
-   #endif // __INTEL_COMPILER
-
-    wcs::Sim_State_Change digest(firing);
-
-    // Depdending on whether the firing reaction is local or not,
-    // the processing of the reaction is different.
-    const bool local = (net.graph()[firing.second].get_partition() ==
-                        omp_get_thread_num());
-    // Execute the reaction, updating species counts
-    // Only returns the affected reactions that are local
-    ssa.fire_reaction(digest);
-    if (local) {
-      // Update the propensities and times of all local reactions that are fired and affected
-      ssa.update_reactions(firing, digest.m_reactions_affected, digest.m_reaction_times);
-    } else {
-      // This does not update the reaction fired which is not local.
-      ssa.update_reactions(firing.first, digest.m_reactions_affected, digest.m_reaction_times);
-    }
-
-    #pragma omp master
-    {
-      ssa.record(firing.second);
-    }
-  }
-  return true;
-}
-
-
-std::pair<wcs::sim_iter_t, wcs::sim_time_t> wcs_run()
-{
-  nrm_evt_t next_reaction;
-
-  if (schedule(next_reaction) != wcs::Sim_Method::Success) {
+  if (!to_continue) {
     WCS_THROW("Not able to schedule any reaction event!");
-  }
-  while (BOOST_LIKELY(forward(next_reaction))) {
-    if (BOOST_UNLIKELY(schedule(next_reaction) != wcs::Sim_Method::Success)) {
-      break;
-    }
+    return std::make_pair(static_cast<wcs::sim_iter_t>(0), static_cast<wcs::sim_time_t>(0));
   }
 
+  while (to_continue)
+  {
+    forward(evt_earliest);
+    // Determine whether to proceed to the next step based on the result of reduction
+    to_continue = shared_state.check_to_continue(evt_earliest.first);
+  }
   std::pair<wcs::sim_iter_t, wcs::sim_time_t> ret;
   #pragma omp master
   {
@@ -471,10 +506,14 @@ bool setup_partition(const std::string& input_model,
     partitioner.print_adjacency(std::cout);
   }
 
-  std::cerr << "Start partitioning ..." << std::endl;
-  idx_t objval; /// Total comm volume or edge-cut of the solution
-  bool ret = partitioner.run(parts, objval);
-  if (!ret) return false;
+  if (mp.m_nparts > static_cast<idx_t>(1)) {
+    idx_t objval; /// Total comm volume or edge-cut of the solution
+    bool ret = partitioner.run(parts, objval);
+    if (!ret) return false;
+  } else {
+    parts.assign(rnet_ptr->get_num_vertices(), static_cast<idx_t>(0));
+  }
+
   shared_state.set_num_partitions(mp.m_nparts);
 
   if (mp.m_verbose) {
@@ -501,7 +540,6 @@ bool setup_partition(const std::string& input_model,
     pinfo.scan(mp.m_verbose);
     pinfo.report();
   }
-  std::cerr << "Partitioning complete!" << std::endl;
   return true;
 }
 

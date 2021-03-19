@@ -18,6 +18,7 @@
 #include <cstdio>
 
 #include "utils/file.hpp"
+#include "utils/timer.hpp"
 #include "utils/generate_cxx_code.hpp"
 
 #if defined(WCS_HAS_SBML)
@@ -67,6 +68,7 @@ int main(int argc, char** argv)
   }
 
   std::cout << "chunk size: " << chunk_size << std::endl;
+  double t1 = wcs::get_time();
 
   const std::string lib_filename = wcs::get_libname_from_model(model_filename);
   wcs::generate_cxx_code code_generator(lib_filename, true, show_error, false,
@@ -80,15 +82,20 @@ int main(int argc, char** argv)
   code_generator.generate_code(*model, dep_params_f, dep_params_nf,
                                rate_rules_dep_map);
 
+  double t2 = wcs::get_time();
+
   std::cout << "Generated source filenames:";
   for (const auto& fn: code_generator.get_src_filenames()) {
     std::cout << ' ' << fn;
   }
-  std::cout  << std::endl;
+  std::cout << std::endl << "Time taken to generate code: "
+            << t2-t1 << " (sec)" << std::endl;
 
   if (gen_lib) {
     code_generator.compile_code();
     std::cout << "library file: " << lib_filename << std::endl;
+    double t3 = wcs::get_time();
+    std::cout << "Time taken to compile: " << t3-t2 << " (sec)" << std::endl;
   }
 
   delete document;

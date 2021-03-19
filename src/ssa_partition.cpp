@@ -42,8 +42,8 @@ __itt_string_handle* vtune_handle_sim = __itt_string_handle_create("simulate");
 
 /// Shared state
 struct WCS_Shared_State {
-  wcs::sim_time_t m_max_time;
-  wcs::sim_iter_t m_max_iter;
+  wcs::sim_time_t m_max_time; ///< maximum simulation time
+  wcs::sim_iter_t m_max_iter; ///< maximum simulation steps
   int m_nparts;
   int m_num_inner_threads;
 
@@ -113,7 +113,11 @@ namespace {
 #endif // defined(_OPENMP) && defined(WCS_OMP_RUN_PARTITION)
 
 /// Type to exchange a reaction betwen different subdomains on different LPs
-using nrm_evt_t = std::pair<wcs::sim_time_t, wcs::v_idx_t>;
+//using nrm_evt_t = std::pair<wcs::sim_time_t, wcs::v_idx_t>;
+using exchange_id_t = std::conditional<std::is_same<wcs::wcs_vertex_list_t,
+                                                    ::boost::vecS>::value,
+                                      wcs::Network::v_desc_t , wcs::v_idx_t>::type;
+using nrm_evt_t = std::pair<wcs::sim_time_t, exchange_id_t>;
 
 /// Result of partitioning
 using partition_idx_t = std::vector<idx_t>;
@@ -216,7 +220,6 @@ void wcs_init(const wcs::SSA_Params& cfg, const partition_idx_t& parts)
 #if defined(WCS_OMP_REACTION_UPDATES) || \
     defined(WCS_OMP_REACTION_REACTANTS) || \
     defined(WCS_OMP_REACTION_PRODUCTS)
-  //omp_set_nested(1);
   omp_set_max_active_levels(2);
 #endif
   omp_set_dynamic(0);
@@ -232,6 +235,7 @@ void wcs_init(const wcs::SSA_Params& cfg, const partition_idx_t& parts)
 
   #pragma omp parallel num_threads(shared_state.m_nparts)
   {
+    const int tid = omp_get_thread_num();
    #if OMP_DEBUG
     omp_aff[omp_get_thread_num()].get();
    #endif // OMP_DEBUG
@@ -244,7 +248,7 @@ void wcs_init(const wcs::SSA_Params& cfg, const partition_idx_t& parts)
 
     net.load(cfg.m_infile, true);
     net.init();
-    net.set_partition(parts, omp_get_thread_num());
+    net.set_partition(parts, tid);
 
     ssa_ptr = std::make_unique<wcs::SSA_NRM>(net_ptr);
     wcs::SSA_NRM& ssa = *ssa_ptr;
@@ -267,7 +271,7 @@ void wcs_init(const wcs::SSA_Params& cfg, const partition_idx_t& parts)
       }
     }
     ssa.init(cfg.m_max_iter, cfg.m_max_time, cfg.m_seed);
-    ssa.m_lp_idx = omp_get_thread_num();
+    ssa.m_lp_idx = tid;
 
     lp_state.m_t_start = wcs::get_time();
   }
@@ -295,7 +299,7 @@ void wcs_init(const wcs::SSA_Params& cfg, const partition_idx_t& parts)
 wcs::Sim_Method::result_t schedule(nrm_evt_t& evt_earliest)
 {
   constexpr nrm_evt_t sevt_undef {std::numeric_limits<wcs::sim_time_t>::max(),
-                                  std::numeric_limits<wcs::v_idx_t>::max()};
+                                  std::numeric_limits<exchange_id_t>::max()};
 
   evt_earliest = sevt_undef;
 
@@ -305,8 +309,8 @@ wcs::Sim_Method::result_t schedule(nrm_evt_t& evt_earliest)
       (((omp_in.first < omp_out.first) || \
         ((omp_in.first == omp_out.first) && (omp_in.second < omp_out.second)))? \
        omp_in : omp_out)) \
-    initializer(omp_priv = {std::numeric_limits<wcs::sim_time_t>::max(),\
-                            std::numeric_limits<wcs::v_idx_t>::max()})
+    initializer(omp_priv = nrm_evt_t{std::numeric_limits<wcs::sim_time_t>::max(),\
+                                     std::numeric_limits<exchange_id_t>::max()})
     //initializer(omp_priv = sevt_undef) // <- clang does not allow this
 
   #pragma omp parallel num_threads(shared_state.m_nparts) reduction(earliest:evt_earliest)

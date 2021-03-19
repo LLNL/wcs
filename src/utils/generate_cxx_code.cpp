@@ -31,6 +31,7 @@
 #include <regex>
 #include <string>
 #include "wcs_types.hpp"
+#include <thread> // std::thread::hardware_concurrency
 
 #if defined(WCS_HAS_SBML)
 
@@ -1312,9 +1313,11 @@ void generate_cxx_code::print_reaction_rates(
 generate_cxx_code::generate_cxx_code(const std::string& libpath,
                                      bool regen, bool save_log, bool cleanup,
                                      const std::string& tmp_dir,
-                                     unsigned int chunk_size)
+                                     unsigned int chunk_size,
+                                     unsigned int num_compiling_threads)
 : m_lib_filename(libpath), m_regen(regen), m_save_log(save_log),
-  m_cleanup(cleanup), m_tmp_dir(tmp_dir), m_chunk(chunk_size)
+  m_cleanup(cleanup), m_tmp_dir(tmp_dir), m_chunk(chunk_size),
+  m_num_compiling_threads(num_compiling_threads)
 {
   m_regen = m_regen || !check_if_file_exists(m_lib_filename);
 
@@ -1439,7 +1442,6 @@ void generate_cxx_code::open_ostream(const unsigned int num_reactions)
    //std::cerr << "Glibc version: " << __GLIBC__ << "." << __GLIBC_MINOR__ << std::endl;
  #endif
 
-  //m_chunk = num_reactions;
   if (m_chunk == 0u) {
     m_chunk = 3000u;
   }
@@ -1918,7 +1920,7 @@ std::string generate_cxx_code::gen_makefile()
 
       std::string cmd1
         = std::string("$(CXX) $(CXXFLAGS)") + suppress_warnings
-        + " -fPIC $(WCS_INCLUDE_DIR) $(LIBRARY_FLAGS) "
+        + " -fPIC $(WCS_INCLUDE_DIR) "
         + " -c " + src_filename + compilation_log;
 
       os_makefile << obj_filename + ": " + src_filename + ' ' + hdr_filename + "\n"
@@ -1993,8 +1995,19 @@ std::string generate_cxx_code::compile_code()
   #pragma omp master
  #endif // defined(_OPENMP)
   {
-    uint8_t parallel_compile = 4;
-    std::string cmd3 = "pushd " + m_tmp_dir + "; make -j " + std::to_string(parallel_compile)
+    unsigned parallel_compile
+      = static_cast<unsigned>(std::thread::hardware_concurrency()*0.5);
+    parallel_compile = std::max(1u, parallel_compile);
+    parallel_compile
+      = std::min(parallel_compile, static_cast<unsigned>(m_ostreams.size()-2));
+
+    if (m_num_compiling_threads != 0u) {
+      parallel_compile
+        = std::min(parallel_compile, m_num_compiling_threads);
+    }
+
+    std::string cmd3 = "pushd " + m_tmp_dir
+                     + "; make -j " + std::to_string(parallel_compile)
                      + " -f " + m_ostreams[0].first + " all; popd";
     std::cout << cmd3 << std::endl;
     ret = build(cmd3, m_lib_filename, obj_files, "");

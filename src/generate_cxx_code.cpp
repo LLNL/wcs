@@ -33,10 +33,10 @@ LIBSBML_CPP_NAMESPACE_USE
 
 int main(int argc, char** argv)
 {
-  if ((argc < 2) || (argc > 6))  {
+  if ((argc < 2) || (argc > 7))  {
     std::cout << "Usage: " << argv[0]
               << " model_filename [gen_library(0|1)"
-              << " [compilation_error_log(0|1) [chunk_size [tmpdir]]]]" << std::endl;
+              << " [compilation_error_log(0|1) [chunk_size [tmpdir [num_threads]]]]]" << std::endl;
     return EXIT_SUCCESS;
   }
 
@@ -45,6 +45,8 @@ int main(int argc, char** argv)
   const bool show_error = (argc > 3) && (atoi(argv[3]) != 0);
   const unsigned int chunk_size = ((argc > 4)? atoi(argv[4]) : 1000u);
   const std::string tmp_dir = ((argc > 5)? argv[5] : "/tmp");
+  const unsigned int num_threads
+    = ((argc > 6)? static_cast<unsigned>(atoi(argv[6])) : 0u);
   SBMLReader reader;
   SBMLDocument* document = reader.readSBML(model_filename);
   const unsigned int num_errors = document->getNumErrors();
@@ -72,7 +74,7 @@ int main(int argc, char** argv)
 
   const std::string lib_filename = wcs::get_libname_from_model(model_filename);
   wcs::generate_cxx_code code_generator(lib_filename, true, show_error, false,
-                                        tmp_dir, chunk_size);
+                                        tmp_dir, chunk_size, num_threads);
 
   using params_map = std::unordered_map <std::string, std::vector<std::string>>;
   using rate_rules_dep = std::unordered_map <std::string, std::set<std::string>>;
@@ -88,8 +90,9 @@ int main(int argc, char** argv)
   for (const auto& fn: code_generator.get_src_filenames()) {
     std::cout << ' ' << fn;
   }
-  std::cout << std::endl << "Time taken to generate code: "
-            << t2-t1 << " (sec)" << std::endl;
+  std::cout << std::endl << "Time taken to generate code ("
+            << code_generator.get_src_filenames().size() - 3
+            << " rate formula files) : " << t2-t1 << " (sec)" << std::endl;
 
   if (gen_lib) {
     code_generator.compile_code();

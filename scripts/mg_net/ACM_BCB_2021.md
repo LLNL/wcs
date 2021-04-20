@@ -1,0 +1,10 @@
+﻿|**Test case**|**Range for the rest of the species**|` `**Range for species in Metabolism cellular process**|**Command to generate the network in sbml format**|**Species**|**Reactions**|
+| :- | :- | :- | :- | :- | :- |
+|Entire (70,000)|5,000 – 20,000 |(30,000- 500,000) |Python3 generate\_network.py -s mg\_net.sbml -g mg\_net.graphl -o entire.xml |37,023|82,658|
+|Approach 1 (90000)|5,000 – 20,000|(30,000- 500,000) |python3 generate\_network.py -s mg\_net.sbml -g mg\_net.graphml -x 1 -o g1.xml|36,676|67,351|
+|Approach 2 (10,000,000)|5,000 – 20,000|<p>` `(300,000 – 5,000,000) </p><p></p><p></p><p></p><p></p><p>When the metabolism species values are imported from approach 1, then these count species are multiplied by 10</p>|<p>python3 generate\_network.py -s mg\_net.sbml -g mg\_net.graphml -x 2 -u 300000 5000000 -o g2.xml</p><p></p><p>**or import metabolism species values from g1.xml** </p><p></p><p>python3 generate\_network.py -s mg\_net.sbml -g mg\_net.graphml -x 2 -i g1.xml -o g2\_imp.xml</p>|5,696|5,652|
+|Approach 3 (40,000)|5,000 – 20,000|<p>` `(300,000 – 5,000,000) </p><p></p><p></p><p></p><p></p><p>When the metabolism species values are imported from approach 1, then these count species are multiplied by 10</p>|<p>python3 generate\_network.py -s mg\_net.sbml -g mg\_net.graphml -x 3 -u 300000 5000000 -o g3.xml</p><p></p><p>**or import metabosism species values from g1.xml** </p><p></p><p>python3 generate\_network.py -s mg\_net.sbml -g mg\_net.graphml -x 3 -i g1.xml -o g3\_imp.xml</p><p></p>|15,271|9,655|
+|Approach 2 and 3 (5s)|5,000 – 20,000|<p>` `(300,000 – 5,000,000) </p><p></p><p></p><p></p><p></p><p>When the metabolism species values are imported from approach 1, then these count species are multiplied by 10</p>|<p>python3 generate\_network.py -s mg\_net.sbml -g mg\_net.graphml -x 23 -u 300000 5000000 -o g23.xml</p><p></p><p>**or import metabosism species values from g1.xml** </p><p></p><p>python3 generate\_network.py -s mg\_net.sbml -g mg\_net.graphml -x 23 -i g1.xml -o g23\_imp.xml</p><p></p><p></p>|19,980|15,307|
+
+
+

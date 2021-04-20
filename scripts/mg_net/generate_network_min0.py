@@ -178,8 +178,6 @@ first and third approach. Value should be between 5 and 10 (default value 5).'''
   reactions_ids = set ()
   reactions_metab_ids =set ()
   reactions_dict = {}
-  suml5=0
-  summ5=0
   if len(processes) > 0 :
     processes_names = ["Replication", "Transcription","Protein-DNA Interaction ","RNA Degradation","Translation"
     ,"Protein Degradation","Metabolism","Protein Maturation","Macromolecular Complexation","Protein-DNA Interaction"
@@ -211,11 +209,6 @@ first and third approach. Value should be between 5 and 10 (default value 5).'''
 
             sum_stoich = sum_stoich + reaction.getNumModifiers()
 
-            # if sum_stoich < max_sum_stoich:
-            #   suml5 =suml5 +1
-            # else:
-            #   summ5 =summ5 + 1
-
             if (approach3 == False and sum_stoich < max_sum_stoich) or (approach1 == False and sum_stoich >= max_sum_stoich) or (approach1 == True and approach3 == True):
               #print(processes_names[int(proc)-1])
               if processes_names[int(proc)-1] == "Metabolism" and include_Metabolism == True :
@@ -226,8 +219,7 @@ first and third approach. Value should be between 5 and 10 (default value 5).'''
               reactions_dict.setdefault(int(proc), [])
               reactions_dict[int(proc)].append(str(subelem.attrib.get('id')))
 
-  #print("suml5 " + str(suml5))
-  #print("summ5 " + str(summ5))
+
   # Add the reactions for the second approach in the combined approach 2 and 3
   #print('\n Type ='+ str(len(processes)))
   if combined_case  == True:
@@ -352,8 +344,8 @@ first and third approach. Value should be between 5 and 10 (default value 5).'''
 
     reactions.add(x)
 
-  # print (len(species_metab))
-  # print (len(species_in_metab))
+  #print (len(species_metab))
+  #print (len(species_in_metab))
 
   # if metabolism is not included in the selected processes find only the common species
   # with the metabolism in order to initialize with higher value
@@ -473,9 +465,12 @@ first and third approach. Value should be between 5 and 10 (default value 5).'''
         para.setConstant(True)
         tempstring =""
         cnt_tps = 0
+        cnt_tps_mod = 0
         min_conc_set = set()
-        #min_conc = 1.0e11
-        #name_conc = ""
+        min_conc = 1.0e11
+        min_conc_mod = 1.0e11
+        name_conc = ""
+        name_conc_mod = ""
         mathXMLString = """<math xmlns="http://www.w3.org/1998/Math/MathML">
         <apply>
           <times/>
@@ -515,22 +510,31 @@ first and third approach. Value should be between 5 and 10 (default value 5).'''
               mathXMLString =mathXMLString + "<apply><power/>" + conc_string + "<cn type=\"integer\">"+ str(reaction.getReactant(y).getStoichiometry())+"</cn></apply>"
 
           else:
-            min_conc_set.add(reaction.getReactant(y).getSpecies())
+            if species_conc < min_conc :
+              min_conc = species_conc
+              name_conc = reaction.getReactant(y).getSpecies()
+            #min_conc_set.add(reaction.getReactant(y).getSpecies())
             cnt_tps = cnt_tps + 1
 
-        if reaction.getNumModifiers() > 1 :
-          mathXMLString = mathXMLString + """<apply>
-          <min/>"""
+        # if reaction.getNumModifiers() > 1 :
+        #   mathXMLString = mathXMLString + """<apply>
+        #   <min/>"""
         # Add modifiers
         for y in range(0, reaction.getNumModifiers()):
           name_species=reaction.getModifier(y).getSpecies()
           species_conc = model.getSpecies(name_species).getInitialAmount()*1000 / (avogadro_con * volume_space)
+          if species_conc < min_conc_mod :
+            min_conc_mod = species_conc
+            name_conc_mod = name_species
+          cnt_tps_mod = cnt_tps_mod + 1
+
+        if (cnt_tps_mod > 0):
           conc_string = """
               <apply>
                <divide/>
                <apply>
                  <times/>"""
-          conc_string =conc_string + "<ci>" + reaction.getModifier(y).getSpecies() + "</ci>"
+          conc_string =conc_string + "<ci>" + name_conc_mod + "</ci>"
           conc_string =conc_string + """<cn type="integer"> 1000 </cn>
                 </apply>
               <apply>
@@ -542,41 +546,41 @@ first and third approach. Value should be between 5 and 10 (default value 5).'''
             """
           mathXMLString =mathXMLString  + conc_string
 
-        if reaction.getNumModifiers() > 1 :
-            mathXMLString =mathXMLString + """
-            </apply>
-            """
+        # if reaction.getNumModifiers() > 1 :
+        #     mathXMLString =mathXMLString + """
+        #     </apply>
+        #     """
 
 
         if cnt_tps > 0 :
-          if cnt_tps > 1 :
-            mathXMLString = mathXMLString + """<apply>
-            <min/>"""
+          # if cnt_tps > 1 :
+          #   mathXMLString = mathXMLString + """<apply>
+          #   <min/>"""
 
 
-          for x in min_conc_set:
-            conc_string = """
-                <apply>
-                <divide/>
-                <apply>
-                  <times/>"""
-            conc_string =conc_string + "<ci>" + x + "</ci>"
-            conc_string =conc_string + """<cn type="integer"> 1000 </cn>
-                  </apply>
-                <apply>
-                <times/>
-                  <cn type="e-notation"> 6.02214 <sep/> 23 </cn>
-                  <cn type="e-notation"> 5.23 <sep/> -16 </cn>
+          # for x in min_conc_set:
+          conc_string = """
+              <apply>
+              <divide/>
+              <apply>
+                <times/>"""
+          conc_string =conc_string + "<ci>" + name_conc + "</ci>"
+          conc_string =conc_string + """<cn type="integer"> 1000 </cn>
                 </apply>
+              <apply>
+              <times/>
+                <cn type="e-notation"> 6.02214 <sep/> 23 </cn>
+                <cn type="e-notation"> 5.23 <sep/> -16 </cn>
               </apply>
-              """
-
-            mathXMLString =mathXMLString  + conc_string
-
-          if cnt_tps > 1 :
-            mathXMLString =mathXMLString + """
             </apply>
             """
+
+          mathXMLString =mathXMLString  + conc_string
+
+          # if cnt_tps > 1 :
+          #   mathXMLString =mathXMLString + """
+          #   </apply>
+          #   """
 
         mathXMLString =mathXMLString + """
         </apply>
@@ -587,8 +591,12 @@ first and third approach. Value should be between 5 and 10 (default value 5).'''
       # RNA degradation
       elif key == 4:
         total = 0
+        min_conc_mod = 1.0e11
+        name_conc_mod = ""
+        cnt_tps_mod = 0
         cnt_tps = 0
-        min_conc_set = set()
+        min_conc = 1.0e11
+        name_conc = ""
         #calculate k_RNA_deg
         for y in range(0, reaction.getNumProducts()):
           species_name = reaction.getProduct(y).getSpecies()
@@ -639,22 +647,29 @@ first and third approach. Value should be between 5 and 10 (default value 5).'''
               mathXMLString =mathXMLString + "<apply><power/>" + conc_string + "<cn type=\"integer\">"+ str(reaction.getReactant(y).getStoichiometry())+"</cn></apply>"
 
           else:
-            min_conc_set.add(reaction.getReactant(y).getSpecies())
+            if species_conc < min_conc :
+              min_conc = species_conc
+              name_conc = reaction.getReactant(y).getSpecies()
+            #min_conc_set.add(reaction.getReactant(y).getSpecies())
             cnt_tps = cnt_tps + 1
 
-        if reaction.getNumModifiers() > 1 :
-          mathXMLString = mathXMLString + """<apply>
-          <min/>"""
+
         # Add modifiers
         for y in range(0, reaction.getNumModifiers()):
           name_species=reaction.getModifier(y).getSpecies()
           species_conc = model.getSpecies(name_species).getInitialAmount()*1000 / (avogadro_con * volume_space)
+          if species_conc < min_conc_mod :
+            min_conc_mod = species_conc
+            name_conc_mod = name_species
+          cnt_tps_mod = cnt_tps_mod + 1
+
+        if (cnt_tps_mod > 0):
           conc_string = """
               <apply>
                <divide/>
                <apply>
                  <times/>"""
-          conc_string =conc_string + "<ci>" + reaction.getModifier(y).getSpecies() + "</ci>"
+          conc_string =conc_string + "<ci>" + name_conc_mod + "</ci>"
           conc_string =conc_string + """<cn type="integer"> 1000 </cn>
                 </apply>
               <apply>
@@ -666,40 +681,37 @@ first and third approach. Value should be between 5 and 10 (default value 5).'''
             """
           mathXMLString =mathXMLString  + conc_string
 
-        if reaction.getNumModifiers() > 1 :
-            mathXMLString =mathXMLString + """
-            </apply>
-            """
+
 
         if cnt_tps > 0 :
-          if cnt_tps > 1 :
-            mathXMLString = mathXMLString + """<apply>
-            <min/>"""
+          # if cnt_tps > 1 :
+          #   mathXMLString = mathXMLString + """<apply>
+          #   <min/>"""
 
 
-          for x in min_conc_set:
-            conc_string = """
-                <apply>
-                <divide/>
-                <apply>
-                  <times/>"""
-            conc_string =conc_string + "<ci>" + x + "</ci>"
-            conc_string =conc_string + """<cn type="integer"> 1000 </cn>
-                  </apply>
-                <apply>
-                <times/>
-                  <cn type="e-notation"> 6.02214 <sep/> 23 </cn>
-                  <cn type="e-notation"> 5.23 <sep/> -16 </cn>
+          # for x in min_conc_set:
+          conc_string = """
+              <apply>
+              <divide/>
+              <apply>
+                <times/>"""
+          conc_string =conc_string + "<ci>" + name_conc + "</ci>"
+          conc_string =conc_string + """<cn type="integer"> 1000 </cn>
                 </apply>
+              <apply>
+              <times/>
+                <cn type="e-notation"> 6.02214 <sep/> 23 </cn>
+                <cn type="e-notation"> 5.23 <sep/> -16 </cn>
               </apply>
-              """
-
-            mathXMLString =mathXMLString  + conc_string
-
-          if cnt_tps > 1 :
-            mathXMLString =mathXMLString + """
             </apply>
             """
+
+          mathXMLString =mathXMLString  + conc_string
+
+          # if cnt_tps > 1 :
+          #   mathXMLString =mathXMLString + """
+          #   </apply>
+          #   """
 
         mathXMLString =mathXMLString + """
         </apply>
@@ -718,7 +730,6 @@ first and third approach. Value should be between 5 and 10 (default value 5).'''
         for y in range(0, reaction.getNumReactants()):
           sum_stoich=sum_stoich+ reaction.getReactant(y).getStoichiometry()
         sum_stoich =sum_stoich + reaction.getNumModifiers()
-
         #print(sum_stoich)
         # first approach sum of stoichiometries < 7
         if (sum_stoich < max_sum_stoich ):
@@ -856,7 +867,7 @@ first and third approach. Value should be between 5 and 10 (default value 5).'''
                 species_name = reaction.getReactant(y).getSpecies()
                 if (species_name == "c_GTP" or species_name == "c_ATP"
                 or species_name == "c_CTP"  or species_name == "c_UTP"
-                or species_name == "c_TTP" ):
+                or species_name == "c_TTP"):
                   lp=lp+ reaction.getReactant(y).getStoichiometry()
               if lp > 0 :
                 k_pol = 0.05/lp
@@ -917,6 +928,14 @@ first and third approach. Value should be between 5 and 10 (default value 5).'''
             cnt_tpsA = 0
             min_conc_set = set()
             min_conc_set2 = set()
+            min_conc_mod = 1.0e11
+            name_conc_mod = ""
+            cnt_tps_mod = 0
+            name_conc_mod = ""
+            min_conc = 1.0e11
+            min_concA = 1.0e11
+            name_conc = ""
+            name_concA = ""
             mathXMLString = """<math xmlns="http://www.w3.org/1998/Math/MathML">
             <apply>
               <times/>
@@ -957,7 +976,10 @@ first and third approach. Value should be between 5 and 10 (default value 5).'''
                     mathXMLString =mathXMLString + "<apply><power/>" + conc_string + "<cn type=\"integer\">"+ str(reaction.getReactant(y).getStoichiometry())+"</cn></apply>"
 
                 else:
-                  min_conc_set.add(reaction.getReactant(y).getSpecies())
+                  if species_conc < min_conc :
+                    min_conc = species_conc
+                    name_conc = reaction.getReactant(y).getSpecies()
+                  #min_conc_set.add(reaction.getReactant(y).getSpecies())
                   cnt_tps = cnt_tps + 1
               #Translation
               elif key == 5:
@@ -1011,15 +1033,22 @@ first and third approach. Value should be between 5 and 10 (default value 5).'''
                   or name_species[-4:] == "_ILE" or name_species[-4:] == "_LEU"
                   or name_species[-4:] == "_MET" or name_species[-4:] == "_PHE"
                   or name_species[-4:] == "_TYR" or name_species[-4:] == "_TRP" ):
-                    min_conc_set2.add(reaction.getReactant(y).getSpecies())
+                    # min_conc_set2.add(reaction.getReactant(y).getSpecies())
+                    if species_conc < min_concA :
+                      min_concA = species_conc
+                      name_concA = reaction.getReactant(y).getSpecies()
                     cnt_tpsA = cnt_tpsA + 1
 
                   elif (name_species == "c_GTP" or name_species == "c_ATP"
                     or name_species == "c_CTP"  or name_species == "c_UTP"
                     or name_species == "c_TTP"):
 
-                    min_conc_set.add(reaction.getReactant(y).getSpecies())
+                    # min_conc_set.add(reaction.getReactant(y).getSpecies())
+                    if species_conc < min_conc :
+                      min_conc = species_conc
+                      name_conc = reaction.getReactant(y).getSpecies()
                     cnt_tps = cnt_tps + 1
+
 
 
               #Macromolecular complexation
@@ -1052,17 +1081,23 @@ first and third approach. Value should be between 5 and 10 (default value 5).'''
 
                 else:
                   if (name_species[-8:] == "_MONOMER" ):
-                    min_conc_set.add(reaction.getReactant(y).getSpecies())
+                    # min_conc_set.add(reaction.getReactant(y).getSpecies())
+                    if species_conc < min_conc :
+                      min_conc = species_conc
+                      name_conc = reaction.getReactant(y).getSpecies()
                     cnt_tps = cnt_tps + 1
 
                   elif (name_species == "c_GTP" or name_species == "c_ATP"
                     or name_species == "c_CTP"  or name_species == "c_UTP"
                     or name_species == "c_TTP"):
-                    min_conc_set2.add(reaction.getReactant(y).getSpecies())
+                    # min_conc_set2.add(reaction.getReactant(y).getSpecies())
+                    if species_conc < min_concA :
+                      min_concA = species_conc
+                      name_concA = reaction.getReactant(y).getSpecies()
                     cnt_tpsA = cnt_tpsA + 1
 
 
-              #Transcription, Protein maturation, RNA processing, cellular division and Metabolism
+              #Transcription, Protein maturation, RNA processing and Cellular Division
               else:
                 if (name_species != "c_CTP" and name_species != "c_ATP"
                 and name_species != "c_GTP" and name_species != "c_TTP"
@@ -1093,23 +1128,29 @@ first and third approach. Value should be between 5 and 10 (default value 5).'''
                     mathXMLString =mathXMLString + "<apply><power/>" + conc_string + "<cn type=\"integer\">"+ str(reaction.getReactant(y).getStoichiometry())+"</cn></apply>"
 
                 else:
-                  min_conc_set.add(reaction.getReactant(y).getSpecies())
+                  # min_conc_set.add(reaction.getReactant(y).getSpecies())
+                  if species_conc < min_conc :
+                    min_conc = species_conc
+                    name_conc = reaction.getReactant(y).getSpecies()
                   cnt_tps = cnt_tps + 1
 
 
-            if reaction.getNumModifiers() > 1 :
-              mathXMLString = mathXMLString + """<apply>
-              <min/>"""
             # Add modifiers
             for y in range(0, reaction.getNumModifiers()):
               name_species=reaction.getModifier(y).getSpecies()
               species_conc = model.getSpecies(name_species).getInitialAmount()*1000 / (avogadro_con * volume_space)
+              if species_conc < min_conc_mod :
+                min_conc_mod = species_conc
+                name_conc_mod = name_species
+              cnt_tps_mod = cnt_tps_mod + 1
+
+            if (cnt_tps_mod > 0):
               conc_string = """
                   <apply>
                   <divide/>
                   <apply>
                     <times/>"""
-              conc_string =conc_string + "<ci>" + reaction.getModifier(y).getSpecies() + "</ci>"
+              conc_string =conc_string + "<ci>" + name_conc_mod + "</ci>"
               conc_string =conc_string + """<cn type="integer"> 1000 </cn>
                     </apply>
                   <apply>
@@ -1121,71 +1162,65 @@ first and third approach. Value should be between 5 and 10 (default value 5).'''
                 """
               mathXMLString =mathXMLString  + conc_string
 
-            if reaction.getNumModifiers() > 1 :
-              mathXMLString =mathXMLString + """
-              </apply>
-              """
-
-
             if cnt_tps > 0 :
-              if cnt_tps > 1 :
-                mathXMLString = mathXMLString + """<apply>
-                <min/>"""
+              # if cnt_tps > 1 :
+              #   mathXMLString = mathXMLString + """<apply>
+              #   <min/>"""
 
 
-              for x in min_conc_set:
-                conc_string = """
-                    <apply>
-                    <divide/>
-                    <apply>
-                      <times/>"""
-                conc_string =conc_string + "<ci>" + x + "</ci>"
-                conc_string =conc_string + """<cn type="integer"> 1000 </cn>
-                      </apply>
-                    <apply>
-                    <times/>
-                      <cn type="e-notation"> 6.02214 <sep/> 23 </cn>
-                      <cn type="e-notation"> 5.23 <sep/> -16 </cn>
+              # for x in min_conc_set:
+              conc_string = """
+                  <apply>
+                  <divide/>
+                  <apply>
+                    <times/>"""
+              conc_string =conc_string + "<ci>" + name_conc + "</ci>"
+              conc_string =conc_string + """<cn type="integer"> 1000 </cn>
                     </apply>
+                  <apply>
+                  <times/>
+                    <cn type="e-notation"> 6.02214 <sep/> 23 </cn>
+                    <cn type="e-notation"> 5.23 <sep/> -16 </cn>
                   </apply>
-                  """
-
-                mathXMLString =mathXMLString  + conc_string
-
-              if cnt_tps > 1 :
-                mathXMLString =mathXMLString + """
                 </apply>
                 """
+
+              mathXMLString =mathXMLString  + conc_string
+
+              # if cnt_tps > 1 :
+              #   mathXMLString =mathXMLString + """
+              #   </apply>
+              #   """
 
             if cnt_tpsA > 0 :
-              if cnt_tpsA > 1 :
-                mathXMLString = mathXMLString + """<apply>
-                <min/>"""
+              # if cnt_tpsA > 1 :
+              #   mathXMLString = mathXMLString + """<apply>
+              #   <min/>"""
 
 
-              for x in min_conc_set2:
-                conc_string = """
-                    <apply>
-                    <divide/>
-                    <apply>
-                      <times/>"""
-                conc_string =conc_string + "<ci>" + x + "</ci>"
-                conc_string =conc_string + """<cn type="integer"> 1000 </cn>
-                      </apply>
-                    <apply>
-                    <times/>
-                      <cn type="e-notation"> 6.02214 <sep/> 23 </cn>
-                      <cn type="e-notation"> 5.23 <sep/> -16 </cn>
+              # for x in min_conc_set2:
+              conc_string = """
+                  <apply>
+                  <divide/>
+                  <apply>
+                    <times/>"""
+              conc_string =conc_string + "<ci>" + name_concA + "</ci>"
+              conc_string =conc_string + """<cn type="integer"> 1000 </cn>
                     </apply>
+                  <apply>
+                  <times/>
+                    <cn type="e-notation"> 6.02214 <sep/> 23 </cn>
+                    <cn type="e-notation"> 5.23 <sep/> -16 </cn>
                   </apply>
-                  """
-
-                mathXMLString =mathXMLString  + conc_string
-
-              if cnt_tpsA > 1 :
-                mathXMLString =mathXMLString + """
                 </apply>
                 """
+
+              mathXMLString =mathXMLString  + conc_string
+
+              # if cnt_tpsA > 1 :
+              #   mathXMLString =mathXMLString + """
+              #   </apply>
+              #   """
 
             mathXMLString =mathXMLString + """
             </apply>

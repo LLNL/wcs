@@ -22,6 +22,11 @@
 #include <type_traits> // is_same<>
 #include <algorithm> // lexicographical_compare(), sort()
 #include <limits> // numeric_limits
+#include <ctime>
+
+#define TIME_DIFF(Tstart, Tend ) \
+    ((double) (1000000000L * ((Tend).tv_sec  - (Tstart).tv_sec) + \
+                              (Tend).tv_nsec - (Tstart).tv_nsec) / 1000000000L)
 
 #if defined(WCS_HAS_SBML)
 #include <sbml/SBMLTypes.h>
@@ -154,9 +159,13 @@ void Network::loadSBML(const std::string sbml_filename, const bool reuse)
   generate_cxx_code code_generator(lib_filename, !reuse);
 
   typename params_map_t::const_iterator pit;
+  struct timespec t_1, t_2; 
+  clock_gettime(CLOCK_MONOTONIC_RAW, &t_1);
   code_generator.generate_code(*model,
         m_dep_params_f, m_dep_params_nf, m_rate_rules_dep_map);
-
+  clock_gettime(CLOCK_MONOTONIC_RAW, &t_2);
+  using std::operator<<;
+  std::cout << "Time for creating the generated file: " << TIME_DIFF(t_1, t_2 )  << " sec" << std::endl;
   const std::string library_file = code_generator.compile_code();
 
   using std::operator<<;
@@ -192,12 +201,17 @@ void Network::init()
   m_species.reserve(num_vertices);
 
   v_iter_t vi, vi_end;
+  int reaction_sz = 0;
+  double sum_in = 0, sum_reac_mod = 0, sum_involved = 0, sum_out=0;
+
   for (boost::tie(vi, vi_end) = boost::vertices(m_graph); vi != vi_end; ++vi) {
     const v_prop_t& v = m_graph[*vi];
     const auto vt = static_cast<v_prop_t::vertex_type>(v.get_typeid());
     if (vt == v_prop_t::_species_) {
       m_species.emplace_back(*vi);
     } else {
+      reaction_sz = reaction_sz +1;
+      int reaction_in = 0, reac_mod_in = 0, reaction_out =0; 
       using directed_category = boost::graph_traits<graph_t>::directed_category;
       constexpr bool is_bidirectional
         = std::is_same<directed_category, boost::bidirectional_tag>::value;
@@ -227,17 +241,22 @@ void Network::init()
             boost::make_iterator_range(boost::in_edges(reaction, m_graph))) {
           v_desc_t reactant = boost::source(ei_in, m_graph);
 
-          #if !defined(WCS_HAS_EXPRTK)
-          //check for the reactants which are not actually reactants and put their stoichiometry 0
-          if ( std::find(params_reactants.begin(), params_reactants.end(),
-          m_graph[reactant].get_label()) == params_reactants.end()) {
-            //std::cout << "Not reactant " << m_graph[reactant].get_label() << std::endl;
-            m_graph[ei_in].set_stoichiometry_ratio(0);
-          }
-          #endif // !defined(WCS_HAS_EXPRTK)
+          // #if !defined(WCS_HAS_EXPRTK)
+          // //check for the reactants which are not actually reactants and put their stoichiometry 0
+          // if ( std::find(params_reactants.begin(), params_reactants.end(),
+          // m_graph[reactant].get_label()) == params_reactants.end()) {
+          //   //std::cout << "Not reactant " << m_graph[reactant].get_label() << std::endl;
+          //   m_graph[ei_in].set_stoichiometry_ratio(0);
+          // }
+          // #endif // !defined(WCS_HAS_EXPRTK)
           const auto st = m_graph[ei_in].get_stoichiometry_ratio();
           involved_species.insert(std::make_pair(m_graph[reactant].get_label(),
                                                  std::make_pair(reactant, st)));
+                                              
+          if (m_graph[ei_in].get_stoichiometry_ratio() > 0 ){
+            reaction_in = reaction_in + 1;  
+          } 
+          reac_mod_in = reac_mod_in + 1; 
         }
       }
 
@@ -246,6 +265,7 @@ void Network::init()
         v_desc_t product = boost::target(ei_out, m_graph);
         products.insert(std::make_pair(m_graph[product].get_label(),
                                        std::make_pair(product, 1)));
+        reaction_out = reaction_out + 1;
       }
 
       m_reactions.emplace_back(reaction);
@@ -295,12 +315,31 @@ void Network::init()
       r.set_rate_inputs(involved_species);
       #endif // !defined(WCS_HAS_EXPRTK)
 
+      auto & rprop = m_graph[*vi].checked_property< Reaction<v_desc_t> >();
+      const auto& ri = rprop.get_rate_inputs();
+ 
+      sum_involved = sum_involved + ri.size();
+      sum_in = sum_in + reaction_in; 
+      sum_reac_mod = sum_reac_mod + reac_mod_in;
+      sum_out = sum_out + reaction_out; 
+      //using std::operator<<;
+      //std::cout << "involved species: " << ri.size() << " reactants:" << reaction_in << std::endl;
+
       r.set_products(products);
 
       set_reaction_rate(*vi);
     }
   }
 
+  double mean_in = sum_in / reaction_sz;
+  double mean_out = sum_out / reaction_sz;
+  double mean_reac_mod = sum_reac_mod / reaction_sz; 
+  double mean_involved = sum_involved / reaction_sz; 
+  using std::operator<<;
+  
+  std::cout << "Reactions " << reaction_sz << " mean of inputs " << mean_reac_mod 
+             << ", mean of reactants " << mean_in << ", mean of species involved in reaction rate  " << mean_involved 
+              << " and, mean of products " << mean_out << std::endl;
   sort_species();
   build_index_maps();
 
@@ -351,7 +390,9 @@ reaction_rate_t Network::set_reaction_rate(const Network::v_desc_t r) const
 
 double Network::compute_all_reaction_rates(const unsigned n) const
 {
-  double t_start = get_time();
+  //double t_start = get_time();
+  struct timespec t_start, t_end;
+  clock_gettime(CLOCK_MONOTONIC_RAW, &t_start);
   for (unsigned i = 0u; i < n; i++) {
     for (const auto& r: reaction_list()) {
       auto & rprop = m_graph[r].checked_property< Reaction<v_desc_t> >();
@@ -370,7 +411,9 @@ double Network::compute_all_reaction_rates(const unsigned n) const
       rprop.calc_rate(std::move(params));
     }
   }
-  return get_time() - t_start;
+  clock_gettime(CLOCK_MONOTONIC_RAW, &t_end);  
+  return TIME_DIFF(t_start, t_end)/5; 
+  //return get_time() - t_start;
 }
 
 reaction_rate_t Network::get_reaction_rate(const Network::v_desc_t r) const
@@ -766,6 +809,7 @@ void Network::print() const
   size_t num_inactive = 0ul;
 
   std::cout << "\n\nReactions:\n";
+  double sum_rates = 0.0;
   for(const auto& vd : reaction_list()) {
     using directed_category
       = typename boost::graph_traits<wcs::Network::graph_t>::directed_category;
@@ -819,10 +863,14 @@ void Network::print() const
 
     std::cout << std::endl << "    by the rate " << rp.get_rate()
               << " <= {" << rp.get_rate_formula() << "}" << std::endl;
+    sum_rates = sum_rates + rp.get_rate(); 
   } // end of for loop over the reaction list
 
   std::cout << "Num inactive reactions: "
             << num_inactive << "/" << reaction_list().size() << std::endl;
+  std::cout << "Average of rates: "
+            << sum_rates << "/" << reaction_list().size() << ": "
+            << sum_rates / reaction_list().size() << std::endl;
 }
 
 /**@}*/

@@ -89,6 +89,8 @@ class Vertex {
   std::string get_label() const;
   void set_partition(const partition_id_t pid);
   partition_id_t get_partition() const;
+  void set_annotation(const std::string& f);
+  std::string get_annotation() const;
 
   template <typename P> P& property() const;
   template <typename P> P& checked_property() const;
@@ -106,6 +108,7 @@ class Vertex {
   int m_typeid; ///< The vertex type in integer form used for GraphML parsing
   std::string m_label; ///< The vertex label
   partition_id_t m_pid; ///< The id of the partition to which this edge belongs
+  std::string m_annotation; ///< vertex annotation
 
   /**
    * The pointer to the detailed property object, which is polymorphic.
@@ -196,18 +199,11 @@ const LIBSBML_CPP_NAMESPACE::Species& species, const G& g)
     for (unsigned int iu = 0u; iu < unitsSize; iu++) { 
       const LIBSBML_CPP_NAMESPACE::Unit* unit = unit_list->get(iu);
       comp_unit = comp_unit * pow(unit->getMultiplier()*pow(10,unit->getScale()),unit->getExponent());
-
     } 
     double avog_num = 6.02214e+23; 
     dynamic_cast<Species*>(m_p.get())->
-      // set_count(static_cast<species_cnt_t>(species.getInitialConcentration() * (6.02214E23 * 
-      // compartment_size) *comp_unit));
       set_count(static_cast<species_cnt_t>(species.getInitialConcentration() * (6.02214E23 * 
-      compartment_size) ));
-      // double avog_num = 6.02214e+23;
-      // printf("con %lf avo %lf\n", species.getInitialConcentration(), avog_num); 
-      // while(1);
-      
+      compartment_size) *comp_unit)); 
   }
 }
 
@@ -246,8 +242,7 @@ Vertex::Vertex(
   //Add parameters
   const LIBSBML_CPP_NAMESPACE::ListOfParameters* parameter_list
     = model.getListOfParameters();
-  unsigned int parametersSize = parameter_list->size();
-  
+  unsigned int parametersSize = parameter_list->size(); 
   //Add local parameters
   if (model.getLevel() > 2) {
     const LIBSBML_CPP_NAMESPACE::ListOfLocalParameters* local_parameter_list
@@ -382,6 +377,12 @@ Vertex::Vertex(
   wholeformula = wholeformula + "m_rate := " + formula + ";";
 
   dynamic_cast<Reaction<v_desc_t>*>(m_p.get())->set_rate_formula(wholeformula);
+  if (reaction.isSetAnnotation()) {
+    std::string annot= reaction.getAnnotationString() ;
+    m_annotation = annot; 
+  } else {
+    m_annotation = ""; 
+  }
 
   #if !defined(WCS_HAS_EXPRTK)
   dynamic_cast<Reaction<v_desc_t>*>(m_p.get())->ReactionBase::set_calc_rate_fn(reaction_function_rate);

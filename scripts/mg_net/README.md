@@ -45,12 +45,25 @@ Therefore, this script also assigns an initial population to each species and a 
                         15. Cellular Division
                           
   `-u <min> <max>`:        Specify the range of the "discrete uniform" distribution
-used in the random initialization of the initial copy-number of each species (default from 10 to 1000)
+used in the random initialization of the initial copy-number of each species (default from 30000 to 500000)
 
   `-n <min> <max>`:
                         Specify the range of the normal distribution 
                         for randomly assigning reaction rate coefficients used in rate formulas
-                        (default from 2.5 to 7.5). The mean of the normal distribution is calculated as (max-min)/2. The standard deviation is approximated by (max-mean)/3 to cover the 99.7% confidence interval within min and max based on the three-sigma rule of thumb. Finally, we replace any out of the range value by redrawing to make sure all of random values fall within the range. 
+                        (default from 2.5 to 7.5). The mean of the normal distribution is calculated as (max-min)/2. The standard deviation is approximated by (max-mean)/3 to cover the 99.7% confidence interval within min and max based on the three-sigma rule of thumb. Finally, we replace any out of the range value by redrawing to make sure all of random values fall within the range. k is the same for all the reactions in a cellular process.
+
+  `-i <input_count_species_filename>`:
+                        Specify the SBML filename for the initial count of the species for the metabolism cellular 
+                        process species contained in the specific network.
+
+  `-x <approach_id>`:
+                        Specify which approach you want to generate (1 for the first approach or 2 for the second approach
+                        or 3 for the third approach or 23 for the combined approach 2 and 3 )
+
+  `-m <max_sum_stoichiometry>`:
+                        Specify the maximum sum of stoichiometries as the threshold between the first and third approach. 
+                        Value should be between 3 and 10 (default value 7).
+                        
 
 ### Examples:
 

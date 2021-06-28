@@ -12,6 +12,7 @@ set_full_path(THIS_DIR_HEADERS
   rngen_impl.hpp
   samples_ssa.hpp
   sbml_utils.hpp
+  sbml_functions.hpp
   seed.hpp
   state_io.hpp
   state_io_impl.hpp
@@ -39,6 +40,7 @@ set_full_path(THIS_DIR_SOURCES
   print_vertices.cpp
   samples_ssa.cpp
   sbml_utils.cpp
+  sbml_functions.cpp
   trajectory.cpp
   trace_ssa.cpp
   trace_generic.cpp

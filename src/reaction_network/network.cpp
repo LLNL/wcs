@@ -154,9 +154,9 @@ void Network::loadSBML(const std::string sbml_filename, const bool reuse)
   generate_cxx_code code_generator(lib_filename, !reuse);
 
   typename params_map_t::const_iterator pit;
+  struct timespec t_1, t_2; 
   code_generator.generate_code(*model,
         m_dep_params_f, m_dep_params_nf, m_rate_rules_dep_map);
-
   const std::string library_file = code_generator.compile_code();
 
   using std::operator<<;
@@ -192,6 +192,7 @@ void Network::init()
   m_species.reserve(num_vertices);
 
   v_iter_t vi, vi_end;
+
   for (boost::tie(vi, vi_end) = boost::vertices(m_graph); vi != vi_end; ++vi) {
     const v_prop_t& v = m_graph[*vi];
     const auto vt = static_cast<v_prop_t::vertex_type>(v.get_typeid());
@@ -238,6 +239,7 @@ void Network::init()
           const auto st = m_graph[ei_in].get_stoichiometry_ratio();
           involved_species.insert(std::make_pair(m_graph[reactant].get_label(),
                                                  std::make_pair(reactant, st)));
+                                              
         }
       }
 

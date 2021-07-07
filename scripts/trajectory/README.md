@@ -49,10 +49,28 @@ Unique names: c_GDP c_GTP c_MG472 c_MG490 c_MG500 c_MG501 c_MG511 c_MG513 c_MG51
 ```
 
 
-#### `./get_max_species.sh`
+##### `./get_max_species.sh`
 
 This script takes an SSA trajectory result file as an input. Then, it prints out
 the trajectory of a subset of species (or reactions). It relies on the other
 script `./get_max_species_list.awk` to select the species (or reactions) to print
 out.  For adjusting the number of species (or reactions) to select, change the
 variables defined in the script.
+
+
+#### Interpreting samples
+
+The way we sample the simulation state is not by the exact interval but rather by the first event at or after the scheduled sampling point. This is to provides more accurate information on when state changes as well as to reduce redundant samples.
+ 
+For example, suppose that the specified sampling interval is 5.0 sec.
+As a simulation starts at 0.0 sec, sampling points will be at 5.0 sec, at 10.0 sec, at 15.0 sec and so on.
+ 
+Suppose that there are events at 4.99999 sec and at 5.00001 sec but no event at exactly at 5.0 sec.
+Instead of taking a sample at 5.0 sec which actually reflects the state updated at 4.99999 sec.
+We take the sample at the first event from the current sampling point 5.0 sec, which reflects the state updated at 5.00001 sec. Each state is labeled with the exact timestamp, which is 5.00001 sec in this example. In this way, the trajectory shows more accurate information on when exactly the state changes.
+
+Consider the following scenario for illuminating how this helps to reduce redundant samples, which is especially useful when the simulated system is highly dynamic at the beginning and reaches a steady state in the end.
+ 
+As the state becomes steady, there may not be a single event within a sampling interval.
+Suppose that the next event after 5.00001 sec is at 20.00001 sec.
+Instead of blindly taking the redundant samples of the same state updated at 5.00001 sec for 10.0 sec, 15.0 sec and 20.0 sec, we only record a single sample of the state update at 20.00001 sec.

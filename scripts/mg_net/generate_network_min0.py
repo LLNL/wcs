@@ -86,6 +86,7 @@ first and third approach. Value should be between 5 and 10 (default value 5).'''
     include_Metabolism = True
     input_used = False
 
+
     #print('Processes:', args.proc)
     if args.proc != None :
       for opt in args.proc:
@@ -142,6 +143,7 @@ first and third approach. Value should be between 5 and 10 (default value 5).'''
         print('Error: the max_stoichiometry of -m has to be between 5 and 10.')
         sys.exit()
       max_sum_stoich = int(args.max_sum_stoich[0])
+
 
     if args.output_filename != None :
       output_filename = str(args.output_filename[0])
@@ -729,7 +731,9 @@ first and third approach. Value should be between 5 and 10 (default value 5).'''
           sum_stoich=sum_stoich+ reaction.getReactant(y).getStoichiometry()
         sum_stoich =sum_stoich + reaction.getNumModifiers()
         #print(sum_stoich)
+
         # first approach sum of stoichiometries < 5
+
         if (sum_stoich < max_sum_stoich ):
           if (approach1 == True):
             # Add k as a local parameter to reaction
@@ -795,7 +799,9 @@ first and third approach. Value should be between 5 and 10 (default value 5).'''
             </apply>
             </math>
             """
+
         # three approach sum of stoichiometries >= 5
+
         elif (sum_stoich >= max_sum_stoich ):
           if (approach3 == True):
             #Replication

@@ -85,7 +85,7 @@ first and third approach. Value should be between 5 and 10 (default value 5).'''
     combined_case = False
     include_Metabolism = True
     input_used = False
-    max_sum_stoich = 7  #default value
+
 
     #print('Processes:', args.proc)
     if args.proc != None :
@@ -720,7 +720,9 @@ first and third approach. Value should be between 5 and 10 (default value 5).'''
         sum_stoich =sum_stoich + reaction.getNumModifiers()
 
         #print(sum_stoich)
-        # first approach sum of stoichiometries < 7
+
+        # first approach sum of stoichiometries < 5
+
         if (sum_stoich < max_sum_stoich ):
           if (approach1 == True):
             # Add k as a local parameter to reaction
@@ -786,7 +788,9 @@ first and third approach. Value should be between 5 and 10 (default value 5).'''
             </apply>
             </math>
             """
-        # three approach sum of stoichiometries >= 7
+
+        # three approach sum of stoichiometries >= 5
+
         elif (sum_stoich >= max_sum_stoich ):
           if (approach3 == True):
             #Replication

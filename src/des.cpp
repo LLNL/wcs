@@ -34,7 +34,7 @@ int main(int argc, char **argv)
   tw_opt_add(app_opt);
   tw_init(&argc, &argv);
 
-  SSA_Config& cfg = gState.m_cfg;
+  wcs::SSA_Params& cfg = gState.m_cfg;
   cfg.getopt(argc, argv);
   tw_define_lps(nlp_per_pe, sizeof(WCS_Message));
 
@@ -67,29 +67,29 @@ int main(int argc, char **argv)
 
 void wcs_init(WCS_State *s, tw_lp *lp)
 {
-  SSA_Config& cfg = gState.m_cfg;
+  wcs::SSA_Params& cfg = gState.m_cfg;
 
   std::shared_ptr<wcs::Network> rnet_ptr = std::make_shared<wcs::Network>();
   wcs::Network& rnet = *rnet_ptr;
-  rnet.load(cfg.infile);
+  rnet.load(cfg.m_infile);
   rnet.init();
   const wcs::Network::graph_t& g = rnet.graph();
 
-  if (!cfg.gvizfile.empty() &&
-      !wcs::write_graphviz(cfg.gvizfile, g))
+  if (!cfg.m_gvizfile.empty() &&
+      !wcs::write_graphviz(cfg.m_gvizfile, g))
   {
-    WCS_THROW("Failed to write " + cfg.gvizfile);
+    WCS_THROW("Failed to write " + cfg.m_gvizfile);
     return;
   }
 
   std::unique_ptr<wcs::SSA_NRM> ssa;
 
   try {
-    if (cfg.method == 1) {
+    if (cfg.m_method == 1) {
       std::cerr << "Next Reaction SSA method." << std::endl;
       ssa = std::make_unique<wcs::SSA_NRM>(rnet_ptr);
     } else {
-      WCS_THROW("Unsupported SSA method (" + std::to_string(cfg.method) + ')');
+      WCS_THROW("Unsupported SSA method (" + std::to_string(cfg.m_method) + ')');
       return;
     }
   } catch (const std::exception& e) {
@@ -97,25 +97,25 @@ void wcs_init(WCS_State *s, tw_lp *lp)
     return;
   }
 
-  if (cfg.tracing) {
-    ssa->set_tracing<wcs::TraceSSA>(cfg.outfile, cfg.frag_size);
+  if (cfg.m_tracing) {
+    ssa->set_tracing<wcs::TraceSSA>(cfg.get_outfile(), cfg.m_frag_size);
     std::cerr << "Enable tracing" << std::endl;
-  } else if (cfg.sampling) {
-    if (cfg.iter_interval > 0u) {
-      ssa->set_sampling<wcs::SamplesSSA>(cfg.iter_interval,
-                                         cfg.outfile,
-                                         cfg.frag_size);
-      std::cerr << "Enable sampling at " << cfg.iter_interval
+  } else if (cfg.m_sampling) {
+    if (cfg.m_iter_interval > 0u) {
+      ssa->set_sampling<wcs::SamplesSSA>(cfg.m_iter_interval,
+                                         cfg.get_outfile(),
+                                         cfg.m_frag_size);
+      std::cerr << "Enable sampling at " << cfg.m_iter_interval
                 << " steps interval" << std::endl;
     } else {
-      ssa->set_sampling<wcs::SamplesSSA>(cfg.time_interval,
-                                         cfg.outfile,
-                                         cfg.frag_size);
-      std::cerr << "Enable sampling at " << cfg.time_interval
+      ssa->set_sampling<wcs::SamplesSSA>(cfg.m_time_interval,
+                                         cfg.get_outfile(),
+                                         cfg.m_frag_size);
+      std::cerr << "Enable sampling at " << cfg.m_time_interval
                 << " secs interval" << std::endl;
     }
   }
-  ssa->init(cfg.max_iter, cfg.max_time, cfg.seed);
+  ssa->init(cfg.m_max_iter, cfg.m_max_time, cfg.m_seed);
 
   const size_t lp_idx = gState.m_LP_states.size();
   ssa->m_lp_idx = lp_idx;
@@ -194,13 +194,13 @@ void wcs_event_commit(WCS_State *s, tw_bf *bf, WCS_Message *msg, tw_lp *lp)
 
 void wcs_final(WCS_State *s, tw_lp *lp)
 {
-  SSA_Config& cfg = gState.m_cfg;
+  wcs::SSA_Params& cfg = gState.m_cfg;
   const WCS_LP_State& lp_state = gState.m_LP_states.at(s->m_lp_idx);
 
   std::cout << "Wall clock time to run simulation: "
             << wcs::get_time() - lp_state.m_t_start << " (sec)" << std::endl;
 
-  if (cfg.tracing || cfg.sampling) {
+  if (cfg.m_tracing || cfg.m_sampling) {
     lp_state.m_ssa_ptr->finalize_recording();
   } else {
     std::cout << "Species   : "

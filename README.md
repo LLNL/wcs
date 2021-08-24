@@ -1,5 +1,5 @@
 # Whole Cell Simulator
- Whole cell simulator (WCS) aims to provide a computational environment for
+  Whole cell simulator (WCS) aims to provide a computational environment for
  simulating a whole cell model (WCM). WCM is a comprehensive multi-scale
  computational model representing all the known biochemical processes in a
  cell. It relies on a variety of intracellular pathway models and omics data.

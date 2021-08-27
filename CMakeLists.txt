@@ -457,6 +457,10 @@ if (WCS_HAS_SBML)
 #  target_include_directories(wcs SYSTEM PUBLIC ${SBML_INCLUDE_DIRS})
 endif (WCS_HAS_SBML)
 
+if (WCS_HAS_ROSS)
+  target_link_libraries(wcs PUBLIC ROSS::ROSS)
+endif (WCS_HAS_ROSS)
+
 if (WCS_HAS_EXPRTK)
   add_dependencies(wcs EXPRTK-download)
   target_include_directories(wcs PUBLIC
@@ -630,7 +634,7 @@ if (WCS_HAS_ROSS)
     $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}>
     $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/src>
     $<INSTALL_INTERFACE:${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_INCLUDEDIR}>)
-  target_link_libraries(hybrid-bin PRIVATE ROSS::ROSS MPI::MPI_CXX wcs ${LIB_FILESYSTEM})
+  target_link_libraries(hybrid-bin PRIVATE MPI::MPI_CXX wcs ${LIB_FILESYSTEM})
   set_target_properties(hybrid-bin PROPERTIES OUTPUT_NAME hybrid)
   list(APPEND WCS_EXEC_TARGETS hybrid-bin)
 endif (WCS_HAS_ROSS)

@@ -430,6 +430,8 @@ if (WCS_HAS_PROTOBUF)
   endif (WCS_HAS_OPENMP)
 endif (WCS_HAS_PROTOBUF)
 
+add_dependencies(wcs wcs_actorgen)
+
 target_include_directories(wcs PUBLIC
   $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}>
   $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/src>

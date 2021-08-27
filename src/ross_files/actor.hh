@@ -1,6 +1,5 @@
 #pragma once
 
-#if defined(WCS_HAS_ROSS)
 #include <vector>
 #include <unordered_map>
 #include <list>
@@ -134,5 +133,3 @@ PdesEvent my_event_send(tw_lpid dest, Time trecv, tw_lp* twlp, Tag tag, TTT& msg
 void my_event_cancel(PdesEvent evtptr);
 
 std::size_t messageSize();
-
-#endif // defined(WCS_HAS_ROSS)

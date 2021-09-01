@@ -430,8 +430,6 @@ if (WCS_HAS_PROTOBUF)
   endif (WCS_HAS_OPENMP)
 endif (WCS_HAS_PROTOBUF)
 
-add_dependencies(wcs wcs_actorgen)
-
 target_include_directories(wcs PUBLIC
   $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}>
   $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/src>
@@ -456,10 +454,6 @@ if (WCS_HAS_SBML)
   target_link_libraries(wcs PUBLIC SBML::SBML)
 #  target_include_directories(wcs SYSTEM PUBLIC ${SBML_INCLUDE_DIRS})
 endif (WCS_HAS_SBML)
-
-if (WCS_HAS_ROSS)
-  target_link_libraries(wcs PUBLIC ROSS::ROSS)
-endif (WCS_HAS_ROSS)
 
 if (WCS_HAS_EXPRTK)
   add_dependencies(wcs EXPRTK-download)
@@ -621,21 +615,13 @@ if (WCS_HAS_ROSS)
     $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}>
     $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/src>
     $<INSTALL_INTERFACE:${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_INCLUDEDIR}>)
-  target_link_libraries(des-bin PRIVATE ROSS::ROSS MPI::MPI_CXX wcs ${LIB_FILESYSTEM})
+  target_link_libraries(des-bin PRIVATE wcs ROSS::ROSS MPI::MPI_CXX ${LIB_FILESYSTEM})
   set_target_properties(des-bin PROPERTIES OUTPUT_NAME des)
   list(APPEND WCS_EXEC_TARGETS des-bin)
 endif (WCS_HAS_ROSS)
 
 # add executable hybrid
 if (WCS_HAS_ROSS)
-  add_executable( hybrid-bin src/hybrid.cpp )
-  target_include_directories(hybrid-bin SYSTEM PUBLIC ${ROSS_INCLUDE_DIRS})
-  target_include_directories(hybrid-bin PUBLIC
-    $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}>
-    $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/src>
-    $<INSTALL_INTERFACE:${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_INCLUDEDIR}>)
-  target_link_libraries(hybrid-bin PRIVATE MPI::MPI_CXX wcs ${LIB_FILESYSTEM})
-  set_target_properties(hybrid-bin PROPERTIES OUTPUT_NAME hybrid)
   list(APPEND WCS_EXEC_TARGETS hybrid-bin)
 endif (WCS_HAS_ROSS)
 
@@ -816,7 +802,7 @@ install(
         "${PROJECT_SOURCE_DIR}/src/wcs_types.hpp"
         "${PROJECT_SOURCE_DIR}/src/bgl.hpp"
         "${PROJECT_SOURCE_DIR}/src/des.hpp"
-        "${PROJECT_SOURCE_DIR}/src/hybrid.hpp"
+        "${PROJECT_SOURCE_DIR}/src/ross_files/hybrid.hpp"
         "${PROJECT_SOURCE_DIR}/src/wcs-ross-bf.hpp"
   DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}")
 

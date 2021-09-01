@@ -257,14 +257,14 @@ class Funnel : public LP<Funnel> {
       _simpleRand.seed(seed);
    }
 
-   void setupSendToReaction(int otherRxnTag, tw_lpid destID) {
+   void setupSendToReaction(ReactionTag otherRxnTag, tw_lpid destID) {
       if (otherRxnTag != _rxntag) {
          CONNECT(*this,Funnel::updateRateFunnel,destID,Funnel::changedRate);
          CONNECT(*this,Funnel::updateModeFunnel,destID,Funnel::changedMode);
       }
    }
 
-   void setupRecvFromReaction(int otherRxnTag) {
+   void setupRecvFromReaction(ReactionTag otherRxnTag) {
       int index = _tagFromRxnIndex.size();
       _tagFromRxnIndex.push_back(otherRxnTag);
       _indexFromRxnTag[otherRxnTag] = index;
@@ -294,7 +294,7 @@ class Funnel : public LP<Funnel> {
    void printSpecies(Time tnow) {
       std::cout << tnow << ": "
                 << "Reaction " << _rxntag << ": (wakeup " << _wakeupTime << ") (nrm=" << _rxnNrmMode[_thisrxnindex] << " rate=" << _rxnRate[_thisrxnindex] << ")" ;
-      for (int ii=0; ii<_tagFromSpecIndex.size(); ii++) {
+      for (std::size_t ii=0; ii<_tagFromSpecIndex.size(); ii++) {
          std::cout << " {" << _tagFromSpecIndex[ii] << ": "
                    << "(" << _lowerBound[ii] << "<"
                    << _species[ii]

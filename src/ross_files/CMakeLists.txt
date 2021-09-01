@@ -5,54 +5,49 @@
 # )
 # find_package(Python COMPONENTS Interpreter)
 
+set(actor_srcs ${CMAKE_CURRENT_SOURCE_DIR}/Funnel.hh)
+
 add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/actor.gen.cc
                    COMMAND ${Python_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/generateInfrastructure.py ${actor_srcs} > ${CMAKE_CURRENT_BINARY_DIR}/actor.gen.cc
                    MAIN_DEPENDENCY generateInfrastructure.py
                    DEPENDS generateInfrastructure.py ${actor_srcs}
                    VERBATIM)
-SET_PROPERTY(SOURCE ${CMAKE_CURRENT_BINARY_DIR}/actor.gen.cc
-             PROPERTY INCLUDE_DIRECTORIES ${CMAKE_CURRENT_SOURCE_DIR})
-
-
-# SET(my_srcs
-#     ${actor_srcs}
-#     actor.hh
-#     actor.cc
-#     simtime.hh
-#     Checkpoint.hh
-# )
-
-# # copy .hh and .cc fiels in the folder with actor.gen.cc
-# foreach( file_i ${my_srcs})
-#     add_custom_command(
-#     OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${file_i}
-#     COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_SOURCE_DIR}/${file_i} ${CMAKE_CURRENT_BINARY_DIR}/${file_i}
-# )
-# endforeach( file_i )
-       
-add_custom_target(wcs_actorgen
-  DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/actor.gen.cc)
-  # DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/actor.gen.cc ${CMAKE_CURRENT_BINARY_DIR}/${my_srcs})
-  
-# add_dependencies(wcs wcs_actorgen)
-# Add the header and source files for this directory
-set_full_path(THIS_DIR_HEADERS
-  actor.hh
-  Checkpoint.hh
-  Funnel.hh
-  simtime.hh
-  )
-
-set_full_path(THIS_DIR_SOURCES 
-  actor.cc
-  )
-
-# # Add the subdirectories
 
 set_source_files_properties(
   ${CMAKE_CURRENT_BINARY_DIR}/actor.gen.cc
   PROPERTIES GENERATED TRUE
 )
+
+if (WCS_HAS_ROSS)
+  add_executable(hybrid-bin
+              hybrid.cpp
+              hybrid.hpp
+              actor.hh
+              Checkpoint.hh
+              simtime.hh
+              actor.cc
+              ${actor_srcs}
+              ${CMAKE_CURRENT_BINARY_DIR}/actor.gen.cc
+              )
+  target_link_libraries(hybrid-bin PUBLIC ROSS::ROSS MPI::MPI_CXX wcs ${LIB_FILESYSTEM})
+  target_include_directories(hybrid-bin SYSTEM PUBLIC ${ROSS_INCLUDE_DIRS})
+  target_include_directories(hybrid-bin PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}>
+    $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/src>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_INCLUDEDIR}>)
+
+  set_target_properties(hybrid-bin PROPERTIES OUTPUT_NAME hybrid)
+endif()
+
+set_full_path(THIS_DIR_HEADERS
+  )
+
+set_full_path(THIS_DIR_SOURCES 
+  )
+
+# # Add the subdirectories
+
 
 # set(THIS_DIR_SOURCES "${THIS_DIR_SOURCES}" "${CMAKE_CURRENT_BINARY_DIR}/actor.gen.cc")  
 

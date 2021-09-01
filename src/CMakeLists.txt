@@ -3,7 +3,6 @@ set_full_path(THIS_DIR_HEADERS
   bgl.hpp
   wcs_types.hpp
   des.hpp
-  hybrid.hpp
   wcs-ross-bf.hpp
   )
 

@@ -1,5 +1,5 @@
 # blt_add_executable(
-#     NAME ross_files
+#     NAME hybrid
 #     SOURCES actor.cc
 #     DEPENDS_ON ROSS mpi
 # )

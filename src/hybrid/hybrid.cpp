@@ -26,8 +26,8 @@
 #include "utils/to_string.hpp"
 #include "reaction_network/network.hpp"
 #include "hybrid.hpp"
-#include "ross_files/simtime.hh"
-#include "ross_files/Funnel.hh"
+#include "hybrid/simtime.hh"
+#include "hybrid/Funnel.hh"
 
 #define OPTIONS "hi:s:t:"
 static const struct option longopts[] = {

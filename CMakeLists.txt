@@ -718,7 +718,7 @@ set(INCLUDE_INSTALL_DIRS
   "${CMAKE_SOURCE_DIR}/src/proto"
   "${CMAKE_SOURCE_DIR}/src/reaction_network"
   "${CMAKE_SOURCE_DIR}/src/sim_methods"
-  "${CMAKE_SOURCE_DIR}/src/ross_files"
+  "${CMAKE_SOURCE_DIR}/src/hybrid"
   "${CMAKE_SOURCE_DIR}/src/utils")
 set(LIB_INSTALL_DIR "${CMAKE_BINARY_DIR}")
 set(EXTRA_CMAKE_MODULE_DIR "${CMAKE_SOURCE_DIR}/cmake/modules")
@@ -794,7 +794,7 @@ install(
   DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
   FILES_MATCHING PATTERN "*.h" PATTERN "*.hpp")
 install(
-  DIRECTORY "${PROJECT_SOURCE_DIR}/src/ross_files"
+  DIRECTORY "${PROJECT_SOURCE_DIR}/src/hybrid"
   DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
   FILES_MATCHING PATTERN "*.h" PATTERN "*.hpp" PATTERN "*.hh")
 install(
@@ -802,7 +802,7 @@ install(
         "${PROJECT_SOURCE_DIR}/src/wcs_types.hpp"
         "${PROJECT_SOURCE_DIR}/src/bgl.hpp"
         "${PROJECT_SOURCE_DIR}/src/des.hpp"
-        "${PROJECT_SOURCE_DIR}/src/ross_files/hybrid.hpp"
+        "${PROJECT_SOURCE_DIR}/src/hybrid/hybrid.hpp"
         "${PROJECT_SOURCE_DIR}/src/wcs-ross-bf.hpp"
   DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}")
 

@@ -30,7 +30,7 @@ std::map<std::string, Vertex::vertex_type> Vertex::str_vt {
 };
 
 Vertex::Vertex()
-: m_type(_undefined_), m_label(""),
+: m_type(_undefined_), m_label(""), m_annotation(""),
   m_pid(unassigned_partition),
   m_p(nullptr)
 {
@@ -41,6 +41,7 @@ Vertex::Vertex(const Vertex& rhs)
 : m_type(rhs.m_type),
   m_typeid(rhs.m_typeid),
   m_label(rhs.m_label),
+  m_annotation(rhs.m_annotation),
   m_pid(rhs.m_pid),
   m_p((!rhs.m_p)? nullptr : rhs.m_p.get()->clone())
 {
@@ -53,6 +54,7 @@ Vertex::Vertex(Vertex&& rhs) noexcept
 {
   if (this != &rhs) {
     m_label = std::move(rhs.m_label);
+    m_annotation = std::move(rhs.m_annotation);
     m_p = std::move(rhs.m_p);
 
     reset(rhs);
@@ -65,6 +67,7 @@ Vertex& Vertex::operator=(const Vertex& rhs)
     m_type = rhs.m_type;
     m_typeid = rhs.m_typeid;
     m_label = rhs.m_label;
+    m_annotation = rhs.m_annotation;
     m_pid = rhs.m_pid;
     m_p = (!rhs.m_p)? nullptr : rhs.m_p.get()->clone();
   }
@@ -77,6 +80,7 @@ Vertex& Vertex::operator=(Vertex&& rhs) noexcept
     m_type = rhs.m_type;
     m_typeid = rhs.m_typeid;
     m_label = std::move(rhs.m_label);
+    m_annotation = std::move(rhs.m_annotation);
     m_pid = rhs.m_pid;
     m_p = std::move(rhs.m_p);
 
@@ -149,6 +153,15 @@ void Vertex::set_partition(const partition_id_t pid)
 partition_id_t Vertex::get_partition() const
 {
   return m_pid;
+}
+void Vertex::set_annotation(const std::string& f)
+{
+  m_annotation = f;
+}
+
+std::string Vertex::get_annotation() const
+{
+  return m_annotation;
 }
 
 /**@}*/

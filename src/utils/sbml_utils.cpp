@@ -81,12 +81,22 @@ sbml_utils::find_undeclared_species_in_reaction_formula(
   }
 
   // create an unordered_set for reaction local parameters
-  const LIBSBML_CPP_NAMESPACE::ListOfLocalParameters* local_parameter_list
-    = reaction.getKineticLaw()->getListOfLocalParameters();
-  unsigned int num_local_parameters = local_parameter_list->size();
+  if (model.getLevel() > 2) {
+    const LIBSBML_CPP_NAMESPACE::ListOfLocalParameters* local_parameter_list
+      = reaction.getKineticLaw()->getListOfLocalParameters();
+    unsigned int num_local_parameters = local_parameter_list->size();
 
-  for (unsigned int pi = 0u; pi < num_local_parameters; pi++) {
-    lpset.insert(local_parameter_list->get(pi)->getIdAttribute());
+    for (unsigned int pi = 0u; pi < num_local_parameters; pi++) {
+      lpset.insert(local_parameter_list->get(pi)->getIdAttribute());
+    }
+  } else {
+    const LIBSBML_CPP_NAMESPACE::ListOfParameters* local_parameter_list
+      = reaction.getKineticLaw()->getListOfParameters();
+    unsigned int num_local_parameters = local_parameter_list->size();
+
+    for (unsigned int pi = 0u; pi < num_local_parameters; pi++) {
+      lpset.insert(local_parameter_list->get(pi)->getIdAttribute());
+    }
   }
 
 
@@ -94,7 +104,11 @@ sbml_utils::find_undeclared_species_in_reaction_formula(
   unsigned int num_reactants = reaction.getNumReactants();
   for (unsigned int ri = 0u; ri < num_reactants; ri++) {
     const auto &reactant = *(reaction.getReactant(ri));
-    rset.insert(species_list->get(reactant.getSpecies())->getIdAttribute());
+    if (!species_list->get(reactant.getSpecies())->getConstant()) { //Add as a reactant
+      rset.insert(species_list->get(reactant.getSpecies())->getIdAttribute());
+    } else {
+      mset.insert(species_list->get(reactant.getSpecies())->getIdAttribute()); 
+    }
   }
 
   // create an unordered set for reaction_modifiers
@@ -174,7 +188,9 @@ sbml_utils::get_reaction_parameters(
 
   for (unsigned int ri = 0u; ri < num_reactants; ri++) {
     const auto &reactant = *(reaction.getReactant(ri));
-    rset.insert(species_list->get(reactant.getSpecies())->getIdAttribute());
+    if (!species_list->get(reactant.getSpecies())->getConstant()) { //Add as a reactant
+      rset.insert(species_list->get(reactant.getSpecies())->getIdAttribute());
+    }
   }
 
   // create an unordered_set for model compartments

@@ -70,7 +70,7 @@ class Vertex {
 
   #if defined(WCS_HAS_SBML)
   template <typename G>
-  Vertex(const LIBSBML_CPP_NAMESPACE::Species& species, const G& g);
+  Vertex(const LIBSBML_CPP_NAMESPACE::Model& model, const LIBSBML_CPP_NAMESPACE::Species& species, const G& g);
 
   template <typename G>
   Vertex(const LIBSBML_CPP_NAMESPACE::Model& model, const
@@ -89,6 +89,8 @@ class Vertex {
   std::string get_label() const;
   void set_partition(const partition_id_t pid);
   partition_id_t get_partition() const;
+  void set_annotation(const std::string& f);
+  std::string get_annotation() const;
 
   template <typename P> P& property() const;
   template <typename P> P& checked_property() const;
@@ -106,6 +108,7 @@ class Vertex {
   int m_typeid; ///< The vertex type in integer form used for GraphML parsing
   std::string m_label; ///< The vertex label
   partition_id_t m_pid; ///< The id of the partition to which this edge belongs
+  std::string m_annotation; ///< vertex annotation
 
   /**
    * The pointer to the detailed property object, which is polymorphic.
@@ -153,7 +156,8 @@ Vertex::Vertex(const VertexFlat& flat, const G& g)
 
 #if defined(WCS_HAS_SBML)
 template <typename G>
-Vertex::Vertex(const LIBSBML_CPP_NAMESPACE::Species& species, const G& g)
+Vertex::Vertex(const LIBSBML_CPP_NAMESPACE::Model& model, 
+const LIBSBML_CPP_NAMESPACE::Species& species, const G& g)
 : m_type(_species_),
   m_typeid(static_cast<int>(_species_)),
   m_label(species.getIdAttribute()),
@@ -162,15 +166,44 @@ Vertex::Vertex(const LIBSBML_CPP_NAMESPACE::Species& species, const G& g)
 {
   m_p = std::unique_ptr<Species>(new Species);
 
-  if  (!isnan(species.getInitialAmount())) {
+  if  (species.isSetInitialAmount()) {
     dynamic_cast<Species*>(m_p.get())->
       set_count(static_cast<species_cnt_t>(species.getInitialAmount()));
+    // TODO: if units of species are mole then species Initial Amount has 
+    // to be multiplied by Avogadro number
+
     // TODO: species.getInitialConcentration() should be multiplied by
     // compartment volume and molarity (depending on the unit of
     // concentration) should be converted to count
-  } else  if (!isnan(species.getInitialConcentration())) {
+  } else  if (species.isSetInitialConcentration()) {
+    const LIBSBML_CPP_NAMESPACE::ListOfCompartments* compartment_list
+    = model.getListOfCompartments();
+    const LIBSBML_CPP_NAMESPACE::ListOfUnitDefinitions* unit_definition_list
+    = model.getListOfUnitDefinitions(); 
+    double compartment_size = compartment_list->get(species.getCompartment())->getSize();
+    std::string compartment_unit ;
+    if (compartment_list->get(species.getCompartment())->isSetUnits()){
+      compartment_unit = compartment_list->get(species.getCompartment())->getUnits();
+    } else if (compartment_list->get(species.getCompartment())->getSpatialDimensions() == 3) {
+      compartment_unit = model.getVolumeUnits();
+    } else if (compartment_list->get(species.getCompartment())->getSpatialDimensions() == 2) {
+      compartment_unit = model.getAreaUnits(); 
+    } else if (compartment_list->get(species.getCompartment())->getSpatialDimensions() == 1) {
+      compartment_unit = model.getLengthUnits(); 
+    }
+    const LIBSBML_CPP_NAMESPACE::UnitDefinition* unit_definition = unit_definition_list->get(compartment_unit); 
+    const LIBSBML_CPP_NAMESPACE::ListOfUnits* unit_list
+    = unit_definition->getListOfUnits();
+    unsigned int unitsSize = unit_list->size();
+    double comp_unit = 1.0;
+    for (unsigned int iu = 0u; iu < unitsSize; iu++) { 
+      const LIBSBML_CPP_NAMESPACE::Unit* unit = unit_list->get(iu);
+      comp_unit = comp_unit * pow(unit->getMultiplier()*pow(10,unit->getScale()),unit->getExponent());
+    } 
+    double avog_num = 6.02214e+23; 
     dynamic_cast<Species*>(m_p.get())->
-      set_count(static_cast<species_cnt_t>(species.getInitialConcentration()));
+      set_count(static_cast<species_cnt_t>(species.getInitialConcentration() * (6.02214E23 * 
+      compartment_size) *comp_unit)); 
   }
 }
 
@@ -209,12 +242,31 @@ Vertex::Vertex(
   //Add parameters
   const LIBSBML_CPP_NAMESPACE::ListOfParameters* parameter_list
     = model.getListOfParameters();
-  unsigned int parametersSize = parameter_list->size();
-
+  unsigned int parametersSize = parameter_list->size(); 
   //Add local parameters
-  const LIBSBML_CPP_NAMESPACE::ListOfLocalParameters* local_parameter_list
-    = reaction.getKineticLaw()->getListOfLocalParameters();
-  unsigned int num_local_parameters = local_parameter_list->size();
+  if (model.getLevel() > 2) {
+    const LIBSBML_CPP_NAMESPACE::ListOfLocalParameters* local_parameter_list
+       = reaction.getKineticLaw()->getListOfLocalParameters();
+    unsigned int num_local_parameters = reaction.getKineticLaw()->getNumLocalParameters();
+
+    // Create an unordered_set for all local parameters of reaction
+    for (unsigned int pi = 0u; pi < num_local_parameters; pi++) {
+      const LIBSBML_CPP_NAMESPACE::LocalParameter* localparameter
+      = local_parameter_list->get(pi);
+      lpset.insert(localparameter->getIdAttribute());
+    }
+  } else {
+    const LIBSBML_CPP_NAMESPACE::ListOfParameters* local_parameter_list
+       = reaction.getKineticLaw()->getListOfParameters();
+    unsigned int num_local_parameters = reaction.getKineticLaw()->getNumParameters();
+    // Create an unordered_set for all local parameters of reaction
+    for (unsigned int pi = 0u; pi < num_local_parameters; pi++) {
+      const LIBSBML_CPP_NAMESPACE::Parameter* localparameter
+      = local_parameter_list->get(pi);
+      lpset.insert(localparameter->getIdAttribute());
+    }
+  }
+
 
   sbml_utils sbml_o;
   pset=sbml_o.get_reaction_parameters(model, reaction);
@@ -225,12 +277,6 @@ Vertex::Vertex(
     mpset.insert(parameter->getIdAttribute());
   }
 
-  // Create an unordered_set for all local parameters of reaction
-  for (unsigned int pi = 0u; pi < num_local_parameters; pi++) {
-    const LIBSBML_CPP_NAMESPACE::LocalParameter* localparameter
-    = local_parameter_list->get(pi);
-    lpset.insert(localparameter->getIdAttribute());
-  }
 
   // Put initial assignments in map
   using  all_assignments_type
@@ -284,16 +330,30 @@ Vertex::Vertex(
     }
     // reaction local parameters
     lpit = lpset.find(s_label) ;
-    if (lpit != lpset.end()) {
-      std::stringstream ss;
-      ss << local_parameter_list->get(s_label)->getValue();
-      std::string parametervalue = ss.str();
-      wholeformula = wholeformula + "var " + s_label
-                   + " := " + parametervalue +  "; ";
-    }
+    if (model.getLevel() > 2) {
+      const LIBSBML_CPP_NAMESPACE::ListOfLocalParameters* local_parameter_list
+      = reaction.getKineticLaw()->getListOfLocalParameters();
+      if (lpit != lpset.end()) {
+        std::stringstream ss;
+        ss << local_parameter_list->get(s_label)->getValue();
+        std::string parametervalue = ss.str();
+        wholeformula = wholeformula + "var " + s_label
+                    + " := " + parametervalue +  "; ";
+      }
+    } else {
+      const LIBSBML_CPP_NAMESPACE::ListOfParameters* local_parameter_list
+       = reaction.getKineticLaw()->getListOfParameters(); 
+      if (lpit != lpset.end()) {
+        std::stringstream ss;
+        ss << local_parameter_list->get(s_label)->getValue();
+        std::string parametervalue = ss.str();
+        wholeformula = wholeformula + "var " + s_label
+                    + " := " + parametervalue +  "; ";
+      } 
+    }  
   }
 
-  //Add compartnents
+  //Add compartments
   const LIBSBML_CPP_NAMESPACE::ListOfCompartments* compartment_list
     = model.getListOfCompartments();
   unsigned int compartmentsSize = compartment_list->size();
@@ -317,6 +377,12 @@ Vertex::Vertex(
   wholeformula = wholeformula + "m_rate := " + formula + ";";
 
   dynamic_cast<Reaction<v_desc_t>*>(m_p.get())->set_rate_formula(wholeformula);
+  if (reaction.isSetAnnotation()) {
+    std::string annot= reaction.getAnnotationString() ;
+    m_annotation = annot; 
+  } else {
+    m_annotation = ""; 
+  }
 
   #if !defined(WCS_HAS_EXPRTK)
   dynamic_cast<Reaction<v_desc_t>*>(m_p.get())->ReactionBase::set_calc_rate_fn(reaction_function_rate);

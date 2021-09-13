@@ -42,7 +42,7 @@ def main():
                 slotName = mmm.group(1)
                 msgName = mmm.group(2)
                 actors[actorName].addSlot(Slot(slotName,msgName))
-            for eventType in ['forward','backward','commit','checkpoint']:
+            for eventType in ['FORWARD','BACKWARD','COMMIT','CHECKPOINT']:
                 mmm = re.search("void "+eventType+r'\(([A-Za-z0-9_]+)\)',line)
                 if mmm:
                     slotName = mmm.group(1)
@@ -75,7 +75,7 @@ std::size_t messageSize() {
    return sizeof(EventData);
 }
 
-CheckpointQueue checkpointQueue;
+CHECKPOINTQueue checkpointQueue;
 
 template <typename TTT>
 PdesEvent my_event_send(tw_lpid dest, Time trecv, tw_lp* twlp, Tag tag, TTT& msg)
@@ -100,23 +100,23 @@ PdesEvent my_event_send(tw_lpid dest, Time trecv, tw_lp* twlp, Tag tag, TTT& msg
                 "slot" : slot.name,
                 "msg" : slot.msg,
             }
-            for eventType in "forward","backward","commit":
+            for eventType in "FORWARD","BACKWARD","COMMIT":
                 ttt['event'] = eventType
                 if slot.hasMode(eventType):
                     print("""template <>
 inline void %(actor)s::%(event)sFull<%(actor)s::%(slot)s>(Time tnow, %(msg)s& msg, tw_bf* twbf) { %(event)s(%(slot)s)(tnow,msg,twbf); }""" % ttt)
-            if slot.hasMode('checkpoint'):
+            if slot.hasMode('CHECKPOINT'):
                 print("""template <>
-inline void %(actor)s::checkpointFull<%(actor)s::%(slot)s>(InputCheckpoint& ar, Time tnow, %(msg)s& msg, tw_bf* twbf) { checkpoint(%(slot)s)(ar,tnow,msg,twbf); }
+inline void %(actor)s::CHECKPOINTFull<%(actor)s::%(slot)s>(InputCHECKPOINT& ar, Time tnow, %(msg)s& msg, tw_bf* twbf) { CHECKPOINT(%(slot)s)(ar,tnow,msg,twbf); }
 template <>
-inline void %(actor)s::checkpointFull<%(actor)s::%(slot)s>(OutputCheckpoint& ar, Time tnow, %(msg)s& msg, tw_bf* twbf) { checkpoint(%(slot)s)(ar,tnow,msg,twbf); }
+inline void %(actor)s::CHECKPOINTFull<%(actor)s::%(slot)s>(OutputCHECKPOINT& ar, Time tnow, %(msg)s& msg, tw_bf* twbf) { CHECKPOINT(%(slot)s)(ar,tnow,msg,twbf); }
 """ % ttt)
     for actor in actors.values():
         for (ii,slot) in enumerate(actor.getSlots()):
             print("Tag %s::%s::tag = %d;" % (actor.name,slot.name,ii))
             
     for actor in actors.values():
-        for eventType in ["forward","backward","commit"]:
+        for eventType in ["FORWARD","BACKWARD","COMMIT"]:
             print("template<> %s::MethodPtr LP<%s>::%sDispatch[] = {" % (actor.name, actor.name,eventType))
             for slot in actor.getSlots():
                 ttt = {
@@ -124,8 +124,8 @@ inline void %(actor)s::checkpointFull<%(actor)s::%(slot)s>(OutputCheckpoint& ar,
                     "slot" : slot.name,
                     "event" : eventType,
                 }
-                if slot.hasMode('checkpoint'):
-                    method = '%(actor)s::%(event)sWithCheckpoint<%(actor)s::%(slot)s>' % ttt
+                if slot.hasMode('CHECKPOINT'):
+                    method = '%(actor)s::%(event)sWithCHECKPOINT<%(actor)s::%(slot)s>' % ttt
                 else:
                     method = '%(actor)s::%(event)sFull<%(actor)s::%(slot)s>' % ttt
                 ttt['method'] = method
@@ -143,27 +143,27 @@ void LP<Dependent>::init_lp(void *state, tw_lp *thislp) {
 }
 
 template <typename Dependent>
-void LP<Dependent>::forward_event(void *state, tw_bf *bf, void *evt, tw_lp *thislp) {
+void LP<Dependent>::FORWARD_event(void *state, tw_bf *bf, void *evt, tw_lp *thislp) {
    Time tnow = tw_now(thislp);
    EventData *e = reinterpret_cast<EventData *>(evt);
    Dependent* derivedObj = reinterpret_cast<Dependent*>(state);
-   (derivedObj->*forwardDispatch[e->tag])(tnow, &e->msg, bf);
+   (derivedObj->*FORWARDDispatch[e->tag])(tnow, &e->msg, bf);
 }
 
 template <typename Dependent>
-void LP<Dependent>::backward_event(void *state, tw_bf *bf, void *evt, tw_lp *thislp) {
+void LP<Dependent>::BACKWARD_event(void *state, tw_bf *bf, void *evt, tw_lp *thislp) {
    Time tnow = tw_now(thislp);
    EventData *e = reinterpret_cast<EventData *>(evt);
    Dependent* derivedObj = reinterpret_cast<Dependent*>(state);
-   (derivedObj->*backwardDispatch[e->tag])(tnow, &e->msg, bf);
+   (derivedObj->*BACKWARDDispatch[e->tag])(tnow, &e->msg, bf);
 }
 
 template <typename Dependent>
-void LP<Dependent>::commit_event(void *state, tw_bf *bf, void *evt, tw_lp *thislp) {
+void LP<Dependent>::COMMIT_event(void *state, tw_bf *bf, void *evt, tw_lp *thislp) {
    Time tnow = tw_now(thislp);
    EventData *e = reinterpret_cast<EventData *>(evt);
    Dependent* derivedObj = reinterpret_cast<Dependent*>(state);
-   (derivedObj->*commitDispatch[e->tag])(tnow, &e->msg, bf);
+   (derivedObj->*COMMITDispatch[e->tag])(tnow, &e->msg, bf);
 }  
 
 template <typename Dependent>
@@ -175,9 +175,9 @@ void LP<Dependent>::final_lp(void *state, tw_lp *) {
 """)
     for actor in actors.values():
         print("""
-template void LP<%(actor)s>::forward_event(void *state, tw_bf *bf, void *evt, tw_lp *thislp);
-template void LP<%(actor)s>::backward_event(void *state, tw_bf *bf, void *evt, tw_lp *thislp);
-template void LP<%(actor)s>::commit_event(void *state, tw_bf *bf, void *evt, tw_lp *thislp);
+template void LP<%(actor)s>::FORWARD_event(void *state, tw_bf *bf, void *evt, tw_lp *thislp);
+template void LP<%(actor)s>::BACKWARD_event(void *state, tw_bf *bf, void *evt, tw_lp *thislp);
+template void LP<%(actor)s>::COMMIT_event(void *state, tw_bf *bf, void *evt, tw_lp *thislp);
 template void LP<%(actor)s>::final_lp(void *state, tw_lp *me);
 template void LP<%(actor)s>::init_lp(void *state, tw_lp *me);
 

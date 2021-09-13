@@ -1,14 +1,32 @@
 #pragma once
 
 #include "actor.hh"
+// #include "../reaction_network/network.hpp"
+// #include "utils/graph_factory.hpp"
+// #include <boost/graph/graphml.hpp>
 #include <iostream>
 #include <random>
+#include <functional>
 
-#define MAX_TIME 100 //FIXME! 
+#define MAX_TIME 100 //FIXME!
+
+// using graph_t  = boost::adjacency_list<boost::listS,
+//                                         boost::listS,
+//                                         boost::directedS>;
+/// The type of BGL vertex descriptor for graph_t
+// using v_desc_t = boost::graph_traits<graph_t>::vertex_descriptor;
+// using v_desc_t = boost::graph_traits<wcs::Network::graph_t>::vertex_descriptor;
+
+
 typedef std::size_t SpeciesTag;
 typedef std::size_t ReactionTag;
 typedef double Real;
 typedef std::size_t SpeciesValue;
+
+// typedef reaction_rate_t ( * rate_function_pointer)(const std::vector<reaction_rate_t>&);
+// typedef std::function<reaction_rate_t (const std::vector<reaction_rate_t>&)> RateFunction;
+
+// typedef std::function<reaction_rate_t(const std::vector<reaction_rate_t>&)> f_rate 
 typedef Real (*RateFunction)(const std::vector<SpeciesValue>& species);
 
 struct NoopMsg {
@@ -36,23 +54,23 @@ class NextReactionMethodCrucible : public LP<NextReactionMethodCrucible> {
    ACTOR_DEF();
       
    SLOT(firedMyself, NoopMsg);
-   void forward(firedMyself)(Time tnow, NoopMsg& msg, tw_bf*) {
+   void FORWARD(firedMyself)(Time tnow, NoopMsg& msg, tw_bf*) {
       ReactionMsg r;
       r.reaction = _rxntag;
       fire(0, r);
       _countdown = newCountdown();
       fireNextReaction(tnow);
    }
-   void commit(firedMyself)(Time tnow, NoopMsg& msg, tw_bf*) {
+   void COMMIT(firedMyself)(Time tnow, NoopMsg& msg, tw_bf*) {
       //std::cout << tnow << ": Fired Reaction " << _rxntag << "!\n";
    }
    template<typename Checkpointer>
-   void checkpoint(firedMyself)(Checkpointer& ar, Time tnow, NoopMsg& msg, tw_bf*) {
+   void CHECKPOINT(firedMyself)(Checkpointer& ar, Time tnow, NoopMsg& msg, tw_bf*) {
       ar & _countdown & _messageOutstanding & _lastUpdatedTime & _simpleRand;
    }
 
    SLOT(updatedRate, RateMsg);
-   void forward(updatedRate)(Time tnow, RateMsg& msg, tw_bf*) {
+   void FORWARD(updatedRate)(Time tnow, RateMsg& msg, tw_bf*) {
       if (_rate != 0) {
          EVENT_CANCEL(_messageOutstanding);
          _countdown -= countdownChange(tnow);
@@ -63,7 +81,7 @@ class NextReactionMethodCrucible : public LP<NextReactionMethodCrucible> {
       }
    }
    template<typename Checkpointer>
-   void checkpoint(updatedRate)(Checkpointer& ar, Time tnow, RateMsg& msg, tw_bf*) {
+   void CHECKPOINT(updatedRate)(Checkpointer& ar, Time tnow, RateMsg& msg, tw_bf*) {
       ar & _messageOutstanding & _countdown & _rate & _lastUpdatedTime & _simpleRand;
    }
 
@@ -145,7 +163,7 @@ class Funnel : public LP<Funnel> {
 
 
    SLOT(firedReaction, ReactionMsg);
-   void forward(firedReaction)(Time tnow, ReactionMsg& msg, tw_bf* twbf) {
+   void FORWARD(firedReaction)(Time tnow, ReactionMsg& msg, tw_bf* twbf) {
       //update species
       for (const auto& kv : stoic[msg.reaction]) {
          auto iter = _indexFromSpecTag.find(kv.first);
@@ -160,28 +178,28 @@ class Funnel : public LP<Funnel> {
          setupFutureEvents(tnow, true);
       }
    }
-   void backward(firedReaction)(Time tnow, ReactionMsg& msg, tw_bf*) {
+   void BACKWARD(firedReaction)(Time tnow, ReactionMsg& msg, tw_bf*) {
    }
-   void commit(firedReaction)(Time tnow, ReactionMsg& msg, tw_bf*) {
+   void COMMIT(firedReaction)(Time tnow, ReactionMsg& msg, tw_bf*) {
       //std::cout << tnow << ": NRM " << msg.reaction << "->" << _rxntag << std::endl;
       //printSpecies(tnow);
    }
    template<typename Checkpointer>
-   void checkpoint(firedReaction)(Checkpointer& ar, Time tnow, ReactionMsg& msg, tw_bf*) {
+   void CHECKPOINT(firedReaction)(Checkpointer& ar, Time tnow, ReactionMsg& msg, tw_bf*) {
    }
 
    
    SLOT(changedRate, FunnelRateExchangeMsg);
-   void forward(changedRate)(Time tnow, FunnelRateExchangeMsg& msg, tw_bf* twbf) {
+   void FORWARD(changedRate)(Time tnow, FunnelRateExchangeMsg& msg, tw_bf* twbf) {
       updateSpeciesBasedOnRates(tnow);
       updateSavedRates(msg.reaction, msg.nrmMode, msg.rate, msg.normalContrib);
       interruptNextWakeup(tnow);
       //std::cout << tnow << ": %%% " << ((tnow-_lastRecomputeTime)>=_maxTimestep) << " " << checkRateBounds(tnow) << std::endl;
       setupFutureEvents(tnow, (tnow-_lastRecomputeTime)>=_maxTimestep || !checkRateBounds(tnow));
    }
-   void backward(changedRate)(Time tnow, FunnelRateExchangeMsg& msg, tw_bf*) {
+   void BACKWARD(changedRate)(Time tnow, FunnelRateExchangeMsg& msg, tw_bf*) {
    }
-   void commit(changedRate)(Time tnow, FunnelRateExchangeMsg& msg, tw_bf*) {
+   void COMMIT(changedRate)(Time tnow, FunnelRateExchangeMsg& msg, tw_bf*) {
       //std::cout << tnow << ": Changed rate for " << msg.reaction << "->"
       //          << _rxntag << ": "
       //          << (msg.nrmMode ? "NRM " : "SDE ") 
@@ -190,27 +208,27 @@ class Funnel : public LP<Funnel> {
       //printSpecies(tnow);
    }
    template<typename Checkpointer>
-   void checkpoint(changedRate)(Checkpointer& ar, Time tnow, FunnelRateExchangeMsg& msg, tw_bf*) {
+   void CHECKPOINT(changedRate)(Checkpointer& ar, Time tnow, FunnelRateExchangeMsg& msg, tw_bf*) {
    }
 
    SLOT(wakeup, NoopMsg);
-   void forward(wakeup)(Time tnow, NoopMsg& msg, tw_bf* twbf) {
+   void FORWARD(wakeup)(Time tnow, NoopMsg& msg, tw_bf* twbf) {
       // This gets called when we're sure that we're going to go
       // out-of-bounds due to our tau condition, based on what we
       // currently know about the SDE rates.
       updateSpeciesBasedOnRates(tnow);
       setupFutureEvents(tnow, (tnow-_lastRecomputeTime)>=_maxTimestep || !checkRateBounds(tnow));
    }
-   void commit(wakeup)(Time tnow, NoopMsg& msg, tw_bf*) {
+   void COMMIT(wakeup)(Time tnow, NoopMsg& msg, tw_bf*) {
       //std::cout << tnow << ": Woke Reaction " << _rxntag << "!\n";
       //printSpecies(tnow);
    }
    template <typename Checkpointer>
-   void checkpoint(wakeup)(Checkpointer& ar, Time tnow, NoopMsg& msg, tw_bf*) {
+   void CHECKPOINT(wakeup)(Checkpointer& ar, Time tnow, NoopMsg& msg, tw_bf*) {
    }
 
    SLOT(changedMode, SwitchModeMsg);
-   void forward(changedMode)(Time tnow, SwitchModeMsg& msg, tw_bf*) {
+   void FORWARD(changedMode)(Time tnow, SwitchModeMsg& msg, tw_bf*) {
       updateSpeciesBasedOnRates(tnow);
       int irxn = _indexFromRxnTag[msg.reaction];
       updateSavedRates(msg.reaction, msg.nrmMode, _rxnRate[irxn], _normalContrib[irxn]);
@@ -220,17 +238,17 @@ class Funnel : public LP<Funnel> {
          setupFutureEvents(tnow, true);
       }
    }
-   void commit(changedMode)(Time tnow, SwitchModeMsg& msg, tw_bf*) {
+   void COMMIT(changedMode)(Time tnow, SwitchModeMsg& msg, tw_bf*) {
       //std::cout << tnow << ": Changed mode " << msg.reaction << "->" << _rxntag << ": " << msg.nrmMode << std::endl;
    }
    template <typename Checkpointer>
-   void checkpoint(changedMode)(Checkpointer& ar, Time tnow, SwitchModeMsg& msg, tw_bf*) {
+   void CHECKPOINT(changedMode)(Checkpointer& ar, Time tnow, SwitchModeMsg& msg, tw_bf*) {
    }
 
    SLOT(printData, NoopMsg);
-   void forward(printData)(Time tnow, NoopMsg& msg, tw_bf*) {
+   void FORWARD(printData)(Time tnow, NoopMsg& msg, tw_bf*) {
    }
-   void commit(printData)(Time tnow, NoopMsg& msg, tw_bf*) {
+   void COMMIT(printData)(Time tnow, NoopMsg& msg, tw_bf*) {
       printSpecies(tnow);
    }
    
@@ -549,7 +567,7 @@ class Heartbeat : public LP<Heartbeat> {
    void setInterval(double interval) { _interval = interval; }
    
    SLOT(activated, NoopMsg);
-   void forward(activated)(Time tnow, NoopMsg& msg, tw_bf*) {
+   void FORWARD(activated)(Time tnow, NoopMsg& msg, tw_bf*) {
       activate(_interval, msg);
    }
 

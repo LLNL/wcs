@@ -29,59 +29,59 @@ class BaseLP {
    tw_lpid getID() const;
 };
 
-extern CheckpointQueue checkpointQueue;
+extern CHECKPOINTQueue checkpointQueue;
 
 template <typename Dependent>
 class LP : public BaseLP {
  public:
    typedef void (Dependent::*MethodPtr)(Time tnow, void*, tw_bf*);
    static void init_lp(void *state, tw_lp *me);
-   static void forward_event(void *state, tw_bf *bf, void *evt, tw_lp *thislp);
-   static void backward_event(void *state, tw_bf *bf, void *evt, tw_lp *thislp);
-   static void commit_event(void *state, tw_bf *bf, void *evt, tw_lp *thislp);
+   static void FORWARD_event(void *state, tw_bf *bf, void *evt, tw_lp *thislp);
+   static void BACKWARD_event(void *state, tw_bf *bf, void *evt, tw_lp *thislp);
+   static void COMMIT_event(void *state, tw_bf *bf, void *evt, tw_lp *thislp);
    static void final_lp(void *state, tw_lp *me);
-   static MethodPtr forwardDispatch[];
-   static MethodPtr backwardDispatch[];
-   static MethodPtr commitDispatch[];
+   static MethodPtr FORWARDDispatch[];
+   static MethodPtr BACKWARDDispatch[];
+   static MethodPtr COMMITDispatch[];
 
    template <typename SlotType>
-   void forwardWithCheckpoint(Time tnow, typename SlotType::MsgType& msg, tw_bf* twbf) {
-      InputCheckpoint ic;
-      static_cast<Dependent*>(this)->Dependent::template checkpointFull<SlotType>(ic, tnow, msg, twbf);
-      static_cast<Dependent*>(this)->Dependent::template forwardFull<SlotType>(tnow, msg, twbf);
+   void FORWARDWithCHECKPOINT(Time tnow, typename SlotType::MsgType& msg, tw_bf* twbf) {
+      InputCHECKPOINT ic;
+      static_cast<Dependent*>(this)->Dependent::template CHECKPOINTFull<SlotType>(ic, tnow, msg, twbf);
+      static_cast<Dependent*>(this)->Dependent::template FORWARDFull<SlotType>(tnow, msg, twbf);
       checkpointQueue.push_back(ic.str());
    }
    template <typename SlotType>
-   void backwardWithCheckpoint(Time tnow, typename SlotType::MsgType& msg, tw_bf* twbf) {
-      static_cast<Dependent*>(this)->Dependent::template backwardFull<SlotType>(tnow, msg, twbf);
-      OutputCheckpoint oc(checkpointQueue.back());
-      static_cast<Dependent*>(this)->Dependent::template checkpointFull<SlotType>(oc, tnow, msg, twbf);
+   void BACKWARDWithCHECKPOINT(Time tnow, typename SlotType::MsgType& msg, tw_bf* twbf) {
+      static_cast<Dependent*>(this)->Dependent::template BACKWARDFull<SlotType>(tnow, msg, twbf);
+      OutputCHECKPOINT oc(checkpointQueue.back());
+      static_cast<Dependent*>(this)->Dependent::template CHECKPOINTFull<SlotType>(oc, tnow, msg, twbf);
       checkpointQueue.pop_back();
    }
    template <typename SlotType>
-   void commitWithCheckpoint(Time tnow, typename SlotType::MsgType& msg, tw_bf* twbf) {
-      static_cast<Dependent*>(this)->Dependent::template commitFull<SlotType>(tnow, msg, twbf);
+   void COMMITWithCHECKPOINT(Time tnow, typename SlotType::MsgType& msg, tw_bf* twbf) {
+      static_cast<Dependent*>(this)->Dependent::template COMMITFull<SlotType>(tnow, msg, twbf);
       checkpointQueue.pop_front();
    }
 };
 
 #define ACTOR_DEF()                                                     \
    template<typename SlotType>                                          \
-   void forwardFull(Time tnow, typename SlotType::MsgType& msg, tw_bf*);    \
+   void FORWARDFull(Time tnow, typename SlotType::MsgType& msg, tw_bf*);    \
    template<typename SlotType>                                          \
-   void backwardFull(Time tnow, typename SlotType::MsgType& msg, tw_bf*) {} \
+   void BACKWARDFull(Time tnow, typename SlotType::MsgType& msg, tw_bf*) {} \
    template<typename SlotType>                                          \
-   void commitFull(Time tnow, typename SlotType::MsgType& msg, tw_bf*) {} \
+   void COMMITFull(Time tnow, typename SlotType::MsgType& msg, tw_bf*) {} \
    template <typename SlotType, typename Archiver>                                        \
-   inline void checkpointFull(Archiver& ar, Time tnow, typename SlotType::MsgType& msg, tw_bf*);
+   inline void CHECKPOINTFull(Archiver& ar, Time tnow, typename SlotType::MsgType& msg, tw_bf*);
 
 
 #define TAGIFY(SlotType) SlotType::tag
 
-#define forward(SlotType) forward_##SlotType
-#define backward(SlotType) backward_##SlotType
-#define commit(SlotType) commit_##SlotType
-#define checkpoint(SlotType) checkpoint_##SlotType
+#define FORWARD(SlotType) FORWARD_##SlotType
+#define BACKWARD(SlotType) BACKWARD_##SlotType
+#define COMMIT(SlotType) COMMIT_##SlotType
+#define CHECKPOINT(SlotType) CHECKPOINT_##SlotType
 
 #define SLOT(name, msgType)                     \
 class name {                                    \

@@ -7,7 +7,7 @@
 // This could be done any number of ways faster/better than a list,
 // but keep it for now.  We can optimize this later, so long as we
 // have the following interface.
-class CheckpointQueue {
+class CHECKPOINTQueue {
  public:
    void push_back(std::string newString) { queue.push_back(newString); }
    void pop_back() { queue.pop_back(); }
@@ -18,12 +18,12 @@ class CheckpointQueue {
    std::list<std::string> queue;
 };
 
-class InputCheckpoint {
+class InputCHECKPOINT {
  public:
    std::string str() { return sss.str(); }
    
    template <typename TTT>
-   InputCheckpoint& operator&(const TTT& ttt) {
+   InputCHECKPOINT& operator&(const TTT& ttt) {
       sss.write(reinterpret_cast<const char*>(&ttt), sizeof(TTT));
       return *this;
    }
@@ -31,13 +31,13 @@ class InputCheckpoint {
    std::stringstream sss;
 };
 
-class OutputCheckpoint {
+class OutputCHECKPOINT {
  public:
-   OutputCheckpoint(std::string newString) {
+   OutputCHECKPOINT(std::string newString) {
       sss.str(newString);
    }
    template <typename TTT>
-   OutputCheckpoint& operator&(TTT& ttt) {
+   OutputCHECKPOINT& operator&(TTT& ttt) {
       sss.read(reinterpret_cast<char *>(&ttt), sizeof(TTT));
       return *this;
    }

@@ -21,10 +21,14 @@
 #include <iostream>
 #include <vector>
 #include <getopt.h>
+// #include "bgl.hpp"
 #include "utils/write_graphviz.hpp"
 #include "utils/timer.hpp"
 #include "utils/to_string.hpp"
 #include "reaction_network/network.hpp"
+#include "reaction_network/species.hpp"
+#include "reaction_network/reaction.hpp"
+#include "reaction_network/vertex.hpp"
 #include "hybrid.hpp"
 #include "hybrid/simtime.hh"
 #include "hybrid/Funnel.hh"
@@ -37,6 +41,30 @@ static const struct option longopts[] = {
     {"trust_region", required_argument,  0, 't'},
     { 0, 0, 0, 0 },
 };
+
+// using r_prop_t = wcs::Network::r_prop_t;
+//  /// The type of the BGL graph to represent reaction networks
+// using graph_t  = boost::adjacency_list<
+//                    wcs::wcs_out_edge_list_t,
+//                    wcs::wcs_vertex_list_t,
+//                    boost::bidirectionalS,
+//                    wcs::Vertex, // vertex property bundle
+//                    wcs::Edge,   // edge property bundle
+//                    boost::no_property,
+//                    boost::vecS>;
+// /// The type of BGL vertex descriptor for graph_t
+// using v_desc_t = boost::graph_traits<wcs::Network::graph_t>::vertex_descriptor;
+// v_desc_t test;
+double interval = 0.2;
+int seedBase = 137;
+int trust_region = 20000;
+int numReactions = 0;
+int numSpecies = 0;
+const wcs::Network::reaction_list_t* reaction_list;
+const wcs::Network::species_list_t* species_list;
+std::string filename = "";
+// wcs::Network* rnet;
+wcs::Network rnet;
 
 void do_nothing(void *,void *,void *) {}
 
@@ -69,9 +97,9 @@ class RegisterBufferAndOffset {
 tw_lptype Funnellps[] = {
    { (init_f) RegisterBufferAndOffset<Funnel>::init_f,
      (pre_run_f) do_nothing,
-     (event_f) Funnel::forward_event,
-     (revent_f) Funnel::backward_event,
-     (commit_f) Funnel::commit_event,
+     (event_f) Funnel::FORWARD_event,
+     (revent_f) Funnel::BACKWARD_event,
+     (commit_f) Funnel::COMMIT_event,
      (final_f) Funnel::final_lp,
      (map_f) ctr_map,
     //NULL,
@@ -87,9 +115,9 @@ int RegisterBufferAndOffset<Funnel>::offset = 0;
 tw_lptype NRMlps[] = {
    { (init_f) RegisterBufferAndOffset<NextReactionMethodCrucible>::init_f,
      (pre_run_f) do_nothing,
-     (event_f) NextReactionMethodCrucible::forward_event,
-     (revent_f) NextReactionMethodCrucible::backward_event,
-     (commit_f) NextReactionMethodCrucible::commit_event,
+     (event_f) NextReactionMethodCrucible::FORWARD_event,
+     (revent_f) NextReactionMethodCrucible::BACKWARD_event,
+     (commit_f) NextReactionMethodCrucible::COMMIT_event,
      (final_f) NextReactionMethodCrucible::final_lp,
      (map_f) ctr_map,
     //NULL,
@@ -107,9 +135,9 @@ int RegisterBufferAndOffset<NextReactionMethodCrucible>::offset = 0;
 tw_lptype Heartbeatlps[] = {
    { (init_f) RegisterBufferAndOffset<Heartbeat>::init_f,
      (pre_run_f) do_nothing,
-     (event_f) Heartbeat::forward_event,
-     (revent_f) Heartbeat::backward_event,
-     (commit_f) Heartbeat::commit_event,
+     (event_f) Heartbeat::FORWARD_event,
+     (revent_f) Heartbeat::BACKWARD_event,
+     (commit_f) Heartbeat::COMMIT_event,
      (final_f) Heartbeat::final_lp,
      (map_f) ctr_map,
     //NULL,
@@ -141,7 +169,7 @@ enum ReactionEnum {
    Y_2X_TO_3X,
    B_X_TO_Y_D,
    X_TO_E,
-   numReactions
+   numReactionss
 };
 
 enum SpeciesEnum {
@@ -151,13 +179,13 @@ enum SpeciesEnum {
    E_idx,
    X_idx,
    Y_idx,
-   numSpecies
+   numSpeciess
 };
 
 
 
 // FIXME, comment out, every stoic reference has to check the graph
-std::vector<std::unordered_map<SpeciesTag, int>> stoic(numReactions);
+std::vector<std::unordered_map<SpeciesTag, int>> stoic(numReactionss);
 
 
 //FIXME, all of these functions are linked in with dlsym trick
@@ -193,8 +221,9 @@ void print_usage(const std::string exec, int code)
 {
   std::cerr <<
     "Usage: " << exec << " <filename>.xml\n"
-    "    Run the stochastic simulation algorithm (SSA) on a reaction\n"
-    "    network graph (<filename>.xml).\n"
+    "    Run the simulation using the hybrid simulation mode which combines \n"
+    "    Stochastic differential equations (SDEs) with stochastic simulation \n" 
+    "    algorithm (SSA) on a reaction network graph (<filename>.xml).\n"
     "\n"
     "    OPTIONS:\n"
     "    -h, --help\n"
@@ -226,9 +255,9 @@ int main(int argc, char **argv)
   int c;
   int rc = EXIT_SUCCESS;
   std::string outfile;
-  double interval = 0.2;
-  int seedBase = 137;
-  int trust_region = 20000;
+  // double interval = 0.2;
+  // int seedBase = 137;
+  // int trust_region = 20000;
   while ((c = getopt_long(argc, argv, OPTIONS, longopts, NULL)) != -1) {
     switch (c) {
       case 'h': /* --help */
@@ -252,15 +281,22 @@ int main(int argc, char **argv)
     print_usage (argv[0], 1);
   }
   std::string fn(argv[optind]);
-  std::shared_ptr<wcs::Network> rnet_ptr = std::make_shared<wcs::Network>();
-  wcs::Network& rnet = *rnet_ptr;
+  filename = fn;
+  // std::shared_ptr<wcs::Network> rnet_ptr = std::make_shared<wcs::Network>();
+  // wcs::Network& rnet = *rnet_ptr;
+  // wcs::Network rnet; 
   rnet.load(fn);
   rnet.init();
   const wcs::Network::graph_t& g = rnet.graph();
 
 
   //FIXME, needs to come from graph => DONE
-  int numReactions = rnet.reaction_list().size();
+
+  reaction_list = &rnet.reaction_list();
+  species_list = &rnet.species_list();  
+  numReactions = reaction_list->size();
+  numSpecies = species_list->size();
+  std::cout << "numSpecies: " << numSpecies << std::endl;
    
   //printf("Calling tw_init\n");
   tw_init(&argc, &argv);
@@ -328,11 +364,11 @@ void post_lpinit_setup(tw_pe* pe) {
 
 
   //FIXME, output interval comes from options?
-  double interval = 0.2;
+  // double interval = 0.2;
   heartbeats[0]->setInterval(interval);
 
   //FIXME, seed comes from options
-  int seedBase = 137;
+  // int seedBase = 137;
   for (int ireaction=0; ireaction<numReactions; ireaction++) {
     crucibles[ireaction]->setTag(ireaction);
     crucibles[ireaction]->setSeed(seedBase+ireaction);
@@ -345,17 +381,68 @@ void post_lpinit_setup(tw_pe* pe) {
   //FIXME, inititial values are looked up in graph
   //setup initial conditions
   SpeciesValue initial_value[numSpecies];
-  initial_value[A_idx] = 301*factor;
-  initial_value[B_idx] = 1806*factor;
-  initial_value[D_idx] = 0*factor;
-  initial_value[E_idx] = 0*factor;
-  initial_value[X_idx] = 1806*factor;
-  initial_value[Y_idx] = 1806*factor;
+  // initial_value[A_idx] = 301*factor;
+  // initial_value[B_idx] = 1806*factor;
+  // initial_value[D_idx] = 0*factor;
+  // initial_value[E_idx] = 0*factor;
+  // initial_value[X_idx] = 1806*factor;
+  // initial_value[Y_idx] = 1806*factor;
 
+  
+  const wcs::Network::graph_t& g = rnet.graph();
+  int i = 0;
+  for (const auto& sd : rnet.species_list()) {
+    const auto& sv = g[sd]; // vertex (property) of the species
+    const auto& sp = sv.property<wcs::Species>(); // detailed vertex property data
+    // std::cout << g[sd].get_label() << sp.get_count() << std::endl;
+    initial_value[i] = sp.get_count(); 
+    i++;
+  }
+  for (size_t i=0; i< numSpecies; i++) {
+    std::cout << initial_value[i] << std::endl; 
+  } 
+
+  const wcs::Network::species_list_t& species_list = rnet.species_list(); 
+  const wcs::Network::reaction_list_t& reaction_list = rnet.reaction_list(); 
+  for (const auto& sd : rnet.reaction_list()) {
+    // const auto& rv = g[sd]; // vertex (property) of the reaction
+    // const auto& rp = rv.property<r_prop_t>(); // detailed vertex property data
+    const auto& rv = g[sd]; // vertex (property) of the reaction
+    std::cout << rv.get_label() << std::endl;
+  }
   //FIXME, numerical parameter, comes from options
-  int trust_region = 20000;
+  // int trust_region = 20000;
+  
+  for (size_t i = 0u; i < reaction_list.size(); ++i) {
+    std::cout << "reaction" << i << std::endl; 
+    const auto& vd = reaction_list[i];
+    // funnels[i]->_rateFunction = vd.ReactionBase::get_calc_rate_fn();
+    // reactant species
+    std::cout << "reactants  " << std::endl;
+    for (const auto ei_in : boost::make_iterator_range(boost::in_edges(vd, g))) {
+      const auto vd_reactant = boost::source(ei_in, g);
+      const auto& sv_reactant = g[vd_reactant];
 
+      const auto& sp_reactant = sv_reactant.property<wcs::Species>();
+      const auto stoichio = g[ei_in].get_stoichiometry_ratio();
+      // if (!species_list.get(sv_reactant.get_label())->getConstant()) {
+      std::cout << sv_reactant.get_label() << stoichio << std::endl; 
+      // funnels[i]->addSpecies(sv_reactant.get_label(), sp_reactant.get_count(), trust_region); 
+      // }  
+    }
+    std::cout << "products  " << std::endl;
+    // product species
+    for (const auto ei_out : boost::make_iterator_range(boost::out_edges(vd, g))) {
+      const auto vd_product = boost::target(ei_out, g);
+      const auto& sv_product = g[vd_product];
 
+      const auto& sp_product = sv_product.property<wcs::Species>();
+      const auto stoichio = g[ei_out].get_stoichiometry_ratio();
+      std::cout <<  sv_product.get_label() << stoichio << std::endl;
+      // funnels[i]->addSpecies(sv_product.get_label(), sp_product.get_count(), trust_region); 
+    }
+  }
+   
   //FIXME, run addSpecies for each dep species, add the rate function.
   
   //stoic[A_TO_X][A_idx] = -1;

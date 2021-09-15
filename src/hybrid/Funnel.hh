@@ -1,33 +1,27 @@
 #pragma once
 
 #include "actor.hh"
-// #include "../reaction_network/network.hpp"
+#include "reaction_network/network.hpp"
 // #include "utils/graph_factory.hpp"
 // #include <boost/graph/graphml.hpp>
 #include <iostream>
 #include <random>
 #include <functional>
+#include "wcs_types.hpp"
 
 #define MAX_TIME 100 //FIXME!
 
-// using graph_t  = boost::adjacency_list<boost::listS,
-//                                         boost::listS,
-//                                         boost::directedS>;
-/// The type of BGL vertex descriptor for graph_t
-// using v_desc_t = boost::graph_traits<graph_t>::vertex_descriptor;
-// using v_desc_t = boost::graph_traits<wcs::Network::graph_t>::vertex_descriptor;
-
-
-typedef std::size_t SpeciesTag;
+// typedef std::size_t SpeciesTag;
+typedef wcs::Network::v_desc_t SpeciesTag;
 typedef std::size_t ReactionTag;
-typedef double Real;
+// typedef wcs::Network::v_desc_t ReactionTag;
+typedef wcs::reaction_rate_t  Real;  // replace double with reaction_rate_t 
 typedef std::size_t SpeciesValue;
 
-// typedef reaction_rate_t ( * rate_function_pointer)(const std::vector<reaction_rate_t>&);
-// typedef std::function<reaction_rate_t (const std::vector<reaction_rate_t>&)> RateFunction;
 
-// typedef std::function<reaction_rate_t(const std::vector<reaction_rate_t>&)> f_rate 
-typedef Real (*RateFunction)(const std::vector<SpeciesValue>& species);
+typedef std::function<wcs::reaction_rate_t (const std::vector<wcs::reaction_rate_t>&)> RateFunction;
+
+// typedef Real (*RateFunction)(const std::vector<SpeciesValue>& species);
 
 struct NoopMsg {
 };
@@ -200,12 +194,12 @@ class Funnel : public LP<Funnel> {
    void BACKWARD(changedRate)(Time tnow, FunnelRateExchangeMsg& msg, tw_bf*) {
    }
    void COMMIT(changedRate)(Time tnow, FunnelRateExchangeMsg& msg, tw_bf*) {
-      //std::cout << tnow << ": Changed rate for " << msg.reaction << "->"
+      // std::cout << tnow << ": Changed rate for " << msg.reaction << "->"
       //          << _rxntag << ": "
       //          << (msg.nrmMode ? "NRM " : "SDE ") 
       //          << msg.rate << " "
       //          << msg.normalContrib << std::endl;
-      //printSpecies(tnow);
+      printSpecies(tnow);
    }
    template<typename Checkpointer>
    void CHECKPOINT(changedRate)(Checkpointer& ar, Time tnow, FunnelRateExchangeMsg& msg, tw_bf*) {
@@ -256,7 +250,7 @@ class Funnel : public LP<Funnel> {
    SIGNAL(updateRateFunnel, FunnelRateExchangeMsg);
    SIGNAL(updateModeFunnel, SwitchModeMsg);
 
-   void addSpecies(int tag, SpeciesValue initialValue, int trustRegion) {
+   void addSpecies(SpeciesTag tag, SpeciesValue initialValue, int trustRegion) {
       int oldSize = _indexFromSpecTag.size();
       _indexFromSpecTag[tag] = oldSize;
       _tagFromSpecIndex.push_back(tag);
@@ -267,7 +261,7 @@ class Funnel : public LP<Funnel> {
       _trustRegion.push_back(trustRegion);
    }
 
-   void setTag(int tag) {
+   void setTag(ReactionTag tag) {
       _rxntag = tag;
    }
 
@@ -310,17 +304,33 @@ class Funnel : public LP<Funnel> {
    }
 
    void printSpecies(Time tnow) {
-      std::cout << tnow << ": "
-                << "Reaction " << _rxntag << ": (wakeup " << _wakeupTime << ") (nrm=" << _rxnNrmMode[_thisrxnindex] << " rate=" << _rxnRate[_thisrxnindex] << ")" ;
-      for (std::size_t ii=0; ii<_tagFromSpecIndex.size(); ii++) {
-         std::cout << " {" << _tagFromSpecIndex[ii] << ": "
-                   << "(" << _lowerBound[ii] << "<"
-                   << _species[ii]
-                   << "<" << _upperBound[ii] << ") "
-                   << _speciesRate[ii]
-                   << "}";
+      // std::cout << tnow << ": "
+      //           << "Reaction " << _rxntag << ": (wakeup " << _wakeupTime << ") (nrm=" << _rxnNrmMode[_thisrxnindex] << " rate=" << _rxnRate[_thisrxnindex] << ")" ;
+      // for (std::size_t ii=0; ii<_tagFromSpecIndex.size(); ii++) {
+      //    std::cout << " {" << _tagFromSpecIndex[ii] << ": "
+      //              << "(" << _lowerBound[ii] << "<"
+      //              << _species[ii]
+      //              << "<" << _upperBound[ii] << ") "
+      //              << _speciesRate[ii]
+      //              << "}";
+      // }
+      // std::cout << std::endl;
+      int both_species = 0;
+      for (int ii=0; ii<_tagFromSpecIndex.size(); ii++) {
+         if (_tagFromSpecIndex[ii] == 2 || _tagFromSpecIndex[ii] == 4){
+            both_species = both_species +1;
+         }
       }
-      std::cout << std::endl;
+      if (both_species == 2 ) {
+         std::cout << tnow << " ";
+         for (int ii=0; ii<_tagFromSpecIndex.size(); ii++) {
+            if (_tagFromSpecIndex[ii] == 2 || _tagFromSpecIndex[ii] == 4){
+               std::cout << _tagFromSpecIndex[ii] << ": " << _species[ii] << " ";	
+            }
+         }
+         std::cout << std::endl;
+      }
+
    }
    
  public:
@@ -335,7 +345,7 @@ class Funnel : public LP<Funnel> {
  private:
    std::unordered_map<SpeciesTag, int> _indexFromSpecTag; // internal index from tag
    std::vector<SpeciesTag> _tagFromSpecIndex; // tag from internal index
-   std::vector<SpeciesValue> _species; //species counts
+   std::vector<Real> _species; //species counts
    std::vector<Real> _speciesRate; //first derivative of the species
    std::vector<Real> _lowerBound; // lb of the tau independence region
    std::vector<Real> _upperBound; // ub of the tau independence region
@@ -369,7 +379,7 @@ class Funnel : public LP<Funnel> {
       //compute gradient
       std::vector<Real> gradient(_species.size());
       for (unsigned int ii=0; ii<_species.size(); ii++) {
-         std::vector<SpeciesValue> modSpecies(_species);
+         std::vector<Real> modSpecies(_species);
          modSpecies[ii]++;
          Real gradRate = _rateFunction(modSpecies);
          gradient[ii] = gradRate-newRate;

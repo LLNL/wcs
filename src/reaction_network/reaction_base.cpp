@@ -125,6 +125,14 @@ void ReactionBase::set_calc_rate_fn(
   m_calc_rate = calc_rate;
 }
 
+const std::function<
+    reaction_rate_t (const std::vector<reaction_rate_t>&)
+  >& ReactionBase::get_calc_rate_fn() const
+{
+  return m_calc_rate;
+}
+
+
 reaction_rate_t ReactionBase::calc_rate(std::vector<reaction_rate_t>&& params)
 {
   params.push_back(m_rate_const);

@@ -49,6 +49,10 @@ class ReactionBase : public VertexPropertyBase {
   void set_calc_rate_fn(const std::function<
                           reaction_rate_t (const std::vector<reaction_rate_t>&)
                         >& calc_rate);
+  const std::function<
+    reaction_rate_t (const std::vector<reaction_rate_t>&)
+  >& get_calc_rate_fn() const;
+
   /// Overwrite the reaction rate to a given value
   void set_rate(const reaction_rate_t rate);
   reaction_rate_t get_rate() const;

@@ -301,32 +301,32 @@ class Funnel : public LP<Funnel> {
    }
 
    void printSpecies(Time tnow) {
-      // std::cout << tnow << ": "
-      //           << "Reaction " << _rxntag << ": (wakeup " << _wakeupTime << ") (nrm=" << _rxnNrmMode[_thisrxnindex] << " rate=" << _rxnRate[_thisrxnindex] << ")" ;
-      // for (std::size_t ii=0; ii<_tagFromSpecIndex.size(); ii++) {
-      //    std::cout << " {" << _tagFromSpecIndex[ii] << ": "
-      //              << "(" << _lowerBound[ii] << "<"
-      //              << _species[ii]
-      //              << "<" << _upperBound[ii] << ") "
-      //              << _speciesRate[ii]
-      //              << "}";
+      std::cout << tnow << ": "
+                << "Reaction " << _rxntag << ": (wakeup " << _wakeupTime << ") (nrm=" << _rxnNrmMode[_thisrxnindex] << " rate=" << _rxnRate[_thisrxnindex] << ")" ;
+      for (std::size_t ii=0; ii<_tagFromSpecIndex.size(); ii++) {
+         std::cout << " {" << _tagFromSpecIndex[ii] << ": "
+                   << "(" << _lowerBound[ii] << "<"
+                   << _species[ii]
+                   << "<" << _upperBound[ii] << ") "
+                   << _speciesRate[ii]
+                   << "}";
+      }
+      std::cout << std::endl;
+      // int both_species = 0;
+      // for (int ii=0; ii<_tagFromSpecIndex.size(); ii++) {
+      //    if (_tagFromSpecIndex[ii] == 2 || _tagFromSpecIndex[ii] == 4){
+      //       both_species = both_species +1;
+      //    }
       // }
-      // std::cout << std::endl;
-      int both_species = 0;
-      for (int ii=0; ii<_tagFromSpecIndex.size(); ii++) {
-         if (_tagFromSpecIndex[ii] == 2 || _tagFromSpecIndex[ii] == 4){
-            both_species = both_species +1;
-         }
-      }
-      if (both_species == 2 ) {
-         std::cout << tnow << " ";
-         for (int ii=0; ii<_tagFromSpecIndex.size(); ii++) {
-            if (_tagFromSpecIndex[ii] == 2 || _tagFromSpecIndex[ii] == 4){
-               std::cout << _tagFromSpecIndex[ii] << ": " << _species[ii] << " ";	
-            }
-         }
-         std::cout << std::endl;
-      }
+      // if (both_species == 2 ) {
+      //    std::cout << tnow << " ";
+      //    for (int ii=0; ii<_tagFromSpecIndex.size(); ii++) {
+      //       if (_tagFromSpecIndex[ii] == 2 || _tagFromSpecIndex[ii] == 4){
+      //          std::cout << _tagFromSpecIndex[ii] << ": " << _species[ii] << " ";	
+      //       }
+      //    }
+      //    std::cout << std::endl;
+      // }
 
    }
    

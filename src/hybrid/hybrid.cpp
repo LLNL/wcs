@@ -174,8 +174,11 @@ void print_usage(const std::string exec, int code)
     "    -s, --seedbase\n"
     "            Specify the seed for random number generator\n"
     "\n"
-    "    -t, --trust_region\n"
+    "    -r, --trust_region\n"
     "            Specify the trust region\n"
+    "\n"
+    "    -t, --simulation_time\n"
+    "            Specify the simulation time\n"
     "\n";
   exit(code);
 }

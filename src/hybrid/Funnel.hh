@@ -11,17 +11,14 @@
 
 #define MAX_TIME 100 //FIXME!
 
-// typedef std::size_t SpeciesTag;
 typedef wcs::Network::v_desc_t SpeciesTag;
 typedef std::size_t ReactionTag;
-// typedef wcs::Network::v_desc_t ReactionTag;
-typedef wcs::reaction_rate_t  Real;  // replace double with reaction_rate_t 
+typedef wcs::reaction_rate_t  Real;
 typedef std::size_t SpeciesValue;
 
 
 typedef std::function<wcs::reaction_rate_t (const std::vector<wcs::reaction_rate_t>&)> RateFunction;
 
-// typedef Real (*RateFunction)(const std::vector<SpeciesValue>& species);
 
 struct NoopMsg {
 };

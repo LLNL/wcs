@@ -21,7 +21,6 @@
 #include <iostream>
 #include <vector>
 #include <getopt.h>
-// #include "bgl.hpp"
 #include "utils/write_graphviz.hpp"
 #include "utils/timer.hpp"
 #include "utils/to_string.hpp"
@@ -46,7 +45,6 @@ static const struct option longopts[] = {
 using r_prop_t = wcs::Network::r_prop_t;
 // /// The type of BGL vertex descriptor for graph_t
 using v_desc_t = boost::graph_traits<wcs::Network::graph_t>::vertex_descriptor;
-// v_desc_t test;
 double interval = 0.2;
 int seedBase = 137;
 int trust_region = 20000;
@@ -57,7 +55,6 @@ const wcs::Network::reaction_list_t* reaction_list;
 const wcs::Network::species_list_t* species_list;
 const LIBSBML_CPP_NAMESPACE::Model* model;
 std::string filename = "";
-// wcs::Network* rnet;
 wcs::Network rnet;
 
 void do_nothing(void *,void *,void *) {}
@@ -156,61 +153,7 @@ tw_petype MyPEType = {
 };
 
 
-
-// //FIXME, use graph ids
-// enum ReactionEnum {
-//    A_TO_X,
-//    Y_2X_TO_3X,
-//    B_X_TO_Y_D,
-//    X_TO_E,
-//    numReactionss
-// };
-
-// enum SpeciesEnum {
-//    A_idx,
-//    B_idx,
-//    D_idx,
-//    E_idx,
-//    X_idx,
-//    Y_idx,
-//    numSpeciess
-// };
-
-
-
-// FIXME, comment out, every stoic reference has to check the graph
-// std::vector<std::unordered_map<SpeciesTag, int>> stoic(numReactionss);
 std::vector<std::unordered_map<SpeciesTag, int>> stoic;
-
-
-
-//FIXME, all of these functions are linked in with dlsym trick
-
-// int factor = 200;
-// Real k_A_TO_X = 1;
-// Real k_Y_2X_TO_3X = 2.7574E-06/factor/factor;
-// Real k_B_X_TO_Y_D = 0.001660538/factor;
-// Real k_X_TO_E = 1;
-
-// Real function_A_TO_X(const std::vector<SpeciesValue>& species) {
-//    // for (auto specie : species){
-//    //    std::cout << specie << std::endl;
-//    // }
-//    return k_A_TO_X*species[0];
-    
-// }
-
-// Real function_Y_2X_TO_3X(const std::vector<SpeciesValue>& species) {
-//    return k_Y_2X_TO_3X*species[0]*species[0]*species[1];
-// }
-
-// Real function_B_X_TO_Y_D(const std::vector<SpeciesValue>& species) {
-//    return k_B_X_TO_Y_D*species[0]*species[1];
-// }
-
-// Real function_X_TO_E(const std::vector<SpeciesValue>& species) {
-//    return k_X_TO_E*species[0];
-// }
 
 
 void print_usage(const std::string exec, int code)
@@ -251,9 +194,6 @@ int main(int argc, char **argv)
   int c;
   int rc = EXIT_SUCCESS;
   std::string outfile;
-  // double interval = 0.2;
-  // int seedBase = 137;
-  // int trust_region = 20000;
   while ((c = getopt_long(argc, argv, OPTIONS, longopts, NULL)) != -1) {
     switch (c) {
       case 'h': /* --help */
@@ -281,9 +221,6 @@ int main(int argc, char **argv)
   }
   std::string fn(argv[optind]);
   filename = fn;
-  // std::shared_ptr<wcs::Network> rnet_ptr = std::make_shared<wcs::Network>();
-  // wcs::Network& rnet = *rnet_ptr;
-  // wcs::Network rnet; 
   rnet.load(fn);
   rnet.init();
   const wcs::Network::graph_t& g = rnet.graph();
@@ -301,8 +238,6 @@ int main(int argc, char **argv)
   species_list = &rnet.species_list();  
   numReactions = reaction_list->size();
   numSpecies = species_list->size();
-  // std::vector<std::unordered_map<SpeciesTag, int>> stoic(numReactions);
-  // std::cout << "numSpecies: " << numSpecies << std::endl;
    
   //printf("Calling tw_init\n");
   tw_init(&argc, &argv);
@@ -327,7 +262,6 @@ int main(int argc, char **argv)
   tw_lp_settype(2*numReactions, &Heartbeatlps[0]);
 
   tw_pe_settype(&MyPEType);
-  // std::cout << "sampling end: " << g_st_sampling_end <<std::endl;
   g_st_sampling_end = simulation_time; 
   if (g_st_sampling_end > 0) {
     g_tw_ts_end = g_st_sampling_end; // default 100000
@@ -370,12 +304,8 @@ void post_lpinit_setup(tw_pe* pe) {
   Heartbeat** heartbeats = RegisterBufferAndOffset<Heartbeat>::getBuffer();
 
 
-  //FIXME, output interval comes from options?
-  // double interval = 0.2;
   heartbeats[0]->setInterval(interval);
 
-  //FIXME, seed comes from options
-  // int seedBase = 137;
   for (int ireaction=0; ireaction<numReactions; ireaction++) {
     crucibles[ireaction]->setTag(ireaction);
     crucibles[ireaction]->setSeed(seedBase+ireaction);
@@ -385,29 +315,7 @@ void post_lpinit_setup(tw_pe* pe) {
   }
 
 
-  //FIXME, inititial values are looked up in graph
-  //setup initial conditions
-  // SpeciesValue initial_value[numSpecies];
-  // initial_value[A_idx] = 301*factor;
-  // initial_value[B_idx] = 1806*factor;
-  // initial_value[D_idx] = 0*factor;
-  // initial_value[E_idx] = 0*factor;
-  // initial_value[X_idx] = 1806*factor;
-  // initial_value[Y_idx] = 1806*factor;
-
-  
   const wcs::Network::graph_t& g = rnet.graph();
-  // int i = 0;
-  // for (const auto& sd : rnet.species_list()) {
-  //   const auto& sv = g[sd]; // vertex (property) of the species
-  //   const auto& sp = sv.property<wcs::Species>(); // detailed vertex property data
-  //   std::cout << g[sd].get_label() << ": " << sp.get_count() << std::endl;
-  //   initial_value[i] = sp.get_count(); 
-  //   i++;
-  // }
-  // for (size_t i=0; i< numSpecies; i++) {
-  //   std::cout << initial_value[i] << std::endl; 
-  // } 
 
   const wcs::Network::species_list_t& species_list = rnet.species_list(); 
   const wcs::Network::reaction_list_t& reaction_list = rnet.reaction_list(); 
@@ -416,28 +324,6 @@ void post_lpinit_setup(tw_pe* pe) {
   const LIBSBML_CPP_NAMESPACE::ListOfSpecies* model_species
     = model->getListOfSpecies();
 
-  // for (size_t ireaction = 0u; ireaction < reaction_list.size(); ++ireaction) {
-  //   const auto& vd = reaction_list[ireaction];
-  //   std::cout << "Reaction" << ireaction <<  ": " << vd << std::endl;  
-  // } 
-
-  // for (size_t ireaction = 0u; ireaction < reaction_list.size(); ++ireaction) {
-  //   const auto& vd = reaction_list[ireaction];
-  //   crucibles[vd]->setTag(vd);
-  //   crucibles[vd]->setSeed(seedBase+vd);
-
-  //   funnels[vd]->setTag(vd);
-  //   funnels[vd]->setSeed(seedBase+numReactions+vd);
-  // } 
-
-  // for (const auto& sd : rnet.reaction_list()) {
-  //   const auto& rv = g[sd]; // vertex (property) of the reaction
-  //   const auto& rp = rv.property<r_prop_t>(); // detailed vertex property data
-  //   // funnels[0]->_rateFunction = rp.ReactionBase::get_calc_rate_fn();
-  //   std::cout << rv.get_label() << std::endl;
-  // }
-  //FIXME, numerical parameter, comes from options
-  // int trust_region = 20000;
   
   for (size_t i = 0u; i < reaction_list.size(); ++i) {
     // std::cout << "reaction" << i << std::endl; 
@@ -460,45 +346,13 @@ void post_lpinit_setup(tw_pe* pe) {
 
       const auto& sp_reactant = sv_reactant.property<wcs::Species>();
       const auto stoichio = g[ei_in].get_stoichiometry_ratio();
-      // Include only reactants without modifiers
+      // Include only reactants without the constant reactants/modifiers which have been converted into modifiers
       if (reaction_reactants->get(sv_reactant.get_label()) != NULL || reaction_modifiers->get(sv_reactant.get_label()) != NULL) {
-        // std::cout << sv_reactant.get_label() << "vd: " << vd_reactant << std::endl;
         funnels[i]->addSpecies(vd_reactant, sp_reactant.get_count(), trust_region);
-        // std::cout << sv_reactant.get_label() << stoichio << " " << sp_reactant.get_count() << std::endl;  
       }
     }
   }
    
-  //FIXME, run addSpecies for each dep species, add the rate function.
-  
-  //stoic[A_TO_X][A_idx] = -1;
-  // stoic[A_TO_X][X_idx] = 1;
-  // funnels[A_TO_X]->_rateFunction = &function_A_TO_X;
-  // funnels[A_TO_X]->addSpecies(A_idx, initial_value[A_idx], trust_region);
-  //funnels[A_TO_X]->addSpecies(X_idx, initial_value[X_idx]);
-  
-  // stoic[Y_2X_TO_3X][X_idx] = -2+3;
-  // stoic[Y_2X_TO_3X][Y_idx] = -1;
-  // funnels[Y_2X_TO_3X]->_rateFunction = function_Y_2X_TO_3X;
-  // funnels[Y_2X_TO_3X]->addSpecies(X_idx, initial_value[X_idx], trust_region);
-  // funnels[Y_2X_TO_3X]->addSpecies(Y_idx, initial_value[Y_idx], trust_region);
-
-  //stoic[B_X_TO_Y_D][B_idx] = -1;
-  // stoic[B_X_TO_Y_D][X_idx] = -1;
-  // stoic[B_X_TO_Y_D][Y_idx] = 1;
-  //stoic[B_X_TO_Y_D][D_idx] = 1;
-  // funnels[B_X_TO_Y_D]->_rateFunction = function_B_X_TO_Y_D;
-  // funnels[B_X_TO_Y_D]->addSpecies(B_idx, initial_value[B_idx], trust_region);
-  //funnels[B_X_TO_Y_D]->addSpecies(D_idx, initial_value[D_idx], trust_region);
-  // funnels[B_X_TO_Y_D]->addSpecies(X_idx, initial_value[X_idx], trust_region);
-  //funnels[B_X_TO_Y_D]->addSpecies(Y_idx, initial_value[Y_idx], trust_region);
-
-  // stoic[X_TO_E][X_idx] = -1;
-  //stoic[X_TO_E][E_idx] = 1;
-  // funnels[X_TO_E]->_rateFunction = function_X_TO_E;
-  //funnels[X_TO_E]->addSpecies(E_idx, initial_value[E_idx], trust_region);
-  // funnels[X_TO_E]->addSpecies(X_idx, initial_value[X_idx], trust_region);
-
   //Connect up the funnels to the crucibles they own.
   for( int ii=0; ii<numReactions; ii++) {
     CONNECT(*(funnels[ii]),Funnel::updateRateNRM,
@@ -512,7 +366,6 @@ void post_lpinit_setup(tw_pe* pe) {
 
     const auto& vd = reaction_list[ireaction];
 
-    // std::cout << g[vd].get_label() << std::endl;
     // reactant species
     for (const auto ei_in : boost::make_iterator_range(boost::in_edges(vd, g))) {
       const auto vd_reactant = boost::source(ei_in, g);
@@ -521,7 +374,6 @@ void post_lpinit_setup(tw_pe* pe) {
       const auto stoichio = g[ei_in].get_stoichiometry_ratio();
       // Include only reactants without modifiers
       if (stoichio > 0) {
-        // std::cout << sv_reactant.get_label() << " " << stoichio * -1 << std::endl;  
         dependentSpecies.insert(std::make_pair(vd_reactant, stoichio * -1));
       }
     }
@@ -533,22 +385,11 @@ void post_lpinit_setup(tw_pe* pe) {
       const auto stoichio = g[ei_out].get_stoichiometry_ratio();
       speciesit = dependentSpecies.find(vd_product);
       if (speciesit == dependentSpecies.cend()) {
-        // std::cout << sv_product.get_label() << " " << stoichio << std::endl;  
         dependentSpecies.insert(std::make_pair(vd_product, stoichio)); 
       } else {
         speciesit->second += stoichio;
-        // std::cout << sv_product.get_label() << " " << speciesit->second << std::endl;  
       }
     }
-    // std::unordered_map<SpeciesTag, int> temp = stoic [ireaction];
-    // for (auto tempi : temp) {
-    //   std::cout << tempi.first<< " =  " << tempi.second << std::endl;  
-    // }
-
-    // for (auto tempi : dependentSpecies) {
-    //   std::cout << "--" << tempi.first<< " =  " << tempi.second << std::endl;  
-    // }
-    // stoic [ireaction] = dependentSpecies; 
     stoic.push_back(dependentSpecies);
     for (size_t jreaction = 0u; jreaction < reaction_list.size(); ++jreaction) {
       // const auto& vdj = reaction_list[jreaction];
@@ -566,35 +407,6 @@ void post_lpinit_setup(tw_pe* pe) {
     }
   } 
 
-  //FIXME, use graph instead of bruteforcing all possible connections
-  //connect the reactions to each other.  Do this by scanning the reaction products against
-  //the dependent reactions.
-  //using O(n^2) loop here, fix with proper bipartite graph later.
-  // for (int ireaction=0; ireaction<numReactions; ireaction++)
-  // {
-  //   std::vector<int> speciesForThisRxn;
-  //   std::cout << "ireaction" << ireaction << std::endl; 
-  //   //replace stoic instance, possibly do better than a n^2 loop because we have a graph
-  //   for (auto iter : stoic[ireaction]) {
-  //       speciesForThisRxn.push_back(iter.first);
-  //       std::cout << "iter.first " << iter.first << std::endl; 
-  //   }
-  //   funnels[ireaction]->setupRecvFromReaction(ireaction);
-  //   for (int jreaction=0; jreaction<numReactions; jreaction++)
-  //   {
-  //       for (auto speciesTag : speciesForThisRxn) {
-  //         if (funnels[jreaction]->dependsOnSpecies(speciesTag)) {
-  //             CONNECT(*(crucibles[ireaction]),NextReactionMethodCrucible::fire,
-  //                     *(funnels[jreaction]),Funnel::firedReaction);
-  //             if (ireaction != jreaction) {
-  //               funnels[ireaction]->setupSendToReaction(jreaction, funnels[jreaction]->getID());
-  //               funnels[jreaction]->setupRecvFromReaction(ireaction);
-  //             }
-  //             break;
-  //         }
-  //       }
-  //   }
-  // }
 
   //connect the printing to the heartbeat for output
   CONNECT((*heartbeats[0]),Heartbeat::activate,(*heartbeats[0]),Heartbeat::activated);

@@ -1,0 +1,55 @@
+model simple()
+  compartment defaultc;
+
+  // Species
+  // Replace initialConcentration with ininitalAmount once converted into SBML
+  substanceOnly species L in defaultc;
+  substanceOnly species R in defaultc;
+  substanceOnly species LR in defaultc;
+  substanceOnly species RR in defaultc;
+  substanceOnly species pLR in defaultc;
+
+  // Reactions
+  r1: L + R => LR;  k1*L*R;
+  r2: LR => L + R;  k2*LR
+  r3: 2 R => RR;  k3*R;
+  r4: RR => 2 R;  k4*RR;
+  r5: LR => pLR;    k5*LR;
+  r6: pLR => LR;    k6*pLR
+
+  // Reaction coefficients
+  k1 = 0.2;
+  k1 has rate;
+  k2 = 1.0;
+  k2 has rate;
+  k3 = 1.0;
+  k3 has rate;
+  k4 = 1.0;
+  k4 has rate;
+  k5 = 1.0;
+  k5 has rate;
+  k6 = 1.0;
+  k6 has rate;
+
+  // Compartment initializations
+  defaultc = 1;
+  defaultc has volume;
+
+  // Species initializations
+  L   = 10;
+  L has count;
+  R   = 10;
+  R has count;
+  LR  = 1;
+  LR has count;
+  pLR = 1;
+  pLR has count;
+  RR  = 1;
+  RR has count;
+
+  // Unit definitions
+  unit count = item;
+  unit volume = litre;
+  unit rate = item / second;
+
+end

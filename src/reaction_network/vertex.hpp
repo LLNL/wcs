@@ -181,6 +181,7 @@ const LIBSBML_CPP_NAMESPACE::Species& species, const G& g)
     const LIBSBML_CPP_NAMESPACE::ListOfUnitDefinitions* unit_definition_list
     = model.getListOfUnitDefinitions(); 
     double compartment_size = compartment_list->get(species.getCompartment())->getSize();
+    // Find compartment units
     std::string compartment_unit ;
     if (compartment_list->get(species.getCompartment())->isSetUnits()){
       compartment_unit = compartment_list->get(species.getCompartment())->getUnits();
@@ -191,19 +192,33 @@ const LIBSBML_CPP_NAMESPACE::Species& species, const G& g)
     } else if (compartment_list->get(species.getCompartment())->getSpatialDimensions() == 1) {
       compartment_unit = model.getLengthUnits(); 
     }
-    const LIBSBML_CPP_NAMESPACE::UnitDefinition* unit_definition = unit_definition_list->get(compartment_unit); 
-    const LIBSBML_CPP_NAMESPACE::ListOfUnits* unit_list
-    = unit_definition->getListOfUnits();
-    unsigned int unitsSize = unit_list->size();
+    const LIBSBML_CPP_NAMESPACE::UnitDefinition* unit_definition_comp = unit_definition_list->get(compartment_unit); 
+    const LIBSBML_CPP_NAMESPACE::ListOfUnits* unit_list_comp
+    = unit_definition_comp->getListOfUnits();
+    unsigned int unitsSize_comp = unit_list_comp->size();
     double comp_unit = 1.0;
-    for (unsigned int iu = 0u; iu < unitsSize; iu++) { 
-      const LIBSBML_CPP_NAMESPACE::Unit* unit = unit_list->get(iu);
+    for (unsigned int iu = 0u; iu < unitsSize_comp; iu++) { 
+      const LIBSBML_CPP_NAMESPACE::Unit* unit = unit_list_comp->get(iu);
       comp_unit = comp_unit * pow(unit->getMultiplier()*pow(10,unit->getScale()),unit->getExponent());
-    } 
+    }
+    // Find substance units
+    std::string substance_unit ; 
+    substance_unit = model.getSubstanceUnits();
+    
+    const LIBSBML_CPP_NAMESPACE::UnitDefinition* unit_definition_substance = unit_definition_list->get(substance_unit); 
+    const LIBSBML_CPP_NAMESPACE::ListOfUnits* unit_list_substance
+    = unit_definition_substance->getListOfUnits();
+    unsigned int unitsSize_substance = unit_list_substance->size();
+    double sub_unit = 1.0;
+    for (unsigned int iu = 0u; iu < unitsSize_substance; iu++) { 
+      const LIBSBML_CPP_NAMESPACE::Unit* unit = unit_list_substance->get(iu);
+      sub_unit = sub_unit * pow(unit->getMultiplier()*pow(10,unit->getScale()),unit->getExponent());
+    }
+
     double avog_num = 6.02214e+23; 
     dynamic_cast<Species*>(m_p.get())->
       set_count(static_cast<species_cnt_t>(species.getInitialConcentration() * (6.02214E23 * 
-      compartment_size) *comp_unit)); 
+      compartment_size) * comp_unit * sub_unit)); 
   }
 }
 

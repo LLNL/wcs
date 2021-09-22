@@ -175,7 +175,8 @@ static double count2Concentration_converter (
   const LIBSBML_CPP_NAMESPACE::Model& model,
   const LIBSBML_CPP_NAMESPACE::Species& species,
   std::string& compartment,
-  double& comp_unit)
+  double& comp_unit,
+  double& sub_unit)
 {
   const LIBSBML_CPP_NAMESPACE::ListOfCompartments* compartment_list
    = model.getListOfCompartments();
@@ -196,17 +197,32 @@ static double count2Concentration_converter (
   } else if (compartment_list->get(species.getCompartment())->getSpatialDimensions() == 1) {
     compartment_unit = model.getLengthUnits(); 
   }
-  const LIBSBML_CPP_NAMESPACE::UnitDefinition* unit_definition = unit_definition_list->get(compartment_unit); 
-  const LIBSBML_CPP_NAMESPACE::ListOfUnits* unit_list
-  = unit_definition->getListOfUnits();
-  unsigned int unitsSize = unit_list->size(); 
+  const LIBSBML_CPP_NAMESPACE::UnitDefinition* unit_definition_comp = unit_definition_list->get(compartment_unit); 
+  const LIBSBML_CPP_NAMESPACE::ListOfUnits* unit_list_comp
+  = unit_definition_comp->getListOfUnits();
+  unsigned int unitsSize_comp = unit_list_comp->size(); 
   // double comp_unit = 1.0;
   comp_unit = 1.0;
-  for (unsigned int iu = 0u; iu < unitsSize; iu++) { 
-    const LIBSBML_CPP_NAMESPACE::Unit* unit = unit_list->get(iu);
+  for (unsigned int iu = 0u; iu < unitsSize_comp; iu++) { 
+    const LIBSBML_CPP_NAMESPACE::Unit* unit = unit_list_comp->get(iu);
     comp_unit = comp_unit * pow(unit->getMultiplier()*pow(10,unit->getScale()),unit->getExponent());
-  }  
-  return avog_num * compartment_size * comp_unit; 
+  } 
+
+  // Find substance units
+  std::string substance_unit ; 
+  substance_unit = model.getSubstanceUnits();
+  
+  const LIBSBML_CPP_NAMESPACE::UnitDefinition* unit_definition_substance = unit_definition_list->get(substance_unit); 
+  const LIBSBML_CPP_NAMESPACE::ListOfUnits* unit_list_substance
+  = unit_definition_substance->getListOfUnits();
+  unsigned int unitsSize_substance = unit_list_substance->size();
+  sub_unit = 1.0;
+  for (unsigned int iu = 0u; iu < unitsSize_substance; iu++) { 
+    const LIBSBML_CPP_NAMESPACE::Unit* unit = unit_list_substance->get(iu);
+    sub_unit = sub_unit * pow(unit->getMultiplier()*pow(10,unit->getScale()),unit->getExponent());
+  }
+
+  return avog_num * compartment_size * comp_unit * sub_unit; 
 }
 
 
@@ -1138,6 +1154,9 @@ void generate_cxx_code::print_reaction_rates(
     typename compartment_t::const_iterator rci;
     compartment_t reaction_comp;
     unsigned int num_localparameters = 0u;
+    double model_comp_unit = 1;
+    double model_sub_unit = 1;
+    int model_comp_unit_defined = 0;
     if (model.getLevel() > 2) {
       const LIBSBML_CPP_NAMESPACE::ListOfLocalParameters* local_parameter_list
         = reaction.getKineticLaw()->getListOfLocalParameters();
@@ -1241,8 +1260,18 @@ void generate_cxx_code::print_reaction_rates(
             if (species_list->get(*itf) != NULL) {
               if (species_list->get(*itf)->isSetInitialConcentration()) {
                 double comp_unit;
+                double sub_unit;
                 std::string compart_name; 
-                double convert_factor = count2Concentration_converter(model, *species_list->get(*itf), compart_name, comp_unit);
+                double convert_factor = count2Concentration_converter(model, *species_list->get(*itf), compart_name, comp_unit, sub_unit);
+                if (model_comp_unit_defined == 0) {
+                  model_comp_unit = model_comp_unit * comp_unit;
+                  model_sub_unit = model_sub_unit * sub_unit; 
+                  model_comp_unit_defined = 1;
+                } else {
+                  if (model_comp_unit != comp_unit) {
+                    WCS_THROW("Compartments with different units");
+                  }
+                }
                 // Add values for the compartment in map
                 rci = reaction_comp.find(compart_name) ;
                 if (rci == reaction_comp.end()) {
@@ -1259,8 +1288,18 @@ void generate_cxx_code::print_reaction_rates(
               if (species_list->get(*itf) != NULL) {
                 if (species_list->get(*itf)->isSetInitialConcentration()) {
                   double comp_unit;
+                  double sub_unit;
                   std::string compart_name; 
-                  double convert_factor = count2Concentration_converter(model, *species_list->get(*itf), compart_name, comp_unit);
+                  double convert_factor = count2Concentration_converter(model, *species_list->get(*itf), compart_name, comp_unit, sub_unit);
+                  if (model_comp_unit_defined == 0) {
+                    model_comp_unit = model_comp_unit * comp_unit;
+                    model_sub_unit = model_sub_unit * sub_unit; 
+                    model_comp_unit_defined = 1;
+                  } else {
+                    if (model_comp_unit != comp_unit) {
+                      WCS_THROW("Compartments with different units");
+                    }
+                  }
                   // Add values for the compartment in map
                   rci = reaction_comp.find(compart_name) ;
                   if (rci == reaction_comp.end()) {
@@ -1287,8 +1326,18 @@ void generate_cxx_code::print_reaction_rates(
         if (species_list->get(*it) != NULL) {
           if (species_list->get(*it)->isSetInitialConcentration()) {
             double comp_unit;
+            double sub_unit;
             std::string compart_name; 
-            double convert_factor = count2Concentration_converter(model, *species_list->get(*it), compart_name, comp_unit);
+            double convert_factor = count2Concentration_converter(model, *species_list->get(*it), compart_name, comp_unit, sub_unit);
+            if (model_comp_unit_defined == 0) {
+              model_comp_unit = model_comp_unit * comp_unit;
+              model_sub_unit = model_sub_unit * sub_unit; 
+              model_comp_unit_defined = 1;
+            } else {
+              if (model_comp_unit != comp_unit) {
+                WCS_THROW("Compartments with different units");
+              }
+            }
             // Add values for the compartment in map
             rci = reaction_comp.find(compart_name) ;
             if (rci == reaction_comp.end()) {
@@ -1437,11 +1486,11 @@ void generate_cxx_code::print_reaction_rates(
       genfile << "  return " << reaction.getIdAttribute() << ";\n";
     } else {
       // Calculate the compartment unit for all the compartments
-      double comp_unit = 1.0;
-      for ( auto rci = reaction_comp.begin(); rci != reaction_comp.end(); ++rci ){
-        comp_unit = comp_unit * rci->second; 
-      }
-      genfile << "  return " << reaction.getIdAttribute() << " * " << avog_num << " * " << comp_unit << ";\n"; 
+      // double comp_unit = 1.0;
+      // for ( auto rci = reaction_comp.begin(); rci != reaction_comp.end(); ++rci ){
+      //   comp_unit = comp_unit * rci->second; 
+      // }
+      genfile << "  return " << reaction.getIdAttribute() << " * " << avog_num << " * " << model_comp_unit << " * " << model_sub_unit << ";\n";
     }
     genfile << "}\n\n";
   }

@@ -296,10 +296,34 @@ class Funnel : public LP<Funnel> {
       _lastUpdatedTime = tnow;
 
       //recalculate rate
-      setupFutureEvents(tnow, true);
+      setupFutureEvents(tnow, false);
       printSpecies(tnow);
    }
 
+   FunnelRateExchangeMsg initialRate(Time tnow, bool recompute) {
+
+      FunnelRateExchangeMsg msg;
+      msg.reaction = _rxntag;
+      
+      if (recompute) {
+         msg.rate = recalculateRate(tnow);
+      } else {
+         msg.rate = _rxnRate[_thisrxnindex];
+      }         
+      Real delta_time;
+      getNextMode(msg.rate, delta_time, msg.nrmMode);
+      if (recompute) {
+         std::normal_distribution<> dis(0,1);
+         Real unit_normal_random = dis(_simpleRand);
+         msg.normalContrib = unit_normal_random * std::sqrt(msg.rate);         
+      }
+      return msg;
+   }
+
+   void setInitialRate(FunnelRateExchangeMsg& msg) {
+      updateSavedRates(msg.reaction, msg.nrmMode, msg.rate, msg.normalContrib);
+   }   
+   
    void printSpecies(Time tnow) {
       std::cout << tnow << ": "
                 << "Reaction " << _rxntag << ": (wakeup " << _wakeupTime << ") (nrm=" << _rxnNrmMode[_thisrxnindex] << " rate=" << _rxnRate[_thisrxnindex] << ")" ;

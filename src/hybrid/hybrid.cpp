@@ -327,6 +327,7 @@ void post_lpinit_setup(tw_pe* pe) {
   const LIBSBML_CPP_NAMESPACE::ListOfSpecies* model_species
     = model->getListOfSpecies();
 
+
   
   for (size_t i = 0u; i < reaction_list.size(); ++i) {
     // std::cout << "reaction" << i << std::endl; 
@@ -362,6 +363,8 @@ void post_lpinit_setup(tw_pe* pe) {
             *(crucibles[ii]),NextReactionMethodCrucible::updatedRate);
   }
 
+  std::vector<std::set<int>> reactionConnectivity;
+  
   for (size_t ireaction = 0u; ireaction < reaction_list.size(); ++ireaction) {
     funnels[ireaction]->setupRecvFromReaction(ireaction);
     std::unordered_map<SpeciesTag, wcs::stoic_t> dependentSpecies;
@@ -394,22 +397,24 @@ void post_lpinit_setup(tw_pe* pe) {
       }
     }
     stoic.push_back(dependentSpecies);
+    std::set<int> rxnConnectSet;
     for (size_t jreaction = 0u; jreaction < reaction_list.size(); ++jreaction) {
       // const auto& vdj = reaction_list[jreaction];
       for (auto speciesTag : dependentSpecies) {
         if (funnels[jreaction]->dependsOnSpecies(speciesTag.first)) {
           CONNECT(*(crucibles[ireaction]),NextReactionMethodCrucible::fire,
                   *(funnels[jreaction]),Funnel::firedReaction);
+          rxnConnectSet.insert(jreaction);
           if (ireaction != jreaction) {
             funnels[ireaction]->setupSendToReaction(jreaction, funnels[jreaction]->getID());
             funnels[jreaction]->setupRecvFromReaction(ireaction);
           }
           break;
         }
-      } 
+      }
     }
-  } 
-
+    reactionConnectivity.emplace_back(std::move(rxnConnectSet));
+  }
 
   //connect the printing to the heartbeat for output
   CONNECT((*heartbeats[0]),Heartbeat::activate,(*heartbeats[0]),Heartbeat::activated);
@@ -418,15 +423,30 @@ void post_lpinit_setup(tw_pe* pe) {
             *(funnels[ireaction]),Funnel::printData);
     
   }
+
+  Time tnow = 0;
+  //Setup the initial rates:
+  for (size_t ireaction = 0u; ireaction < reaction_list.size(); ++ireaction) {
+     auto rate = funnels[ireaction]->initialRate(tnow, true);
+    for (auto& jreaction : reactionConnectivity[ireaction]) {
+       funnels[jreaction]->setInitialRate(rate);
+    }
+  } 
+
+  //Setup the initial modes:
+  for (size_t ireaction = 0u; ireaction < reaction_list.size(); ++ireaction) {
+     auto rate = funnels[ireaction]->initialRate(tnow, false);
+    for (auto& jreaction : reactionConnectivity[ireaction]) {
+       funnels[jreaction]->setInitialRate(rate);
+    }
+  }
   
   //setup the initial messages
-  Time tnow = 0;
   for (int ireaction=0; ireaction<numReactions; ireaction++) {
     funnels[ireaction]->beginReactions(tnow);
-
   }
   NoopMsg msg;
-  heartbeats[0]->activate(tnow, msg);
+  //heartbeats[0]->activate(tnow, msg);
 }
 
 

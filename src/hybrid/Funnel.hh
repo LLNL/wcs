@@ -247,7 +247,7 @@ class Funnel : public LP<Funnel> {
    SIGNAL(updateRateFunnel, FunnelRateExchangeMsg);
    SIGNAL(updateModeFunnel, SwitchModeMsg);
 
-   void addSpecies(SpeciesTag tag, SpeciesValue initialValue, int trustRegion) {
+   void addSpecies(SpeciesTag tag, SpeciesValue initialValue, SpeciesValue trustRegion) {
       int oldSize = _indexFromSpecTag.size();
       _indexFromSpecTag[tag] = oldSize;
       _tagFromSpecIndex.push_back(tag);

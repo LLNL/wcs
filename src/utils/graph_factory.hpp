@@ -303,7 +303,6 @@ GraphFactory::convert_to(
     {
       g.m_vertices[vd].m_in_edges.reserve(num_reactants);
     }
-
     // Add reactants species
     for (unsigned int si = 0u; si < num_reactants; si++) {
       const auto &reactant = *(reaction.getReactant(si));
@@ -315,7 +314,8 @@ GraphFactory::convert_to(
       reaction_in_species.insert(s_label);
 
       if (it == smap.cend()) {
-        wcs::Vertex vs(*species_list->get(reactant.getSpecies()), g);
+        wcs::Vertex vs(model, *species_list->get(reactant.getSpecies()), g);
+        //WCS_THROW("TESTT");
         vds = boost::add_vertex(vs, g);
         smap.insert(std::make_pair(s_label,vds));
       } else {
@@ -323,26 +323,37 @@ GraphFactory::convert_to(
       }
 
       std::string e_label = g[vds].get_label() + '|' + g[vd].get_label();
-      eit = emap.find(e_label);
+      if (!species_list->get(reactant.getSpecies())->getConstant()) { //Add as a reactant
+        eit = emap.find(e_label);
 
-      if (eit == emap.cend()) {
+        if (eit == emap.cend()) {
+          const auto ret = boost::add_edge(vds, vd, g);
+
+          if (!ret.second) {
+            WCS_THROW("Please check the reactions in your SBML file");
+            return;
+          }
+          g[ret.first].set_stoichiometry_ratio(reactant.getStoichiometry());
+          g[ret.first].set_label(e_label);
+          emap.insert(std::make_pair(e_label, ret.first));
+        } else {
+          const auto& edge_found = eit->second;
+          stoic_t new_stoich = g[edge_found].get_stoichiometry_ratio()
+                            + reactant.getStoichiometry();
+          g[edge_found].set_stoichiometry_ratio(new_stoich);
+        }
+      } else {  //Add as a modifier
         const auto ret = boost::add_edge(vds, vd, g);
 
         if (!ret.second) {
           WCS_THROW("Please check the reactions in your SBML file");
           return;
         }
-        g[ret.first].set_stoichiometry_ratio(reactant.getStoichiometry());
+        g[ret.first].set_stoichiometry_ratio(0);
         g[ret.first].set_label(e_label);
         emap.insert(std::make_pair(e_label, ret.first));
-      } else {
-        const auto& edge_found = eit->second;
-        stoic_t new_stoich = g[edge_found].get_stoichiometry_ratio()
-                           + reactant.getStoichiometry();
-        g[edge_found].set_stoichiometry_ratio(new_stoich);
-      }
+      }  
     }
-
 
     // Add modifiers species
     for (unsigned int si = 0u; si < num_modifiers; si++) {
@@ -355,7 +366,7 @@ GraphFactory::convert_to(
       reaction_in_species.insert(s_label);
 
       if (it == smap.cend()) {
-        wcs::Vertex vs(*species_list->get(modifier.getSpecies()), g);
+        wcs::Vertex vs(model, *species_list->get(modifier.getSpecies()), g);
         vds = boost::add_vertex(vs, g);
         smap.insert(std::make_pair(s_label,vds));
       } else {
@@ -396,7 +407,7 @@ GraphFactory::convert_to(
       reaction_in_species.insert(s_label);
 
       if (it == smap.cend()) {
-        wcs::Vertex vs(*species_list->get(x), g);
+        wcs::Vertex vs(model, *species_list->get(x), g);
         vds = boost::add_vertex(vs, g);
         smap.insert(std::make_pair(s_label,vds));
       } else {
@@ -434,7 +445,7 @@ GraphFactory::convert_to(
             if (risit == reaction_in_species.cend()) {
               reaction_in_species.insert(x);
               if (it == smap.cend()) {
-                wcs::Vertex vs(*species_list->get(x), g);
+                wcs::Vertex vs(model, *species_list->get(x), g);
                 vds = boost::add_vertex(vs, g);
                 smap.insert(std::make_pair(x,vds));
               } else {
@@ -472,7 +483,7 @@ GraphFactory::convert_to(
             risit = reaction_in_species.find(x);
             if (risit == reaction_in_species.cend()) {
               if (it == smap.cend()) {
-                wcs::Vertex vs(*species_list->get(x), g);
+                wcs::Vertex vs(model, *species_list->get(x), g);
                 vds = boost::add_vertex(vs, g);
                 smap.insert(std::make_pair(x,vds));
               } else {
@@ -506,7 +517,7 @@ GraphFactory::convert_to(
       v_new_desc_t vds;
 
       if (it == smap.cend()) {
-        wcs::Vertex vs(*species_list->get(product.getSpecies()), g);
+        wcs::Vertex vs(model, *species_list->get(product.getSpecies()), g);
         vds = boost::add_vertex(vs, g);
         smap.insert(std::make_pair(s_label,vds));
       } else {
@@ -514,22 +525,35 @@ GraphFactory::convert_to(
       }
 
       std::string e_label = g[vd].get_label() + '|' + g[vds].get_label();
-      eit = emap.find(e_label);
-      if (eit == emap.cend()) {
-        const auto ret = boost::add_edge(vd, vds, g);
+
+      if (!species_list->get(product.getSpecies())->getConstant()) { //Add as a product
+        eit = emap.find(e_label);
+        if (eit == emap.cend()) {
+          const auto ret = boost::add_edge(vd, vds, g);
+
+          if (!ret.second) {
+            WCS_THROW("Please check the reactions in your SBML file");
+            return;
+          }
+          g[ret.first].set_stoichiometry_ratio(product.getStoichiometry());
+          g[ret.first].set_label( g[vd].get_label() + '|' + g[vds].get_label());
+          emap.insert(std::make_pair(e_label, ret.first));
+        } else {
+          const auto& edge_found = eit->second;
+          stoic_t new_stoich = g[edge_found].get_stoichiometry_ratio()
+                            + product.getStoichiometry();
+          g[edge_found].set_stoichiometry_ratio(new_stoich);
+        }
+      } else { //Add as a modifier
+        const auto ret = boost::add_edge(vds, vd, g);
 
         if (!ret.second) {
           WCS_THROW("Please check the reactions in your SBML file");
           return;
         }
-        g[ret.first].set_stoichiometry_ratio(product.getStoichiometry());
-        g[ret.first].set_label( g[vd].get_label() + '|' + g[vds].get_label());
+        g[ret.first].set_stoichiometry_ratio(0);
+        g[ret.first].set_label(e_label);
         emap.insert(std::make_pair(e_label, ret.first));
-      } else {
-        const auto& edge_found = eit->second;
-        stoic_t new_stoich = g[edge_found].get_stoichiometry_ratio()
-                           + product.getStoichiometry();
-        g[edge_found].set_stoichiometry_ratio(new_stoich);
       }
     }
   }

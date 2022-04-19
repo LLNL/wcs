@@ -16,6 +16,7 @@ add_subdirectory(proto)
 add_subdirectory(reaction_network)
 add_subdirectory(sim_methods)
 add_subdirectory(utils)
+add_subdirectory(hybrid)
 
 # Propagate the files up the tree
 set(WCS_HEADERS "${WCS_HEADERS}" "${THIS_DIR_HEADERS}" PARENT_SCOPE)

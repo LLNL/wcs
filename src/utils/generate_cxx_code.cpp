@@ -31,6 +31,7 @@
 #include <regex>
 #include <string>
 #include "wcs_types.hpp"
+#include "FunctionInterfaceForJIT.hpp"
 #include <thread> // std::thread::hardware_concurrency
 
 #if defined(WCS_HAS_SBML)
@@ -170,6 +171,61 @@ generate_cxx_code::get_all_dependencies(
   return dependencies_no_dupl;
 }
 
+static double count2Concentration_converter (
+  const LIBSBML_CPP_NAMESPACE::Model& model,
+  const LIBSBML_CPP_NAMESPACE::Species& species,
+  std::string& compartment,
+  double& comp_unit,
+  double& sub_unit)
+{
+  const LIBSBML_CPP_NAMESPACE::ListOfCompartments* compartment_list
+   = model.getListOfCompartments();
+  const LIBSBML_CPP_NAMESPACE::ListOfUnitDefinitions* unit_definition_list
+   = model.getListOfUnitDefinitions(); 
+  compartment = species.getCompartment();
+  double compartment_size = compartment_list->get(species.getCompartment())->getSize();
+  double avog_num = 6.02214e+23;
+  
+               
+  std::string compartment_unit ;
+  if (compartment_list->get(species.getCompartment())->isSetUnits()){
+    compartment_unit = compartment_list->get(species.getCompartment())->getUnits();
+  } else if (compartment_list->get(species.getCompartment())->getSpatialDimensions() == 3) {
+    compartment_unit = model.getVolumeUnits();
+  } else if (compartment_list->get(species.getCompartment())->getSpatialDimensions() == 2) {
+    compartment_unit = model.getAreaUnits(); 
+  } else if (compartment_list->get(species.getCompartment())->getSpatialDimensions() == 1) {
+    compartment_unit = model.getLengthUnits(); 
+  }
+  const LIBSBML_CPP_NAMESPACE::UnitDefinition* unit_definition_comp = unit_definition_list->get(compartment_unit); 
+  const LIBSBML_CPP_NAMESPACE::ListOfUnits* unit_list_comp
+  = unit_definition_comp->getListOfUnits();
+  unsigned int unitsSize_comp = unit_list_comp->size(); 
+  // double comp_unit = 1.0;
+  comp_unit = 1.0;
+  for (unsigned int iu = 0u; iu < unitsSize_comp; iu++) { 
+    const LIBSBML_CPP_NAMESPACE::Unit* unit = unit_list_comp->get(iu);
+    comp_unit = comp_unit * pow(unit->getMultiplier()*pow(10,unit->getScale()),unit->getExponent());
+  } 
+
+  // Find substance units
+  std::string substance_unit ; 
+  substance_unit = model.getSubstanceUnits();
+  
+  const LIBSBML_CPP_NAMESPACE::UnitDefinition* unit_definition_substance = unit_definition_list->get(substance_unit); 
+  const LIBSBML_CPP_NAMESPACE::ListOfUnits* unit_list_substance
+  = unit_definition_substance->getListOfUnits();
+  unsigned int unitsSize_substance = unit_list_substance->size();
+  sub_unit = 1.0;
+  for (unsigned int iu = 0u; iu < unitsSize_substance; iu++) { 
+    const LIBSBML_CPP_NAMESPACE::Unit* unit = unit_list_substance->get(iu);
+    sub_unit = sub_unit * pow(unit->getMultiplier()*pow(10,unit->getScale()),unit->getExponent());
+  }
+
+  return avog_num * compartment_size * comp_unit * sub_unit; 
+}
+
+
 void
 generate_cxx_code::return_denominators(
   const LIBSBML_CPP_NAMESPACE::ASTNode& formula,
@@ -188,7 +244,8 @@ generate_cxx_code::return_denominators(
       } else {
         if ( std::find(denominators.cbegin(), denominators.cend(),
         SBML_formulaToString(denominator)) == denominators.cend()) {
-          denominators.push_back(SBML_formulaToString(denominator));
+          std::string new_denominator = FunctionInterfaceForJIT::SBML_formulaToString_wcs(denominator);
+          denominators.push_back(new_denominator);
         }
       }
     }
@@ -365,15 +422,36 @@ void generate_cxx_code::find_used_params(
   // Find used parameters in the rates
   for (unsigned int ic = 0u; ic < num_reactions; ic++) {
     const LIBSBML_CPP_NAMESPACE::Reaction& reaction = *(reaction_list->get(ic));
-    const LIBSBML_CPP_NAMESPACE::ListOfLocalParameters* local_parameter_list
-      = reaction.getKineticLaw()->getListOfLocalParameters();
-    unsigned int num_localparameters = local_parameter_list->size();
-    //genfile << "reaction" << reaction.getIdAttribute() <<": ";
+    // const LIBSBML_CPP_NAMESPACE::ListOfLocalParameters* local_parameter_list
+    //   = reaction.getKineticLaw()->getListOfLocalParameters();
+    // unsigned int num_localparameters = local_parameter_list->size();
+    // //genfile << "reaction" << reaction.getIdAttribute() <<": ";
     using reaction_parameters_t = std::unordered_set<std::string>;
     reaction_parameters_t lpset;
-    for (unsigned int pi = 0u; pi < num_localparameters; pi++) {
-      const LIBSBML_CPP_NAMESPACE::LocalParameter* localparameter = local_parameter_list->get(pi);
-      lpset.insert(localparameter->getIdAttribute());
+    // for (unsigned int pi = 0u; pi < num_localparameters; pi++) {
+    //   const LIBSBML_CPP_NAMESPACE::LocalParameter* localparameter = local_parameter_list->get(pi);
+    //   lpset.insert(localparameter->getIdAttribute());
+    // Check SBML level for local parameters
+    if (model.getLevel() > 2) {
+      const LIBSBML_CPP_NAMESPACE::ListOfLocalParameters* local_parameter_list
+        = reaction.getKineticLaw()->getListOfLocalParameters();
+      unsigned int num_localparameters = local_parameter_list->size();
+      //genfile << "reaction" << reaction.getIdAttribute() <<": ";
+      
+      for (unsigned int pi = 0u; pi < num_localparameters; pi++) {
+        const LIBSBML_CPP_NAMESPACE::LocalParameter* localparameter = local_parameter_list->get(pi);
+        lpset.insert(localparameter->getIdAttribute());
+      }
+    } else {
+      const LIBSBML_CPP_NAMESPACE::ListOfParameters* local_parameter_list
+        = reaction.getKineticLaw()->getListOfParameters();
+      unsigned int num_localparameters = local_parameter_list->size();
+      //genfile << "reaction" << reaction.getIdAttribute() <<": ";
+      
+      for (unsigned int pi = 0u; pi < num_localparameters; pi++) {
+        const LIBSBML_CPP_NAMESPACE::Parameter* localparameter = local_parameter_list->get(pi);
+        lpset.insert(localparameter->getIdAttribute());
+      } 
     }
     std::vector<std::string> dependencies_set
       = get_all_dependencies(*reaction.getKineticLaw()->getMath(),
@@ -1068,21 +1146,58 @@ void generate_cxx_code::print_reaction_rates(
   genfile << "#include \"" + header + '"' + "\n\n";
   for (unsigned int ic = rid_start; ic < rid_end; ic++) {
     const LIBSBML_CPP_NAMESPACE::Reaction& reaction = *(reaction_list->get(ic));
-    const LIBSBML_CPP_NAMESPACE::ListOfLocalParameters* local_parameter_list
-      = reaction.getKineticLaw()->getListOfLocalParameters();
-    unsigned int num_localparameters = local_parameter_list->size();
+    // const LIBSBML_CPP_NAMESPACE::ListOfLocalParameters* local_parameter_list
+    //   = reaction.getKineticLaw()->getListOfLocalParameters();
+    // unsigned int num_localparameters = local_parameter_list->size();
+    // a map to keep the compartment and their units
+    using  compartment_t = std::unordered_map <std::string,double>;
+    typename compartment_t::const_iterator rci;
+    compartment_t reaction_comp;
+    unsigned int num_localparameters = 0u;
+    double model_comp_unit = 1;
+    double model_sub_unit = 1;
+    int model_comp_unit_defined = 0;
+    if (model.getLevel() > 2) {
+      const LIBSBML_CPP_NAMESPACE::ListOfLocalParameters* local_parameter_list
+        = reaction.getKineticLaw()->getListOfLocalParameters();
+      num_localparameters = local_parameter_list->size();
+    } else {
+      const LIBSBML_CPP_NAMESPACE::ListOfParameters* local_parameter_list
+        = reaction.getKineticLaw()->getListOfParameters();
+      num_localparameters = local_parameter_list->size(); 
+    }  
 
+    
     genfile << "extern \"C\" " << Real << " wcs__rate_" << reaction.getIdAttribute()
               << "(const std::vector<" << Real <<">& __input) {\n";
-
+              
+    double sum_stoich = 0.0;
     //print reaction's local parameters
     using reaction_local_parameters_t = std::unordered_set<std::string>;
     reaction_local_parameters_t localpset;
-    for (unsigned int pi = 0u; pi < num_localparameters; pi++) {
-      const LIBSBML_CPP_NAMESPACE::LocalParameter* localparameter = local_parameter_list->get(pi);
-      genfile << "  constexpr " << Real << " " << localparameter->getIdAttribute() << " = "
-              << localparameter->getValue() << ";\n";
-      localpset.insert(localparameter->getIdAttribute());
+    // for (unsigned int pi = 0u; pi < num_localparameters; pi++) {
+    //   const LIBSBML_CPP_NAMESPACE::LocalParameter* localparameter = local_parameter_list->get(pi);
+    //   genfile << "  constexpr " << Real << " " << localparameter->getIdAttribute() << " = "
+    //           << localparameter->getValue() << ";\n";
+    //   localpset.insert(localparameter->getIdAttribute());
+    if (model.getLevel() > 2) {
+      const LIBSBML_CPP_NAMESPACE::ListOfLocalParameters* local_parameter_list
+        = reaction.getKineticLaw()->getListOfLocalParameters();
+      for (unsigned int pi = 0u; pi < num_localparameters; pi++) {
+        const LIBSBML_CPP_NAMESPACE::LocalParameter* localparameter = local_parameter_list->get(pi);
+        genfile << "  constexpr " << Real << " " << localparameter->getIdAttribute() << " = "
+               << localparameter->getValue() << ";\n";
+        localpset.insert(localparameter->getIdAttribute());
+      }
+    } else {
+      const LIBSBML_CPP_NAMESPACE::ListOfParameters* local_parameter_list
+        = reaction.getKineticLaw()->getListOfParameters();
+      for (unsigned int pi = 0u; pi < num_localparameters; pi++) {
+        const LIBSBML_CPP_NAMESPACE::Parameter* localparameter = local_parameter_list->get(pi);
+        genfile << "  constexpr " << Real << " " << localparameter->getIdAttribute() << " = "
+               << localparameter->getValue() << ";\n";
+        localpset.insert(localparameter->getIdAttribute());
+      }
     }
     //genfile << "  int __ii=0;\n";
     //genfile << "printf(\"Number of input arguments of %s received : %lu \", \""
@@ -1116,12 +1231,15 @@ void generate_cxx_code::print_reaction_rates(
     for (const auto& x: input_map) {
       var_names_ord[x.second] = x.first;
     }
-
     //print first parameters in formula taking input
     std::vector<std::string>::const_iterator it;
     std::vector<std::string> par_names, par_names_nf;
     all_var_names = var_names;
     int par_index = 0;
+    const ListOfSpecies* species_list = model.getListOfSpecies();
+    double avog_num = 6.02214e+23;
+    bool concentration_used = false;
+
     for (it = var_names_ord.cbegin(); it < var_names_ord.cend(); it++){
       rrdit = rate_rules_dep_map.find(*it);
       evassigit = ev_assign.find(*it);
@@ -1139,10 +1257,58 @@ void generate_cxx_code::print_reaction_rates(
           all_var_names_it = all_var_names.find(*itf);
           if (all_var_names_it == all_var_names.cend()) {
             genfile << "  " << Real << " " << *itf << " = __input[" << par_index++ << "];\n";
+            if (species_list->get(*itf) != NULL) {
+              if (species_list->get(*itf)->isSetInitialConcentration()) {
+                double comp_unit;
+                double sub_unit;
+                std::string compart_name; 
+                double convert_factor = count2Concentration_converter(model, *species_list->get(*itf), compart_name, comp_unit, sub_unit);
+                if (model_comp_unit_defined == 0) {
+                  model_comp_unit = model_comp_unit * comp_unit;
+                  model_sub_unit = model_sub_unit * sub_unit; 
+                  model_comp_unit_defined = 1;
+                } else {
+                  if (model_comp_unit != comp_unit) {
+                    WCS_THROW("Compartments with different units");
+                  }
+                }
+                // Add values for the compartment in map
+                rci = reaction_comp.find(compart_name) ;
+                if (rci == reaction_comp.end()) {
+                  reaction_comp.insert(std::make_pair(compart_name, comp_unit));
+                }
+                genfile << "  " << *itf << " = " <<  *itf << " / " << convert_factor <<  ";\n";
+                concentration_used = true;
+              }
+            }
             var_names.erase(*itf);
           } else {
             if (var_names_it != var_names.cend()) {
               genfile << "  " << Real << " " << *itf << " = __input[" << par_index++ << "];\n";
+              if (species_list->get(*itf) != NULL) {
+                if (species_list->get(*itf)->isSetInitialConcentration()) {
+                  double comp_unit;
+                  double sub_unit;
+                  std::string compart_name; 
+                  double convert_factor = count2Concentration_converter(model, *species_list->get(*itf), compart_name, comp_unit, sub_unit);
+                  if (model_comp_unit_defined == 0) {
+                    model_comp_unit = model_comp_unit * comp_unit;
+                    model_sub_unit = model_sub_unit * sub_unit; 
+                    model_comp_unit_defined = 1;
+                  } else {
+                    if (model_comp_unit != comp_unit) {
+                      WCS_THROW("Compartments with different units");
+                    }
+                  }
+                  // Add values for the compartment in map
+                  rci = reaction_comp.find(compart_name) ;
+                  if (rci == reaction_comp.end()) {
+                    reaction_comp.insert(std::make_pair(compart_name, comp_unit));
+                  }
+                  genfile << "  " << *itf << " = " <<  *itf << " / " << convert_factor <<  ";\n";
+                  concentration_used = true;
+                }
+              }
               var_names.erase(*itf);
             }
           }
@@ -1157,6 +1323,33 @@ void generate_cxx_code::print_reaction_rates(
         genfile << "  wcs_global_var." << *it << " = wcs__rate_" << *it << "(" << function_input << ");\n";
       } else {
         genfile << "  " << Real << " " << *it << " = __input[" << par_index++ << "];\n";
+        if (species_list->get(*it) != NULL) {
+          if (species_list->get(*it)->isSetInitialConcentration()) {
+            double comp_unit;
+            double sub_unit;
+            std::string compart_name; 
+            double convert_factor = count2Concentration_converter(model, *species_list->get(*it), compart_name, comp_unit, sub_unit);
+            if (model_comp_unit_defined == 0) {
+              model_comp_unit = model_comp_unit * comp_unit;
+              model_sub_unit = model_sub_unit * sub_unit; 
+              model_comp_unit_defined = 1;
+            } else {
+              if (model_comp_unit != comp_unit) {
+                WCS_THROW("Compartments with different units");
+              }
+            }
+            // Add values for the compartment in map
+            rci = reaction_comp.find(compart_name) ;
+            if (rci == reaction_comp.end()) {
+              reaction_comp.insert(std::make_pair(compart_name, comp_unit));
+            }
+            genfile << "  " << *it << " = " <<  *it << " / " << convert_factor <<  ";\n";
+            concentration_used = true;
+          }
+        }
+        if (reaction.getReactant(*it) != NULL) {
+          sum_stoich = sum_stoich + reaction.getReactant(*it)->getStoichiometry();
+        }
         par_names.push_back(*it);
       }
       var_names.erase(*it);
@@ -1199,7 +1392,6 @@ void generate_cxx_code::print_reaction_rates(
         par_names_nf.push_back(x);
       }
     }
-
     // put input parameters into maps
     dep_params_f.insert(std::make_pair(reaction.getIdAttribute(),
                                        par_names));
@@ -1232,8 +1424,9 @@ void generate_cxx_code::print_reaction_rates(
     }
     math = *reaction.getKineticLaw()->getMath();
     update_scope_ast_node(math, wcs_all_var, wcs_all_const, localpset);
+    std::string new_math = FunctionInterfaceForJIT::SBML_formulaToString_wcs(&math);
     genfile << "  " << Real << " " << reaction.getIdAttribute() << " = "
-              << SBML_formulaToString( &math)
+              << new_math //SBML_formulaToString( &math)
               << ";\n";
     genfile << "  if (!isfinite(" << reaction.getIdAttribute() << ")) {\n";
     // find denominators of the dependent expressions of the reaction rate formula
@@ -1289,7 +1482,16 @@ void generate_cxx_code::print_reaction_rates(
     genfile << "  }\n";
     //genfile << "  printf(\" Result of %s : %f \", \"" << reaction.getIdAttribute() << "\","
     //        << reaction.getIdAttribute() << ");\n";
-    genfile << "  return " << reaction.getIdAttribute() << ";\n";
+    if (!concentration_used) {
+      genfile << "  return " << reaction.getIdAttribute() << ";\n";
+    } else {
+      // Calculate the compartment unit for all the compartments
+      // double comp_unit = 1.0;
+      // for ( auto rci = reaction_comp.begin(); rci != reaction_comp.end(); ++rci ){
+      //   comp_unit = comp_unit * rci->second; 
+      // }
+      genfile << "  return " << reaction.getIdAttribute() << " * " << avog_num << " * " << model_comp_unit << " * " << model_sub_unit << ";\n";
+    }
     genfile << "}\n\n";
   }
 }
@@ -1674,6 +1876,7 @@ void generate_cxx_code::write_header(
             << "#include <string>\n"
             << "#include <math.h>\n"
             << "#include <iostream>\n"
+            << "#include <algorithm>\n"
             << "#include \"utils/exception.hpp\"\n\n"
             << "//Include the text of the SBML in here.\n"
             << "//Use \"xxd -i\" to get the text as a C symbol.\n"

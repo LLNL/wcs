@@ -615,9 +615,14 @@ if (WCS_HAS_ROSS)
     $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}>
     $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/src>
     $<INSTALL_INTERFACE:${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_INCLUDEDIR}>)
-  target_link_libraries(des-bin PRIVATE ROSS::ROSS MPI::MPI_CXX wcs ${LIB_FILESYSTEM})
+  target_link_libraries(des-bin PRIVATE wcs ROSS::ROSS MPI::MPI_CXX ${LIB_FILESYSTEM})
   set_target_properties(des-bin PROPERTIES OUTPUT_NAME des)
   list(APPEND WCS_EXEC_TARGETS des-bin)
+endif (WCS_HAS_ROSS)
+
+# add executable hybrid
+if (WCS_HAS_ROSS)
+  list(APPEND WCS_EXEC_TARGETS hybrid-bin)
 endif (WCS_HAS_ROSS)
 
 # Build tests
@@ -713,6 +718,7 @@ set(INCLUDE_INSTALL_DIRS
   "${CMAKE_SOURCE_DIR}/src/proto"
   "${CMAKE_SOURCE_DIR}/src/reaction_network"
   "${CMAKE_SOURCE_DIR}/src/sim_methods"
+  "${CMAKE_SOURCE_DIR}/src/hybrid"
   "${CMAKE_SOURCE_DIR}/src/utils")
 set(LIB_INSTALL_DIR "${CMAKE_BINARY_DIR}")
 set(EXTRA_CMAKE_MODULE_DIR "${CMAKE_SOURCE_DIR}/cmake/modules")
@@ -788,10 +794,15 @@ install(
   DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
   FILES_MATCHING PATTERN "*.h" PATTERN "*.hpp")
 install(
+  DIRECTORY "${PROJECT_SOURCE_DIR}/src/hybrid"
+  DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
+  FILES_MATCHING PATTERN "*.h" PATTERN "*.hpp" PATTERN "*.hh")
+install(
   FILES "${PROJECT_BINARY_DIR}/wcs_config.hpp"
         "${PROJECT_SOURCE_DIR}/src/wcs_types.hpp"
         "${PROJECT_SOURCE_DIR}/src/bgl.hpp"
         "${PROJECT_SOURCE_DIR}/src/des.hpp"
+        "${PROJECT_SOURCE_DIR}/src/hybrid/hybrid.hpp"
         "${PROJECT_SOURCE_DIR}/src/wcs-ross-bf.hpp"
   DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}")
 
